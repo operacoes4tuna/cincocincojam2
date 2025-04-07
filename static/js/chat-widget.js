@@ -17,8 +17,34 @@ document.addEventListener('DOMContentLoaded', function() {
     // Variável para armazenar o ID da sessão
     let sessionId = localStorage.getItem('chat_session_id');
     
+    // Função para obter o token CSRF
+    function getCsrfToken() {
+        // Tenta obter o token da tag meta
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        
+        // Se não encontrou na meta tag, tenta obter do cookie
+        if (!csrfToken) {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.startsWith('csrftoken=')) {
+                    return cookie.substring('csrftoken='.length);
+                }
+            }
+        }
+        
+        return csrfToken;
+    }
+    
     // Inicialização
     function init() {
+        // Limpa sessão antiga se solicitado (para debugging)
+        if (window.location.search.includes('clear_chat_session=1')) {
+            console.log("Limpando sessão de chat...");
+            localStorage.removeItem('chat_session_id');
+            sessionId = null;
+        }
+        
         // Configura os eventos
         chatButton.addEventListener('click', openChat);
         chatClose.addEventListener('click', closeChat);
@@ -158,119 +184,172 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Envia a mensagem diretamente
     function sendDirectMessage(message, typingIndicator) {
+        const csrfToken = getCsrfToken();
+        
+        // Usar fetch com FormData
         const formData = new FormData();
         formData.append('session_id', sessionId);
         formData.append('message', message);
         
-        fetch('/assistant/api/message/send/', {
+        // Configurações da requisição
+        const fetchOptions = {
             method: 'POST',
             body: formData,
             headers: {
                 'X-Requested-With': 'XMLHttpRequest'
             }
-        })
-        .then(response => response.json())
-        .then(data => {
-            // Remove o indicador de digitação
-            chatMessages.removeChild(typingIndicator);
-            
-            if (data.success) {
-                // Cria a resposta do bot com suporte a markdown
-                const botMessageElement = document.createElement('div');
-                botMessageElement.className = 'chat-message bot-message';
+        };
+        
+        // Adicionar o token CSRF à requisição se disponível
+        if (csrfToken) {
+            fetchOptions.headers['X-CSRFToken'] = csrfToken;
+        }
+        
+        console.log("Enviando mensagem para sessão:", sessionId);
+        
+        fetch('/assistant/api/message/send/', fetchOptions)
+            .then(response => {
+                if (!response.ok) {
+                    if (response.status === 404) {
+                        console.error("Endpoint não encontrado. Verifique a URL.");
+                        // Se a sessão não for encontrada, tentar criar uma nova
+                        if (sessionId) {
+                            console.log("Tentando criar uma nova sessão...");
+                            localStorage.removeItem('chat_session_id');
+                            sessionId = null;
+                            createNewSession(() => {
+                                sendDirectMessage(message, typingIndicator);
+                            });
+                            return Promise.reject("Sessão não encontrada. Criando nova sessão.");
+                        }
+                    }
+                    return Promise.reject(`Erro HTTP: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Remove o indicador de digitação
+                if (typingIndicator && typingIndicator.parentNode === chatMessages) {
+                    chatMessages.removeChild(typingIndicator);
+                }
                 
-                // Converte markdown em HTML
-                let formattedResponse = data.response;
+                if (data.success) {
+                    // Cria a resposta do bot com suporte a markdown
+                    const botMessageElement = document.createElement('div');
+                    botMessageElement.className = 'chat-message bot-message';
+                    
+                    // Converte markdown em HTML
+                    let formattedResponse = data.response;
+                    
+                    // Formatação básica de markdown
+                    // Títulos
+                    formattedResponse = formattedResponse.replace(/^### (.*$)/gim, '<h3>$1</h3>');
+                    formattedResponse = formattedResponse.replace(/^## (.*$)/gim, '<h2>$1</h2>');
+                    formattedResponse = formattedResponse.replace(/^# (.*$)/gim, '<h1>$1</h1>');
+                    
+                    // Negrito e itálico
+                    formattedResponse = formattedResponse.replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>');
+                    formattedResponse = formattedResponse.replace(/\*(.*?)\*/gim, '<em>$1</em>');
+                    
+                    // Listas
+                    formattedResponse = formattedResponse.replace(/^\d+\. (.*$)/gim, '<ol><li>$1</li></ol>');
+                    formattedResponse = formattedResponse.replace(/^\* (.*$)/gim, '<ul><li>$1</li></ul>');
+                    formattedResponse = formattedResponse.replace(/^- (.*$)/gim, '<ul><li>$1</li></ul>');
+                    
+                    // Citações
+                    formattedResponse = formattedResponse.replace(/^> (.*$)/gim, '<blockquote>$1</blockquote>');
+                    
+                    // Links
+                    formattedResponse = formattedResponse.replace(/\[([^\]]+)\]\(([^)]+)\)/gim, '<a href="$2" target="_blank">$1</a>');
+                    
+                    // Código inline
+                    formattedResponse = formattedResponse.replace(/`([^`]+)`/gim, '<code>$1</code>');
+                    
+                    // Blocos de código
+                    formattedResponse = formattedResponse.replace(/```([\s\S]*?)```/gim, '<pre><code>$1</code></pre>');
+                    
+                    // Parágrafos - substituir quebras de linha por <br>
+                    formattedResponse = formattedResponse.replace(/\n/gim, '<br>');
+                    
+                    botMessageElement.innerHTML = formattedResponse;
+                    chatMessages.appendChild(botMessageElement);
+                    
+                    // Rola para o final
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                }
+            })
+            .catch(error => {
+                console.error('Erro ao enviar mensagem:', error);
                 
-                // Formatação básica de markdown
-                // Títulos
-                formattedResponse = formattedResponse.replace(/^### (.*$)/gim, '<h3>$1</h3>');
-                formattedResponse = formattedResponse.replace(/^## (.*$)/gim, '<h2>$1</h2>');
-                formattedResponse = formattedResponse.replace(/^# (.*$)/gim, '<h1>$1</h1>');
+                // Remove o indicador de digitação se ainda estiver presente
+                if (typingIndicator && typingIndicator.parentNode === chatMessages) {
+                    chatMessages.removeChild(typingIndicator);
+                }
                 
-                // Negrito e itálico
-                formattedResponse = formattedResponse.replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>');
-                formattedResponse = formattedResponse.replace(/\*(.*?)\*/gim, '<em>$1</em>');
-                
-                // Listas
-                formattedResponse = formattedResponse.replace(/^\d+\. (.*$)/gim, '<ol><li>$1</li></ol>');
-                formattedResponse = formattedResponse.replace(/^\* (.*$)/gim, '<ul><li>$1</li></ul>');
-                formattedResponse = formattedResponse.replace(/^- (.*$)/gim, '<ul><li>$1</li></ul>');
-                
-                // Citações
-                formattedResponse = formattedResponse.replace(/^> (.*$)/gim, '<blockquote>$1</blockquote>');
-                
-                // Código
-                formattedResponse = formattedResponse.replace(/`([^`]+)`/gim, '<code>$1</code>');
-                
-                // Links
-                formattedResponse = formattedResponse.replace(/\[([^\]]+)\]\(([^)]+)\)/gim, '<a href="$2">$1</a>');
-                
-                // Quebra de linha
-                formattedResponse = formattedResponse.replace(/\n/gim, '<br>');
-                
-                // Aplica o HTML formatado
-                botMessageElement.innerHTML = formattedResponse;
-                chatMessages.appendChild(botMessageElement);
+                // Adiciona mensagem de erro
+                const errorElement = document.createElement('div');
+                errorElement.className = 'chat-message bot-message error';
+                errorElement.innerHTML = 'Desculpe, ocorreu um erro. Por favor, tente novamente mais tarde.';
+                chatMessages.appendChild(errorElement);
                 
                 // Rola para o final
                 chatMessages.scrollTop = chatMessages.scrollHeight;
-            } else {
-                throw new Error(data.message || 'Erro ao enviar mensagem');
-            }
-        })
-        .catch(error => {
-            console.error('Erro ao enviar mensagem:', error);
-            
-            // Remove o indicador de digitação se ainda existir
-            if (typingIndicator.parentNode) {
-                chatMessages.removeChild(typingIndicator);
-            }
-            
-            // Mostra mensagem de erro
-            const errorElement = document.createElement('div');
-            errorElement.className = 'chat-message bot-message';
-            errorElement.textContent = 'Desculpe, ocorreu um erro. Por favor, tente novamente.';
-            chatMessages.appendChild(errorElement);
-            
-            // Rola para o final
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-        });
+            });
     }
     
     // Função para criar uma nova sessão
     function createNewSession(callback) {
+        const csrfToken = getCsrfToken();
+        
+        // Usar FormData para a requisição
         const formData = new FormData();
         
-        fetch('/assistant/api/session/create/', {
+        // Configurações da requisição
+        const fetchOptions = {
             method: 'POST',
             body: formData,
             headers: {
                 'X-Requested-With': 'XMLHttpRequest'
             }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                sessionId = data.session_id;
-                localStorage.setItem('chat_session_id', sessionId);
-                isInitialized = true;
-                
-                if (typeof callback === 'function') {
-                    callback();
+        };
+        
+        // Adicionar o token CSRF à requisição se disponível
+        if (csrfToken) {
+            fetchOptions.headers['X-CSRFToken'] = csrfToken;
+        }
+        
+        console.log("Criando nova sessão...");
+        
+        fetch('/assistant/api/session/create/', fetchOptions)
+            .then(response => {
+                if (!response.ok) {
+                    console.error(`Erro HTTP: ${response.status}`);
+                    return Promise.reject(`Erro HTTP: ${response.status}`);
                 }
-            }
-        })
-        .catch(error => {
-            console.error('Erro ao criar sessão:', error);
-            
-            // Mostra mensagem de erro
-            chatMessages.innerHTML = '';
-            const errorElement = document.createElement('div');
-            errorElement.className = 'text-center text-danger my-3';
-            errorElement.textContent = 'Não foi possível iniciar o chat. Por favor, tente novamente mais tarde.';
-            chatMessages.appendChild(errorElement);
-        });
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    console.log("Sessão criada com ID:", data.session_id);
+                    sessionId = data.session_id;
+                    localStorage.setItem('chat_session_id', sessionId);
+                    isInitialized = true;
+                    
+                    if (typeof callback === 'function') {
+                        callback();
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Erro ao criar sessão:', error);
+                
+                // Mostra mensagem de erro
+                chatMessages.innerHTML = '';
+                const errorElement = document.createElement('div');
+                errorElement.className = 'text-center text-danger my-3';
+                errorElement.textContent = 'Não foi possível iniciar o chat. Por favor, tente novamente mais tarde.';
+                chatMessages.appendChild(errorElement);
+            });
     }
     
     // Função para carregar o histórico de mensagens
@@ -283,9 +362,28 @@ document.addEventListener('DOMContentLoaded', function() {
             loadingIndicator.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Carregando mensagens...';
             chatMessages.appendChild(loadingIndicator);
         }
+        
+        // Adicionar timestamp para evitar cache
+        const timestamp = Date.now();
+        const url = `/assistant/api/message/history/?session_id=${sessionId}&_=${timestamp}`;
+        
+        console.log("Carregando histórico da sessão:", sessionId);
 
-        fetch(`/assistant/api/message/history/?session_id=${sessionId}`)
-            .then(response => response.json())
+        fetch(url)
+            .then(response => {
+                if (!response.ok) {
+                    if (response.status === 404) {
+                        console.error("Sessão não encontrada ou endpoint inválido");
+                        // Se a sessão não for encontrada, criar uma nova
+                        localStorage.removeItem('chat_session_id');
+                        sessionId = null;
+                        createNewSession();
+                        return Promise.reject("Sessão não encontrada");
+                    }
+                    return Promise.reject(`Erro HTTP: ${response.status}`);
+                }
+                return response.json();
+            })
             .then(data => {
                 if (loadingIndicator && loadingIndicator.parentNode === chatMessages) {
                     chatMessages.removeChild(loadingIndicator);

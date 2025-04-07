@@ -24,18 +24,33 @@ def index(request):
 def create_session(request):
     """API para criar uma nova sessão de chat"""
     if request.method == 'POST':
-        session_id = str(uuid.uuid4())
-        user = request.user if request.user.is_authenticated else None
-        
-        session = ChatSession.objects.create(
-            session_id=session_id,
-            user=user
-        )
-        
-        return JsonResponse({
-            'success': True,
-            'session_id': session_id
-        })
+        try:
+            logger.info("Criando nova sessão de chat")
+            session_id = str(uuid.uuid4())
+            user = request.user if request.user.is_authenticated else None
+            
+            if user:
+                logger.info(f"Sessão sendo criada para usuário autenticado: {user.username}")
+            else:
+                logger.info("Sessão sendo criada para usuário anônimo")
+            
+            session = ChatSession.objects.create(
+                session_id=session_id,
+                user=user
+            )
+            
+            logger.info(f"Sessão criada com sucesso. ID: {session_id}")
+            
+            return JsonResponse({
+                'success': True,
+                'session_id': session_id
+            })
+        except Exception as e:
+            logger.error(f"Erro ao criar sessão: {str(e)}")
+            return JsonResponse({
+                'success': False,
+                'message': f'Erro ao criar sessão: {str(e)}'
+            }, status=500)
     
     return JsonResponse({
         'success': False,
@@ -50,14 +65,19 @@ def send_message(request):
             # Verifica o formato da requisição e obtém os dados
             if request.content_type and 'application/json' in request.content_type:
                 data = json.loads(request.body)
+                logger.info("Requisição recebida em formato JSON")
             else:
                 # Obtém dados do formulário
                 data = request.POST
+                logger.info("Requisição recebida em formato de formulário")
             
             session_id = data.get('session_id')
             message_content = data.get('message')
             
+            logger.info(f"Requisição para enviar mensagem. Session ID: {session_id}")
+            
             if not session_id or not message_content:
+                logger.warning(f"Parâmetros inválidos. Session ID: {session_id}, Message: {'presente' if message_content else 'ausente'}")
                 return JsonResponse({
                     'success': False,
                     'message': 'Parâmetros inválidos'
@@ -65,7 +85,9 @@ def send_message(request):
             
             try:
                 chat_session = ChatSession.objects.get(session_id=session_id, is_active=True)
+                logger.info(f"Sessão encontrada: {chat_session.id}")
             except ChatSession.DoesNotExist:
+                logger.warning(f"Sessão não encontrada: {session_id}")
                 return JsonResponse({
                     'success': False,
                     'message': 'Sessão não encontrada'
@@ -77,9 +99,11 @@ def send_message(request):
                 sender='user',
                 content=message_content
             )
+            logger.info(f"Mensagem do usuário criada: {user_message.id}")
             
             # Busca o histórico de mensagens da sessão
             message_history = Message.objects.filter(chat_session=chat_session).order_by('timestamp')
+            logger.info(f"Histórico de mensagens recuperado. Total: {message_history.count()}")
             
             # Formata o histórico para a API da OpenAI
             formatted_messages = openai_manager.format_chat_history(list(message_history))
@@ -97,6 +121,7 @@ def send_message(request):
                 """
                 
                 system_message["content"] += user_context
+                logger.info(f"Contexto do usuário adicionado para: {request.user.username}")
             
             # ACESSO DIRETO AO BANCO DE DADOS
             # Palavras-chave que indicam consultas a dados financeiros ou do sistema
@@ -106,30 +131,44 @@ def send_message(request):
                               
             client_keywords = ['melhor cliente', 'maior cliente', 'cliente que mais', 'top cliente',
                              'cliente principal', 'quem compra mais', 'maior comprador']
+                             
+            invoice_keywords = ['nota fiscal', 'notas fiscais', 'nfe', 'nfse', 'invoice', 'rps',
+                             'emissão de nota', 'emitir nota']
             
             lower_message = message_content.lower()
             is_finance_query = any(keyword in lower_message for keyword in finance_keywords)
             is_client_query = any(keyword in lower_message for keyword in client_keywords)
+            is_invoice_query = any(keyword in lower_message for keyword in invoice_keywords)
             
-            # Se for qualquer tipo de consulta financeira ou sobre o melhor cliente, responde diretamente 
-            if is_finance_query or is_client_query:
+            # Se for qualquer tipo de consulta financeira ou sobre o melhor cliente, responde diretamente
+            if is_finance_query or is_client_query or is_invoice_query:
                 from .db_manager import DatabaseManager
                 from .direct_query import format_financial_data, get_best_client_info
                 db_manager = DatabaseManager()
                 
+                # Se for consulta sobre notas fiscais
+                if is_invoice_query:
+                    logger.info("Consulta sobre notas fiscais detectada")
+                    # Usar nossa função db_query
+                    from .db_query import get_invoice_data
+                    bot_response = get_invoice_data()
+                    
                 # Se for consulta sobre o melhor cliente
-                if is_client_query:
+                elif is_client_query:
+                    logger.info("Consulta sobre melhores clientes detectada")
                     # Usar nossa nova função otimizada que acessa diretamente o banco
                     bot_response = get_best_client_info()
                     
                 # Se for consulta sobre dados financeiros
                 elif is_finance_query:
+                    logger.info("Consulta sobre dados financeiros detectada")
                     # Usar nossa nova função que formata todos os dados financeiros
                     bot_response = format_financial_data()
                     
                 # Situação não coberta pelos casos específicos acima
                 # Usar a função do banco de dados default
                 else:
+                    logger.info("Consulta de banco de dados genérica detectada")
                     # Busca informações sobre pagamentos pendentes
                     pending_data = db_manager.get_pending_payments()
                     # Formata a resposta
@@ -156,7 +195,9 @@ def send_message(request):
                         bot_response = "Não foram encontrados dados sobre pagamentos pendentes."
             else:
                 # Se não for sobre finanças, prossegue normalmente
+                logger.info("Consulta geral. Processando com OpenAI")
                 bot_response = openai_manager.get_response(formatted_messages)
+                logger.info("Resposta obtida da OpenAI")
             
             # Cria a mensagem do bot
             bot_message = Message.objects.create(
@@ -164,6 +205,7 @@ def send_message(request):
                 sender='bot',
                 content=bot_response
             )
+            logger.info(f"Mensagem do bot salva: {bot_message.id}")
             
             return JsonResponse({
                 'success': True,
@@ -172,6 +214,7 @@ def send_message(request):
             })
             
         except json.JSONDecodeError as e:
+            logger.error(f"JSON inválido: {str(e)}")
             return JsonResponse({
                 'success': False,
                 'message': 'JSON inválido'
@@ -194,7 +237,10 @@ def get_message_history(request):
     if request.method == 'GET':
         session_id = request.GET.get('session_id')
         
+        logger.info(f"Solicitando histórico para session_id: {session_id}")
+        
         if not session_id:
+            logger.warning("Parâmetro session_id não fornecido")
             return JsonResponse({
                 'success': False,
                 'message': 'Parâmetro session_id obrigatório'
@@ -202,7 +248,9 @@ def get_message_history(request):
         
         try:
             chat_session = ChatSession.objects.get(session_id=session_id, is_active=True)
+            logger.info(f"Sessão encontrada: {chat_session.id}")
         except ChatSession.DoesNotExist:
+            logger.warning(f"Sessão não encontrada: {session_id}")
             return JsonResponse({
                 'success': False,
                 'message': 'Sessão não encontrada'
@@ -210,6 +258,7 @@ def get_message_history(request):
         
         # Busca todas as mensagens da sessão
         messages = Message.objects.filter(chat_session=chat_session).order_by('timestamp')
+        logger.info(f"Mensagens recuperadas: {messages.count()}")
         
         # Formata as mensagens para o retorno
         message_list = [{
@@ -225,6 +274,7 @@ def get_message_history(request):
             'messages': message_list
         })
     
+    logger.warning("Método não permitido para obter histórico")
     return JsonResponse({
         'success': False,
         'message': 'Método não permitido'
