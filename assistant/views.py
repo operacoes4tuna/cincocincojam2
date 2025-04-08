@@ -134,14 +134,32 @@ def send_message(request):
                              
             invoice_keywords = ['nota fiscal', 'notas fiscais', 'nfe', 'nfse', 'invoice', 'rps',
                              'emissão de nota', 'emitir nota']
+                             
+            # Palavras-chave para agendamento de estúdio
+            booking_keywords = ['agendar', 'agendamento', 'marcar', 'reservar', 'programar', 
+                             'criar sessão', 'criar evento', 'estúdio', 'estudio']
             
             lower_message = message_content.lower()
             is_finance_query = any(keyword in lower_message for keyword in finance_keywords)
             is_client_query = any(keyword in lower_message for keyword in client_keywords)
             is_invoice_query = any(keyword in lower_message for keyword in invoice_keywords)
+            is_booking_query = any(keyword in lower_message for keyword in booking_keywords)
+            
+            # Se for consulta sobre agendamento de estúdio
+            if is_booking_query:
+                logger.info("Consulta sobre agendamento de estúdio detectada")
+                from .db_query import process_db_query
+                result = process_db_query(message_content)
+                
+                # Garantir que o resultado tenha o formato adequado
+                if isinstance(result, dict) and 'content' in result:
+                    bot_response = result['content']
+                else:
+                    # Se não tiver o formato esperado, converter para string
+                    bot_response = str(result)
             
             # Se for qualquer tipo de consulta financeira ou sobre o melhor cliente, responde diretamente
-            if is_finance_query or is_client_query or is_invoice_query:
+            elif is_finance_query or is_client_query or is_invoice_query:
                 from .db_manager import DatabaseManager
                 from .direct_query import format_financial_data, get_best_client_info
                 db_manager = DatabaseManager()
@@ -198,6 +216,12 @@ def send_message(request):
                 logger.info("Consulta geral. Processando com OpenAI")
                 bot_response = openai_manager.get_response(formatted_messages)
                 logger.info("Resposta obtida da OpenAI")
+            
+            # Garantir que bot_response seja uma string (não None e não um objeto de outro tipo)
+            if bot_response is None:
+                bot_response = "Desculpe, ocorreu um erro ao processar sua solicitação."
+            elif not isinstance(bot_response, str):
+                bot_response = str(bot_response)
             
             # Cria a mensagem do bot
             bot_message = Message.objects.create(

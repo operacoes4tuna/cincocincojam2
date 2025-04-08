@@ -208,6 +208,7 @@ OPENAI_API_KEY = env('OPENAI_API_KEY', default='')
 OPENAI_MODEL = env('OPENAI_MODEL', default='gpt-4o-mini')
 OPENAI_MAX_TOKENS = int(env('OPENAI_MAX_TOKENS', default=150))
 OPENAI_TEMPERATURE = float(env('OPENAI_TEMPERATURE', default=0.7))
+OPENAI_STORE = env.bool('OPENAI_STORE', default=True)
 
 # Configurações do FocusNFe
 FOCUS_NFE_API_KEY = env('FOCUS_NFE_API_KEY', default='')
