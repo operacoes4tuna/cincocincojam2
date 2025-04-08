@@ -42,7 +42,7 @@ for key, value in env_vars.items():
                 print("❌ Formato incorreto: A chave não começa com 'sk-proj-'")
                 
             # Verificar se a chave tem o formato esperado
-            expected_key = "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"
+            expected_key = "YOUR_OPENAI_API_KEY_GOES_HERE"
             if value == expected_key:
                 print("✅ Chave correta: A chave API corresponde ao valor esperado")
             else:
@@ -84,7 +84,7 @@ except Exception as e:
     
     try:
         # Chave API que sabemos que funciona
-        fixed_key = "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"
+        fixed_key = "YOUR_OPENAI_API_KEY_GOES_HERE"
         
         client_fixed = OpenAI(api_key=fixed_key)
         
