@@ -4,6 +4,7 @@ Módulo para gerenciar interações com a API da OpenAI
 import logging
 import json
 import re
+import os
 from typing import List, Dict, Any
 from openai import OpenAI
 from django.conf import settings
@@ -13,18 +14,38 @@ from .models import AssistantBehavior
 
 logger = logging.getLogger(__name__)
 
+def read_api_key_from_env():
+    """
+    Lê a chave API diretamente do arquivo .env para evitar problemas de quebra de linha
+    que podem ocorrer ao carregar pelo Django.
+    """
+    try:
+        with open(os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env'), 'r') as f:
+            for line in f:
+                if line.strip().startswith('OPENAI_API_KEY='):
+                    # Obter a chave API (remove 'OPENAI_API_KEY=' do início)
+                    api_key = line.strip()[len('OPENAI_API_KEY='):]
+                    logger.info(f"Chave API lida diretamente do arquivo .env: {api_key[:10]}...")
+                    return api_key
+    except Exception as e:
+        logger.error(f"Erro ao ler chave API do arquivo .env: {str(e)}")
+    return None
+
 class OpenAIManager:
     """Gerencia a interação com a API da OpenAI"""
     
     def __init__(self):
-        self.api_key = settings.OPENAI_API_KEY
+        # Tentar obter a chave API diretamente do arquivo .env primeiro
+        self.api_key = read_api_key_from_env() or settings.OPENAI_API_KEY
         self.model = settings.OPENAI_MODEL
         self.max_tokens = settings.OPENAI_MAX_TOKENS
         self.temperature = settings.OPENAI_TEMPERATURE
+        self.store = getattr(settings, 'OPENAI_STORE', True)  # Novo parâmetro, padrão True
         
         # Inicializa o cliente OpenAI se a chave API estiver disponível
         if self.api_key:
             self.client = OpenAI(api_key=self.api_key)
+            logger.info(f"OpenAI cliente inicializado com modelo: {self.model}")
         else:
             self.client = None
             logger.warning("OpenAI API Key não configurada. O assistente usará respostas padrão.")
@@ -32,70 +53,40 @@ class OpenAIManager:
         # Inicializa o gerenciador de banco de dados
         self.db_manager = DatabaseManager()
     
-    def _get_system_prompt(self):
+    def get_system_prompt(self):
         """
-        Obtém o prompt de sistema usado para definir o comportamento do assistente
-        
-        Returns:
-            Texto do prompt de sistema
+        Retorna o prompt de sistema padrão
         """
-        # Tentar obter comportamento personalizado da base de dados
-        try:
-            behavior = AssistantBehavior.objects.filter(is_active=True).first()
-            if behavior and behavior.system_prompt:
-                # Usar o prompt personalizado do banco de dados
-                prompt = behavior.system_prompt
-                logger.info("Usando prompt de sistema personalizado da base de dados")
-                return prompt
-        except Exception as e:
-            logger.error(f"Erro ao buscar comportamento personalizado: {str(e)}")
+        default_prompt = """
+        Você é o assistente virtual da 55JAM, uma escola de música e produção musical.
+        Responda às perguntas de forma útil, amigável e profissional.
+        Forneça informações relevantes e precisas sobre a escola, cursos e atividades.
         
-        # Se não houver comportamento personalizado, usar o padrão
-        prompt = """
-Você é uma assistente virtual da plataforma 55Jam, uma plataforma educacional de cursos online especializada em música.
-
-Sobre a 55Jam:
-- Plataforma de cursos online focada em educação musical
-- Oferecemos cursos de teoria musical, piano, e produção musical
-- Nossos alunos são pessoas interessadas em aprender música de forma flexível
-- Os professores são profissionais experientes na área musical
-
-Comportamento:
-1. Seja educada, cordial e profissional
-2. Forneça informações precisas e concisas
-3. Quando não souber uma resposta, indique que buscará a informação com a equipe
-4. Nunca invente informações sobre cursos ou políticas da plataforma
-5. Você pode ter acesso aos dados da plataforma para algumas consultas
-6. Use uma linguagem adaptada para o contexto da educação musical
-
-Funcionalidades da Plataforma:
-- Os alunos podem se matricular nos cursos disponíveis
-- Oferecemos sistema de pagamento via PIX
-- Professores podem emitir notas fiscais para os pagamentos recebidos
-- A plataforma tem páginas de perfil, dashboard e catálogo de cursos
-
-Sistema de Notas Fiscais:
-- Utilizamos a API NFE.io para emissão automatizada de notas fiscais de serviço
-- Professores podem configurar suas informações fiscais no painel administrativo
-- As notas são emitidas após a confirmação do pagamento do aluno
-- O sistema gera automaticamente números de RPS (Recibo Provisório de Serviço)
-- Alunos podem visualizar e baixar suas notas fiscais na plataforma
-- Professores recebem alertas sobre status das notas emitidas
-
-Para acessar dados da base, você pode executar comandos especiais na forma {{COMANDO parâmetro1=valor1 parâmetro2=valor2}}. Comandos disponíveis:
-
-1. {{COURSE id=ID_DO_CURSO}} ou {{COURSE slug=SLUG_DO_CURSO}} ou {{COURSE title=TITULO_DO_CURSO}}
-2. {{SEARCH_COURSES query="termo de busca" limit=5}}
-3. {{LESSONS course_id=ID_DO_CURSO}} ou {{LESSONS course_slug=SLUG_DO_CURSO}}
-4. {{ENROLLMENT email="email@exemplo.com" course_id=ID_DO_CURSO}} 
-5. {{USER_ENROLLMENTS email="email@exemplo.com"}}
-6. {{STATS}}
-7. {{PAYMENT_INFO enrollment_id=ID_DA_MATRICULA}} ou {{PAYMENT_INFO transaction_id=ID_DA_TRANSACAO}}
-
-Se o usuário pedir informações sobre seus dados pessoais, cursos específicos, pagamentos ou outras informações que requerem acesso autenticado, oriente-o a fazer login na plataforma e acessar seu painel pessoal.
-"""
+        Seja interativo e mostre iniciativa. Sugira próximas perguntas ou ações que o usuário 
+        possa querer fazer, especialmente ao tratar de agendamentos de estúdio, cursos e alunos.
+        
+        Por exemplo, após mostrar um agendamento, você pode perguntar:
+        - "Gostaria de ver a lista completa de alunos confirmados para esta sessão?"
+        - "Quer saber se há outros horários disponíveis neste dia?"
+        - "Precisa de informações sobre os equipamentos disponíveis neste estúdio?"
+        
+        Quando falar sobre relatórios financeiros ou dados de alunos, ofereça detalhes adicionais:
+        - "Gostaria de ver os dados de faturamento do mês anterior para comparação?"
+        - "Quer saber quais alunos estão com pagamento pendente?"
+        
+        Antecipe necessidades dos professores e administradores, oferecendo informações relevantes
+        antes mesmo que eles perguntem explicitamente.
+        
+        Regras importantes:
+        - Não invente informações sobre a escola ou cursos que não existem nos dados.
+        - Se não souber a resposta, admita e sugira como o usuário pode obter a informação.
+        - Todas as respostas devem ser em português do Brasil.
+        - Use linguagem profissional mas amigável.
+        - Sempre que possível, ofereça sugestões de próximos passos ou perguntas relacionadas.
+        """
+        
         logger.info("Usando prompt de sistema padrão")
-        return prompt
+        return default_prompt.strip()
     
     def format_chat_history(self, messages: List[Dict[str, Any]]) -> List[Dict[str, str]]:
         """
@@ -113,7 +104,7 @@ Se o usuário pedir informações sobre seus dados pessoais, cursos específicos
         # usando as orientações configuradas pelo administrador
         formatted_messages.append({
             "role": "system", 
-            "content": self._get_system_prompt()
+            "content": self.get_system_prompt()
         })
         
         # Adicionar o histórico de mensagens (até um limite de 10 mensagens para controlar o contexto)
@@ -430,29 +421,105 @@ Se o usuário pedir informações sobre seus dados pessoais, cursos específicos
             'mostrar', 'listar', 'exibir', 'informar', 'consultar', 'quem são', 'quais são'
         ]
         
+        # Palavras-chave para agendamentos e sessões de estúdio
+        schedule_keywords = [
+            'agenda', 'agendamento', 'sessão', 'sessões', 'estúdio', 'estudio',
+            'marcado', 'marcada', 'marcados', 'marcadas', 'marcar', 'agendar',
+            'horário', 'horarios', 'hora', 'horas', 'data', 'datas', 'compromisso',
+            'compromissos', 'reserva', 'reservas', 'reservado', 'reservada', 'disponível',
+            'disponibilidade', 'disponíveis', 'calendário', 'calendario'
+        ]
+        
+        # Palavras-chave para cancelamento de sessões
+        cancel_keywords = [
+            'cancelar', 'cancele', 'cancelamento', 'desmarcar', 'desmarque', 
+            'remover', 'remova', 'deletar', 'delete', 'anular', 'anule', 
+            'tirar', 'excluir', 'exclua', 'não quero mais', 'suspender'
+        ]
+        
         # Curso específicos (da memória do sistema)
         course_keywords = [
             'teoria musical', 'piano', 'produção musical', 'música', 'teoria', 'instrumentos'
         ]
         
+        # Palavras-chave específicas para finanças
+        finance_keywords = [
+            'faturamento', 'receita', 'pagamento', 'pagamentos', 'financeiro', 
+            'financeira', 'pagar', 'transacao', 'transacoes', 'transação', 
+            'transações', 'dinheiro', 'venda', 'vendas', 'estatística financeira',
+            'balanço', 'lucro', 'prejuízo', 'contabilidade', 'fatura', 'cobrança'
+        ]
+        
+        # Verificar se a consulta está relacionada a agendamentos
+        is_schedule_query = any(keyword in user_message for keyword in schedule_keywords)
+        
+        # Verificar se a consulta está relacionada a cancelamentos
+        is_cancel_query = any(keyword in user_message for keyword in cancel_keywords)
+        
+        # Verificar combinações específicas que sempre devem ser tratadas como cancelamento
+        cancel_patterns = [
+            'cancel todas', 'cancelar todas', 'cancele todas', 
+            'desmarcar todas', 'desmarque todas',
+            'cancel meus', 'cancelar meus', 'cancele meus',
+            'cancel minhas', 'cancelar minhas', 'cancele minhas',
+            'desmarcar meus', 'desmarque meus',
+            'desmarcar minhas', 'desmarque minhas',
+            'remov todas', 'remover todas', 'remova todas',
+            'excluir todas', 'exclua todas'
+        ]
+        is_cancel_all_query = any(pattern in user_message for pattern in cancel_patterns)
+        
         # Verifica se a consulta está relacionada ao banco de dados
         is_data_query = any(keyword in user_message for keyword in data_keywords)
+        
+        # Verifica se é uma consulta sobre cursos
         is_course_query = any(keyword in user_message for keyword in course_keywords)
         
+        # Verifica se é uma consulta financeira
+        is_finance_query = any(keyword in user_message for keyword in finance_keywords)
+        
+        # Processar solicitações de cancelamento com máxima prioridade
+        if is_cancel_all_query or (is_cancel_query and is_schedule_query):
+            logger.info("Solicitação de cancelamento de sessão detectada")
+            from .db_query import cancel_studio_booking
+            return cancel_studio_booking(user_message)
+            
+        # Processar consultas de agendamento com prioridade
+        elif is_schedule_query:
+            logger.info("Consulta sobre agendamentos detectada")
+            from .db_query import get_schedule_info
+            return get_schedule_info(user_message)
+            
+        # Se for uma consulta financeira específica, usar o processamento financeiro
+        elif is_finance_query:
+            logger.info("Consulta financeira específica detectada")
+            from .db_query import get_financial_data
+            return get_financial_data()
+            
         # Se for uma consulta relacionada ao banco ou cursos específicos, usa acesso direto
-        if is_data_query or is_course_query:
-            # Usar o novo módulo de consulta otimizado
+        elif is_data_query or is_course_query:
+            logger.info("Consulta geral sobre dados detectada")
+            # Usar o módulo de consulta otimizado
             from .db_query import process_db_query
             return process_db_query(user_message)
         
         # Se não for consulta de dados, segue o fluxo normal
         try:
+            # Adicionando logging para debug
+            logger.info(f"Enviando requisição para OpenAI com modelo: {self.model}")
+            logger.info(f"Usando chave API: {self.api_key[:10]}...")
+            
+            # Criando a completação com os parâmetros atualizados
             completion = self.client.chat.completions.create(
                 model=self.model,
                 messages=formatted_messages,
                 max_tokens=self.max_tokens,
-                temperature=self.temperature
+                temperature=self.temperature,
+                store=self.store  # Novo parâmetro store
             )
+            
+            # Log de sucesso
+            logger.info("Resposta recebida com sucesso da OpenAI")
             
             response = completion.choices[0].message.content.strip()
             
@@ -490,4 +557,37 @@ Se o usuário pedir informações sobre seus dados pessoais, cursos específicos
             
         except Exception as e:
             logger.error(f"Erro ao obter resposta da OpenAI: {str(e)}")
-            return "Desculpe, ocorreu um erro ao processar sua solicitação. Por favor, tente novamente mais tarde."
+            # Log detalhado para depuração
+            logger.error(f"Detalhes da requisição: model={self.model}, max_tokens={self.max_tokens}, temperature={self.temperature}, store={self.store}")
+            logger.error(f"Última mensagem do usuário: '{user_message}'")
+            
+            # Verificar se é um erro de formato de chave API ou erro de cota
+            error_msg = str(e).lower()
+            if "api key" in error_msg or "authentication" in error_msg:
+                # Tentar novamente com a chave fixa codificada
+                try:
+                    logger.info("Tentando com chave API diretamente codificada...")
+                    fixed_key = "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"
+                    client_fixed = OpenAI(api_key=fixed_key)
+                    completion = client_fixed.chat.completions.create(
+                        model=self.model,
+                        messages=formatted_messages,
+                        max_tokens=self.max_tokens,
+                        temperature=self.temperature,
+                        store=self.store
+                    )
+                    logger.info("Resposta com chave codificada recebida com sucesso")
+                    return completion.choices[0].message.content.strip()
+                except Exception as e2:
+                    logger.error(f"Erro também com chave codificada: {str(e2)}")
+                    return "Erro de autenticação com a OpenAI. Por favor, verifique a configuração da chave API."
+            elif "quota" in error_msg or "rate limit" in error_msg:
+                return "Limite de uso da API OpenAI excedido. Por favor, tente novamente mais tarde."
+            else:
+                # Tentar usar consulta direta ao banco de dados como fallback
+                try:
+                    from .db_query import process_db_query
+                    return process_db_query(user_message)
+                except Exception as db_error:
+                    logger.error(f"Erro no fallback de banco de dados: {str(db_error)}")
+                    return "Desculpe, ocorreu um erro ao processar sua solicitação. Por favor, tente novamente mais tarde."

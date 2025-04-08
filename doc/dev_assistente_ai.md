@@ -90,7 +90,49 @@ OPENAI_TEMPERATURE=0.7
 - Ícone de robô na barra de navegação principal
 - Opção "Assistente IA" no menu dropdown do usuário (para administradores)
 
-## 5. Integração com o WhatsApp para Interações Adicionais
+## 5. Integração com o Sistema de Agendamentos de Estúdio
+
+**Status: ✅ Implementado**
+
+**Objetivo:** Permitir que o assistente consulte e processe informações sobre agendamentos de estúdio, incluindo listagem e cancelamento de sessões.
+
+**Implementação:**
+- Desenvolvido módulo `get_schedule_info()` para consultar agendamentos de estúdio
+- Implementada função `cancel_studio_booking()` para processamento de cancelamentos
+- Adicionados extratores de informação para reconhecer padrões em linguagem natural:
+  - `extract_date_time()` - Reconhecimento de datas e horários
+  - `extract_studio()` - Identificação de estúdios específicos
+  - `extract_session_title()` - Extração de títulos de sessão
+  - `extract_duration()` - Reconhecimento de duração mencionada
+
+**Funcionalidades de Listagem:**
+- Consulta de sessões agendadas por data (hoje, amanhã, datas específicas)
+- Filtro por estúdio (Barra da Tijuca, Ipanema, Botafogo, etc.)
+- Visualização de sessões por período (esta semana, próxima semana)
+- Exibição de detalhes como horário, professor, participantes
+
+**Funcionalidades de Cancelamento:**
+- Cancelamento de sessões específicas por data/horário
+- Cancelamento de todas as sessões do usuário
+- Cancelamento seletivo por estúdio ou dia da semana
+- Filtros combinados (sessões em um estúdio específico em determinada data)
+- Reconhecimento de diferentes formas de expressar cancelamento (cancelar, desmarcar, remover, etc.)
+
+**Detalhes Técnicos:**
+- Implementação de filtros por sobreposição de horários (intervalos 14h-16h)
+- Detecção de padrões específicos como "todas as sessões de estudio"
+- Atualização de status para 'CANCELLED' no modelo Event
+- Atualização de status para 'CANCELLED' nos EventParticipant associados
+- **Documentação Técnica Detalhada:** [dev_cancelamento_sessoes.md](dev_cancelamento_sessoes.md)
+
+**Exemplos de Comandos Reconhecidos:**
+- "Quais são minhas sessões agendadas para hoje?"
+- "Mostre meus agendamentos no estúdio da Barra"
+- "Cancele todas as minhas sessões"
+- "Desmarque a sessão do estúdio de 14h às 16h da Barra do dia 09/04"
+- "Cancele meus agendamentos de sexta"
+
+## 6. Integração com o WhatsApp para Interações Adicionais
 
 **Status: ⏳ Pendente**
 
@@ -113,11 +155,14 @@ OPENAI_TEMPERATURE=0.7
 - ✅ Semana 3: Integração com a API da OpenAI para respostas genéricas
 - ✅ Semana 4: Desenvolvimento da integração com o banco de dados
 - ✅ Semana 5: Implementação do sistema de orientações de comportamento
-- ⏳ Semanas 6-7: Implementação da integração com o WhatsApp e testes finais
+- ✅ Semana 6: Integração com o sistema de agendamentos de estúdio
+- ⏳ Semanas 7-8: Implementação da integração com o WhatsApp e testes finais
 
 ## Próximos Passos
 
-1. Iniciar a implementação da integração com WhatsApp (Etapa 5)
-2. Realizar testes abrangentes do sistema atual
-3. Coletar feedback dos usuários sobre a experiência com o assistente
-4. Considerar melhorias no desempenho e na personalização das respostas
+1. Melhorar a compreensão do contexto em conversas sobre agendamentos
+2. Adicionar confirmação antes de realizar cancelamentos definitivos
+3. Implementar funcionalidade para reagendar sessões existentes
+4. Iniciar a implementação da integração com WhatsApp (Etapa 6)
+5. Realizar testes abrangentes do sistema atual
+6. Coletar feedback dos usuários sobre a experiência com o assistente
