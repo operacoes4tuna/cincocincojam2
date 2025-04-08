@@ -7,7 +7,7 @@ import re
 from dotenv import dotenv_values
 
 # Chave API correta (em uma única linha)
-API_KEY = "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"
+API_KEY = "YOUR_OPENAI_API_KEY_GOES_HERE"
 
 # Ler todas as variáveis do arquivo .env usando dotenv
 config = dotenv_values(".env")

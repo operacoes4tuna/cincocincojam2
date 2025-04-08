@@ -6,7 +6,7 @@ esteja em uma única linha.
 import sys
 
 # Chave API correta (em uma única linha)
-correct_api_key = "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"
+correct_api_key = "YOUR_OPENAI_API_KEY_GOES_HERE"
 
 def fix_env_file():
     # Ler o arquivo .env

@@ -5,14 +5,14 @@
 O erro que está ocorrendo com o assistente IA é devido a um problema de autenticação com a API OpenAI. Os logs mostram claramente:
 
 ```
-Erro ao chamar a API: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-proj-... You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'param': None, 'code': 'invalid_api_key'}}
+Erro ao chamar a API: Error code: 401 - {'error': {'message': 'Incorrect API key provided: YOUR_OPENAI_API_KEY_GOES_HERE You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'param': None, 'code': 'invalid_api_key'}}
 ```
 
 ## Causa do Problema
 
-A chave API que está configurada no arquivo `.env` está no formato `sk-proj-...` que não é compatível com a API da OpenAI. As chaves da OpenAI começam com `sk-` seguido por caracteres alfanuméricos, mas não seguem o padrão `sk-proj-`.
+A chave API que está configurada no arquivo `.env` está no formato `YOUR_OPENAI_API_KEY_GOES_HERE` que não é compatível com a API da OpenAI. As chaves da OpenAI começam com `sk-` seguido por caracteres alfanuméricos, mas não seguem o padrão `YOUR_OPENAI_API_KEY_GOES_HERE`.
 
-A chave atual no formato `sk-proj-...` parece ser de algum outro serviço ou um formato próprio, não da OpenAI.
+A chave atual no formato `YOUR_OPENAI_API_KEY_GOES_HERE` parece ser de algum outro serviço ou um formato próprio, não da OpenAI.
 
 ## Solução
 
@@ -24,7 +24,7 @@ Para corrigir o problema, siga estes passos:
 2. Faça login na sua conta OpenAI
 3. Clique em "Create new secret key"
 4. Adicione uma descrição (ex: "CincoCincoJAM Assistente")
-5. Copie a chave gerada (ela começará com `sk-` mas não terá o formato `sk-proj-`)
+5. Copie a chave gerada (ela começará com `sk-` mas não terá o formato `YOUR_OPENAI_API_KEY_GOES_HERE`)
 
 ### 2. Atualizar o arquivo `.env`
 
@@ -35,7 +35,7 @@ Para corrigir o problema, siga estes passos:
 
 Exemplo de como deve ficar:
 ```
-OPENAI_API_KEY=sk-nova_chave_gerada_pela_openai
+OPENAI_API_KEY=YOUR_OPENAI_API_KEY_GOES_HERE
 OPENAI_MODEL=gpt-3.5-turbo
 OPENAI_MAX_TOKENS=150
 OPENAI_TEMPERATURE=0.7
@@ -55,7 +55,7 @@ OPENAI_TEMPERATURE=0.7
 
 - A API da OpenAI é um serviço pago. Certifique-se de que sua conta tem créditos disponíveis.
 - Se sua conta tiver excedido a cota, você verá um erro diferente (429 - insufficient_quota), como já ocorreu no passado (ver logs de 06/04).
-- As chaves no formato correto da OpenAI são diferentes das chaves no formato `sk-proj-`.
+- As chaves no formato correto da OpenAI são diferentes das chaves no formato `YOUR_OPENAI_API_KEY_GOES_HERE`.
 
 ## Solução alternativa (caso não tenha acesso à API OpenAI)
 

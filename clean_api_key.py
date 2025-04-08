@@ -52,8 +52,16 @@ def replace_api_key(file_path: str, dry_run: bool = False) -> Tuple[bool, int]:
             # Formato antigo: sk-seguido por 32+ caracteres alfanuméricos
             r'sk-[a-zA-Z0-9]{32,}',
             # Formato novo: sk-proj-seguido por 100+ caracteres
-            r'sk-proj-[a-zA-Z0-9_-]{100,}'
+            r'sk-proj-[a-zA-Z0-9_-]{100,}',
+            # Exemplos de chave em arquivos markdown (incluindo formatos fictícios como em exemplos)
+            r'sk-nova_chave_gerada_pela_openai',
+            # Formato de variável de ambiente com chave
+            r'OPENAI_API_KEY=sk-[^"\'`\s\n]*'
         ]
+        
+        # Padrão para verificar se estamos dentro de um bloco de código em Markdown
+        md_code_block = False
+        is_markdown = file_path.lower().endswith(('.md', '.markdown'))
         
         # Placeholder para substituir a chave
         placeholder = "YOUR_OPENAI_API_KEY_GOES_HERE"
@@ -62,14 +70,51 @@ def replace_api_key(file_path: str, dry_run: bool = False) -> Tuple[bool, int]:
         count = 0
         new_content = content
         
-        # Aplica cada padrão
-        for pattern in patterns:
-            # Encontra todas as ocorrências
-            matches = re.findall(pattern, content)
-            count += len(matches)
+        # Tratamento especial para arquivos Markdown
+        if is_markdown:
+            # Processa linha por linha para respeitar blocos de código
+            lines = content.split('\n')
+            new_lines = []
+            in_code_block = False
             
-            # Substitui todas as ocorrências pelo placeholder
-            new_content = re.sub(pattern, placeholder, new_content)
+            for line in lines:
+                # Verifica se entramos ou saímos de um bloco de código
+                if line.strip().startswith('```'):
+                    in_code_block = not in_code_block
+                
+                # Se estiver fora de um bloco de código ou em uma linha explicativa,
+                # podemos substituir exemplos de chaves
+                if not in_code_block or "exemplo" in line.lower() or "substituir" in line.lower():
+                    for pattern in patterns:
+                        matches = re.findall(pattern, line)
+                        if matches:
+                            count += len(matches)
+                            for match in matches:
+                                # Não substitui se for claramente um placeholder 
+                                if "YOUR_" not in match:
+                                    if "OPENAI_API_KEY=" in match:
+                                        line = line.replace(match, f"OPENAI_API_KEY={placeholder}")
+                                    else:
+                                        line = line.replace(match, placeholder)
+                
+                new_lines.append(line)
+            
+            # Reconstrói o conteúdo
+            new_content = '\n'.join(new_lines)
+        else:
+            # Aplica cada padrão para arquivos não-markdown
+            for pattern in patterns:
+                # Encontra todas as ocorrências
+                matches = re.findall(pattern, content)
+                
+                for match in matches:
+                    # Ignora se já for um placeholder
+                    if "YOUR_" not in match:
+                        count += 1
+                        if "OPENAI_API_KEY=" in match:
+                            new_content = new_content.replace(match, f"OPENAI_API_KEY={placeholder}")
+                        else:
+                            new_content = new_content.replace(match, placeholder)
         
         # Se encontrou chaves para substituir
         if count > 0:
@@ -106,7 +151,8 @@ def main():
         'test_direct_env.py',
         'fix_env_file.py',
         'assistant/openai_manager.py',
-        'config/settings.py'
+        'config/settings.py',
+        'CORRIGIR_CHAVE_API.md'
     ]
     
     # Usa os arquivos especificados ou a lista padrão

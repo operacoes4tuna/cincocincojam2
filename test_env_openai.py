@@ -18,7 +18,7 @@ api_key = os.getenv("OPENAI_API_KEY")
 logger.info(f"Utilizando chave API: {api_key[:15]}...{api_key[-5:] if api_key else ''}")
 
 # Verificar se a chave é exatamente a mesma do teste bem-sucedido
-direct_key = "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"
+direct_key = "YOUR_OPENAI_API_KEY_GOES_HERE"
 logger.info(f"As chaves são idênticas? {api_key == direct_key}")
 
 try:
