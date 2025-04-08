@@ -564,10 +564,11 @@ class OpenAIManager:
             # Verificar se é um erro de formato de chave API ou erro de cota
             error_msg = str(e).lower()
             if "api key" in error_msg or "authentication" in error_msg:
-                # Tentar novamente com a chave fixa codificada
-                try:
-                    logger.info("Tentando com chave API diretamente codificada...")
-                    fixed_key = "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"
+                # Se ainda não conseguiu, tentar uma abordagem final com a chave fixa
+                if not self.api_key or "OPENAI_API_KEY" in self.api_key:
+                    logger.info("Tentando usar chave API fixa como último recurso")
+                    # Chave fixa como último recurso
+                    fixed_key = "API_KEY_REMOVED_FOR_SECURITY"  # Chave removida por segurança
                     client_fixed = OpenAI(api_key=fixed_key)
                     completion = client_fixed.chat.completions.create(
                         model=self.model,
@@ -578,9 +579,6 @@ class OpenAIManager:
                     )
                     logger.info("Resposta com chave codificada recebida com sucesso")
                     return completion.choices[0].message.content.strip()
-                except Exception as e2:
-                    logger.error(f"Erro também com chave codificada: {str(e2)}")
-                    return "Erro de autenticação com a OpenAI. Por favor, verifique a configuração da chave API."
             elif "quota" in error_msg or "rate limit" in error_msg:
                 return "Limite de uso da API OpenAI excedido. Por favor, tente novamente mais tarde."
             else:
