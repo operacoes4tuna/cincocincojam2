@@ -36,9 +36,9 @@ CincoCincoJAM 2.0 é uma plataforma LMS (Learning Management System) desenvolvid
 - Chatbot inteligente integrado com a API da OpenAI
 - Interface de chat acessível em todas as páginas da plataforma
 - Consultas contextuais ao banco de dados para responder perguntas sobre cursos e matrículas
-- Personalização do comportamento do assistente através de interface amigável
-- Acesso rápido às configurações do assistente via ícone na barra de navegação
-- Diferentes permissões de visualização e edição para administradores e usuários comuns
+- Personalização do comportamento do assistente através de interface amigável.
+- Acesso rápido às configurações do assistente via ícone na barra de navegação.
+- Diferentes permissões de visualização e edição para administradores e usuários comuns.
 
 ### Área do Administrador
 - Dashboard com estatísticas gerais do sistema
