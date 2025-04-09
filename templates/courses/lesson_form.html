@@ -66,6 +66,29 @@
                     <div class="mb-3">
                         {{ form.status|as_crispy_field }}
                     </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">Agendamento de Liberação</label>
+                        <div class="form-check mb-2">
+                            <input type="checkbox" class="form-check-input" id="id_enable_schedule"
+                                name="enable_schedule">
+                            <label class="form-check-label" for="id_enable_schedule">Agendar liberação</label>
+                        </div>
+
+                        <div id="schedule_fields" class="mt-3" style="display: none;">
+                            <div class="mb-3">
+                                <label for="id_release_date" class="form-label">Data de liberação</label>
+                                <input type="date" class="form-control" id="id_release_date" name="release_date">
+                            </div>
+                            <div class="mb-3">
+                                <label for="id_release_time" class="form-label">Hora de liberação</label>
+                                <input type="time" class="form-control" id="id_release_time" name="release_time">
+                            </div>
+                            <div class="form-text text-muted">
+                                O conteúdo só estará disponível na data e hora programadas.
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -109,4 +132,28 @@
         </div>
     </div>
 </div>
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const enableScheduleCheckbox = document.getElementById('id_enable_schedule');
+        const scheduleFields = document.getElementById('schedule_fields');
+
+        // Função para mostrar/esconder os campos de agendamento
+        function toggleScheduleFields() {
+            if (enableScheduleCheckbox.checked) {
+                scheduleFields.style.display = 'block';
+            } else {
+                scheduleFields.style.display = 'none';
+            }
+        }
+
+        // Associar evento ao checkbox
+        enableScheduleCheckbox.addEventListener('change', toggleScheduleFields);
+
+        // Verificar estado inicial
+        toggleScheduleFields();
+    });
+</script>
+{% endblock %}
 {% endblock %}
