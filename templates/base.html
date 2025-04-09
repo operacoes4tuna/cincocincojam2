@@ -1,26 +1,27 @@
 <!DOCTYPE html>
 <html lang="pt-br" data-bs-theme="{{ user_theme|default:'light' }}">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     {% csrf_token %}
     <meta name="csrf-token" content="{{ csrf_token }}">
     <title>{% block title %}55Jam{% endblock %}</title>
-    
+
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    
+
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    
+
     <!-- CSS Customizado -->
     {% load static %}
     <link rel="stylesheet" href="{% static 'css/main.css' %}">
     <link rel="stylesheet" href="{% static 'css/theme.css' %}">
-    
+
     <!-- CSS para o widget de chat -->
     <link rel="stylesheet" href="{% static 'css/chat-widget.css' %}">
-    
+
     <!-- Script para gerenciar temas claro/escuro com toggle de botão -->
     <script>
         /**
@@ -28,12 +29,12 @@
          * Implementação com botão de alternância direta entre temas:
          * - Clique alterna entre Modo Claro e Modo Escuro
          */
-        
+
         // Aplicar o tema imediatamente para evitar flash de tema incorreto
-        (function() {
+        (function () {
             // Obtém o tema salvo ou padrão
             const savedTheme = localStorage.getItem('theme') || 'light';
-            
+
             // Aplica imediatamente para evitar flash
             document.documentElement.setAttribute('data-bs-theme', savedTheme);
         })();
@@ -42,33 +43,33 @@
         function getCurrentTheme() {
             return localStorage.getItem('theme') || 'light';
         }
-        
+
         // Função para alternar entre temas claro e escuro
         function toggleTheme() {
             const currentTheme = getCurrentTheme();
             const newTheme = currentTheme === 'light' ? 'dark' : 'light';
-            
+
             // Salva a preferência do usuário
             localStorage.setItem('theme', newTheme);
             console.log('Tema alterado para:', newTheme);
-            
+
             // Aplica o tema e atualiza a interface
             applyTheme(newTheme);
             updateThemeIcon(newTheme);
         }
-        
+
         // Função para aplicar o estilo do tema a elementos específicos que podem não seguir o tema global
         function applyThemeToSpecificElements(theme) {
             // 1. Forçar cores em inputs e formulários que podem não respeitar o tema
             const isDark = (theme === 'dark');
-            
+
             // Estilo personalizado para garantir que tudo siga o tema
             const styleEl = document.getElementById('theme-override-styles') || document.createElement('style');
             if (!styleEl.id) {
                 styleEl.id = 'theme-override-styles';
                 document.head.appendChild(styleEl);
             }
-            
+
             // Regras CSS específicas para corrigir elementos que não seguem o tema
             if (isDark) {
                 styleEl.textContent = `
@@ -121,40 +122,40 @@
                 styleEl.textContent = '';
             }
         }
-        
+
         // Função para aplicar tema específico ao documento HTML
         function applyThemeToDocument(theme) {
             // Define o atributo data-bs-theme no elemento HTML
             document.documentElement.setAttribute('data-bs-theme', theme);
-            
+
             // Força a aplicação das classes de tema em elementos específicos
             document.body.classList.remove('theme-light', 'theme-dark');
             document.body.classList.add('theme-' + theme);
-            
+
             // Aplica estilos específicos para elementos que não respeitam o tema global
             applyThemeToSpecificElements(theme);
-            
+
             console.log('Tema aplicado com sucesso:', theme);
         }
-        
+
         // Função principal para aplicar o tema
         function applyTheme(theme) {
             // Aplica o tema
             applyThemeToDocument(theme);
             return theme;
         }
-        
+
         // Função para atualizar o ícone do botão conforme o tema atual
         function updateThemeIcon(theme) {
             // Obtém referência ao ícone atual
             const sunIcon = document.getElementById('theme-icon-sun');
             const moonIcon = document.getElementById('theme-icon-moon');
-            
+
             if (!sunIcon || !moonIcon) {
                 console.error('Erro: Ícones de tema não encontrados!');
                 return;
             }
-            
+
             // Mostra o ícone adequado para o tema atual
             if (theme === 'light') {
                 sunIcon.style.display = 'inline-block';
@@ -163,37 +164,38 @@
                 sunIcon.style.display = 'none';
                 moonIcon.style.display = 'inline-block';
             }
-            
+
             console.log('Ícone atualizado para o tema:', theme);
         }
-        
+
         // Função de inicialização imediata
-        (function() {
+        (function () {
             const initialTheme = getCurrentTheme();
             applyTheme(initialTheme);
             console.log('Sistema de temas inicializado - Tema aplicado:', initialTheme);
         })();
-        
+
         // Configuração final quando o DOM estiver completamente carregado
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             // Atualiza o ícone para corresponder ao tema atual
             updateThemeIcon(getCurrentTheme());
-            
+
             // Configura o evento de clique no botão de tema
             const themeToggleBtn = document.getElementById('theme-toggle-btn');
             if (themeToggleBtn) {
-                themeToggleBtn.addEventListener('click', function(e) {
+                themeToggleBtn.addEventListener('click', function (e) {
                     e.preventDefault();
                     toggleTheme();
                 });
             }
-            
+
             console.log('Sistema de temas configurado e pronto para uso.');
         });
     </script>
-    
+
     {% block extra_css %}{% endblock %}
 </head>
+
 <body>
     <!-- Barra de Navegação -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
@@ -208,173 +210,185 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto">
                     {% if user.is_authenticated %}
-                        {% if user.is_admin %}
-                            <li class="nav-item">
-                                <a class="nav-link" href="{% url 'users:dashboard' %}">Dashboard</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" href="{% url 'payments:admin_dashboard' %}">
-                                    <i class="fas fa-chart-line"></i> Financeiro
+                    {% if user.is_admin %}
+                    <li class="nav-item me-3">
+                        <a class="nav-link" href="{% url 'users:dashboard' %}">
+                            <i class="fas fa-tachometer-alt"></i> Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item me-3">
+                        <a class="nav-link" href="{% url 'users:user_list' %}">
+                            <i class="fas fa-users"></i> Usuários
+                        </a>
+                    </li>
+                    <li class="nav-item me-3">
+                        <a class="nav-link" href="{% url 'payments:admin_dashboard' %}">
+                            <i class="fas fa-chart-line"></i> Financeiro
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    {% if user.is_professor %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'courses:dashboard' %}">Dashboard</a>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="agendaDropdown" role="button"
+                            data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-calendar-alt"></i> Agenda
+                        </a>
+                        <ul class="dropdown-menu" aria-labelledby="agendaDropdown">
+                            <li>
+                                <a class="dropdown-item" href="{% url 'scheduler:calendar' %}">
+                                    <i class="fas fa-calendar-alt me-2"></i> Calendário
                                 </a>
                             </li>
-                            <li class="nav-item">
-                                <a class="nav-link" href="{% url 'admin:index' %}">Admin</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" href="{% url 'users:user_list' %}">Usuários</a>
-                            </li>
-                        {% endif %}
-                        
-                        {% if user.is_professor %}
-                            <li class="nav-item">
-                                <a class="nav-link" href="{% url 'courses:dashboard' %}">Dashboard</a>
-                            </li>
-                            <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle" href="#" id="agendaDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                    <i class="fas fa-calendar-alt"></i> Agenda
+                            <li>
+                                <a class="dropdown-item" href="{% url 'scheduler:professor_dashboard' %}">
+                                    <i class="fas fa-chalkboard-teacher me-2"></i> Agendamentos
                                 </a>
-                                <ul class="dropdown-menu" aria-labelledby="agendaDropdown">
-                                    <li>
-                                        <a class="dropdown-item" href="{% url 'scheduler:calendar' %}">
-                                            <i class="fas fa-calendar-alt me-2"></i> Calendário
-                                        </a>
-                                    </li>
-                                    <li>
-                                        <a class="dropdown-item" href="{% url 'scheduler:professor_dashboard' %}">
-                                            <i class="fas fa-chalkboard-teacher me-2"></i> Agendamentos
-                                        </a>
-                                    </li>
-                                </ul>
                             </li>
-                            <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle" href="#" id="financasDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                    <i class="fas fa-chart-line"></i> Finanças
+                        </ul>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="financasDropdown" role="button"
+                            data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-chart-line"></i> Finanças
+                        </a>
+                        <ul class="dropdown-menu" aria-labelledby="financasDropdown">
+                            <li>
+                                <a class="dropdown-item" href="{% url 'payments:professor_dashboard' %}">
+                                    <i class="fas fa-chart-line me-2"></i> Financeiro
                                 </a>
-                                <ul class="dropdown-menu" aria-labelledby="financasDropdown">
-                                    <li>
-                                        <a class="dropdown-item" href="{% url 'payments:professor_dashboard' %}">
-                                            <i class="fas fa-chart-line me-2"></i> Financeiro
-                                        </a>
-                                    </li>
-                                    <li>
-                                        <a class="dropdown-item" href="{% url 'payments:singlesale_list' %}">
-                                            <i class="fas fa-shopping-cart me-2"></i> Vendas Avulsas
-                                        </a>
-                                    </li>
-                                </ul>
                             </li>
-                            <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle" href="#" id="cursosDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                    <i class="fas fa-book"></i> Cursos
+                            <li>
+                                <a class="dropdown-item" href="{% url 'payments:singlesale_list' %}">
+                                    <i class="fas fa-shopping-cart me-2"></i> Vendas Avulsas
                                 </a>
-                                <ul class="dropdown-menu" aria-labelledby="cursosDropdown">
-                                    <li>
-                                        <a class="dropdown-item" href="{% url 'courses:course_list' %}">
-                                            <i class="fas fa-chalkboard me-2"></i> Meus Cursos
-                                        </a>
-                                    </li>
-                                    <li>
-                                        <a class="dropdown-item" href="{% url 'courses:student:course_list' %}">
-                                            <i class="fas fa-list-alt me-2"></i> Catálogo de Cursos
-                                        </a>
-                                    </li>
-                                </ul>
                             </li>
-                        {% endif %}
-                        
-                        {% if user.is_student %}
-                            <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle" href="#" id="agendaStudentDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                    <i class="fas fa-calendar-check"></i> Agenda
+                        </ul>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="cursosDropdown" role="button"
+                            data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-book"></i> Cursos
+                        </a>
+                        <ul class="dropdown-menu" aria-labelledby="cursosDropdown">
+                            <li>
+                                <a class="dropdown-item" href="{% url 'courses:course_list' %}">
+                                    <i class="fas fa-chalkboard me-2"></i> Meus Cursos
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="{% url 'courses:student:course_list' %}">
+                                    <i class="fas fa-list-alt me-2"></i> Catálogo de Cursos
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+                    {% endif %}
+
+                    {% if user.is_student %}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="agendaStudentDropdown" role="button"
+                            data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-calendar-check"></i> Agenda
+                            {% if pending_invitations_count > 0 %}
+                            <span class="badge rounded-pill bg-danger">{{ pending_invitations_count }}</span>
+                            {% endif %}
+                        </a>
+                        <ul class="dropdown-menu" aria-labelledby="agendaStudentDropdown">
+                            <li>
+                                <a class="dropdown-item" href="{% url 'scheduler:student_notifications' %}">
+                                    <i class="fas fa-bell me-2"></i> Agendamentos
                                     {% if pending_invitations_count > 0 %}
                                     <span class="badge rounded-pill bg-danger">{{ pending_invitations_count }}</span>
                                     {% endif %}
                                 </a>
-                                <ul class="dropdown-menu" aria-labelledby="agendaStudentDropdown">
-                                    <li>
-                                        <a class="dropdown-item" href="{% url 'scheduler:student_notifications' %}">
-                                            <i class="fas fa-bell me-2"></i> Agendamentos
-                                            {% if pending_invitations_count > 0 %}
-                                            <span class="badge rounded-pill bg-danger">{{ pending_invitations_count }}</span>
-                                            {% endif %}
-                                        </a>
-                                    </li>
-                                </ul>
                             </li>
-                            <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle" href="#" id="financasStudentDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                    <i class="fas fa-credit-card"></i> Finanças
+                        </ul>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="financasStudentDropdown" role="button"
+                            data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-credit-card"></i> Finanças
+                        </a>
+                        <ul class="dropdown-menu" aria-labelledby="financasStudentDropdown">
+                            <li>
+                                <a class="dropdown-item" href="{% url 'payments:student_payments' %}">
+                                    <i class="fas fa-money-bill-wave me-2"></i> Meus Pagamentos
                                 </a>
-                                <ul class="dropdown-menu" aria-labelledby="financasStudentDropdown">
-                                    <li>
-                                        <a class="dropdown-item" href="{% url 'payments:student_payments' %}">
-                                            <i class="fas fa-money-bill-wave me-2"></i> Meus Pagamentos
-                                        </a>
-                                    </li>
-                                </ul>
                             </li>
-                            <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle" href="#" id="cursosStudentDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                    <i class="fas fa-book"></i> Cursos
+                        </ul>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="cursosStudentDropdown" role="button"
+                            data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-book"></i> Cursos
+                        </a>
+                        <ul class="dropdown-menu" aria-labelledby="cursosStudentDropdown">
+                            <li>
+                                <a class="dropdown-item" href="{% url 'courses:student:dashboard' %}">
+                                    <i class="fas fa-graduation-cap me-2"></i> Meus Cursos
                                 </a>
-                                <ul class="dropdown-menu" aria-labelledby="cursosStudentDropdown">
-                                    <li>
-                                        <a class="dropdown-item" href="{% url 'courses:student:dashboard' %}">
-                                            <i class="fas fa-graduation-cap me-2"></i> Meus Cursos
-                                        </a>
-                                    </li>
-                                    <li>
-                                        <a class="dropdown-item" href="{% url 'courses:student:course_list' %}">
-                                            <i class="fas fa-list-alt me-2"></i> Catálogo de Cursos
-                                        </a>
-                                    </li>
-                                </ul>
                             </li>
-                        {% endif %}
-                        
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown">
-                                {{ user.get_full_name|default:user.email }}
-                            </a>
-                            <ul class="dropdown-menu">
-                                {% if user.is_admin %}
-                                    <li><a class="dropdown-item" href="{% url 'users:user_detail' user.id %}">Perfil</a></li>
-                                {% elif user.is_professor %}
-                                    <li><a class="dropdown-item" href="{% url 'users:user_detail' user.id %}">Perfil</a></li>
-                                {% elif user.is_student %}
-                                    <li><a class="dropdown-item" href="{% url 'users:user_detail' user.id %}">Perfil</a></li>
-                                {% else %}
-                                    <li><a class="dropdown-item" href="{% url 'users:user_detail' user.id %}">Perfil</a></li>
-                                {% endif %}
-                                
-                                {% if user.is_admin or user.is_staff %}
-                                    <li><a class="dropdown-item" href="{% url 'assistant:behavior_config' %}">Assistente IA</a></li>
-                                {% endif %}
-                                
-                                <li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item" href="{% url 'logout' %}">Sair</a></li>
-                            </ul>
-                        </li>
-                    {% else %}
-                        <li class="nav-item">
-                            <a class="nav-link" href="{% url 'login' %}">Entrar</a>
-                        </li>
+                            <li>
+                                <a class="dropdown-item" href="{% url 'courses:student:course_list' %}">
+                                    <i class="fas fa-list-alt me-2"></i> Catálogo de Cursos
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
                     {% endif %}
-                    
+
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button"
+                            data-bs-toggle="dropdown">
+                            {{ user.get_full_name|default:user.email }}
+                        </a>
+                        <ul class="dropdown-menu">
+                            {% if user.is_admin %}
+                            <li><a class="dropdown-item" href="{% url 'users:user_detail' user.id %}">Perfil</a></li>
+                            {% elif user.is_professor %}
+                            <li><a class="dropdown-item" href="{% url 'users:user_detail' user.id %}">Perfil</a></li>
+                            {% elif user.is_student %}
+                            <li><a class="dropdown-item" href="{% url 'users:user_detail' user.id %}">Perfil</a></li>
+                            {% else %}
+                            <li><a class="dropdown-item" href="{% url 'users:user_detail' user.id %}">Perfil</a></li>
+                            {% endif %}
+
+                            {% if user.is_admin or user.is_staff %}
+                            <li><a class="dropdown-item" href="{% url 'assistant:behavior_config' %}">Assistente IA</a>
+                            </li>
+                            {% endif %}
+
+                            <li>
+                                <hr class="dropdown-divider">
+                            </li>
+                            <li><a class="dropdown-item" href="{% url 'logout' %}">Sair</a></li>
+                        </ul>
+                    </li>
+                    {% else %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'login' %}">Entrar</a>
+                    </li>
+                    {% endif %}
+
                     <!-- Link para Apps Parceiros -->
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'apps_parceiros' %}" title="Apps Parceiros">
                             <i class="fas fa-mobile-alt"></i> Apps Parceiros
                         </a>
                     </li>
-                    
+
                     <!-- Link para configuração do Assistente IA -->
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'assistant:behavior_config' %}" title="Configurar Assistente IA">
+                        <a class="nav-link" href="{% url 'assistant:behavior_config' %}"
+                            title="Configurar Assistente IA">
                             <i class="fas fa-robot"></i>
                         </a>
                     </li>
-                    
+
                     <!-- Botão de alternância de tema -->
                     <li class="nav-item ms-2">
                         <a class="nav-link" href="#" id="theme-toggle-btn" title="Alternar tema claro/escuro">
@@ -386,29 +400,29 @@
             </div>
         </div>
     </nav>
-    
+
     <!-- Conteúdo Principal -->
     <main class="container py-4">
         {% if messages %}
-            <div class="messages">
-                {% for message in messages %}
-                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
-                        {{ message }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
-                    </div>
-                {% endfor %}
+        <div class="messages">
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
             </div>
+            {% endfor %}
+        </div>
         {% endif %}
-        
+
         {% block content %}{% endblock %}
     </main>
-    
+
     <!-- Widget de Chat Persistente -->
     <div class="chat-widget-container">
         <div class="chat-widget-button" id="chat-widget-button">
             <i class="chat-widget-icon fas fa-comment"></i>
         </div>
-        
+
         <div class="chat-widget-popup" id="chat-widget-popup">
             <div class="chat-widget-header">
                 <h5 class="mb-0">Assistente Virtual</h5>
@@ -427,27 +441,29 @@
                 </div>
             </div>
             <form class="chat-widget-input-container" id="chat-widget-form">
-                <input type="text" class="chat-widget-input" id="chat-widget-input" placeholder="Digite sua mensagem...">
+                <input type="text" class="chat-widget-input" id="chat-widget-input"
+                    placeholder="Digite sua mensagem...">
                 <button type="submit" class="chat-widget-send">
                     <i class="fas fa-paper-plane"></i>
                 </button>
             </form>
         </div>
     </div>
-    
+
     <!-- Rodapé -->
     <footer class="py-4 mt-auto border-top">
         <div class="container text-center">
             <p class="mb-0">&copy; {% now "Y" %} 55Jam. Todos os direitos reservados.</p>
         </div>
     </footer>
-    
+
     <!-- Bootstrap Bundle com Popper -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    
+
     <!-- JS Customizado -->
     <script src="{% static 'js/chat-widget.js' %}"></script>
-    
+
     {% block extra_js %}{% endblock %}
 </body>
+
 </html>
