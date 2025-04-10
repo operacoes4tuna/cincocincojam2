@@ -20,51 +20,79 @@
             </ol>
         </nav>
         <h2>{% if form.instance.pk %}Editar Aula{% else %}Nova Aula{% endif %}</h2>
-        <p class="text-muted">Curso: {{ course.title }}</p>
+        <p class="text-muted">
+            <i class="fas fa-book me-1"></i> Curso: <strong>{{ course.title }}</strong>
+            {% if form.instance.pk %}
+            <span class="ms-2">
+                <i class="fas fa-clock me-1"></i> Última atualização: {{ form.instance.updated_at|date:"d/m/Y" }}
+            </span>
+            {% endif %}
+        </p>
+    </div>
+    <div>
+        <a href="{% url 'courses:course_detail' course.id %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Voltar para o Curso
+        </a>
     </div>
 </div>
 
-<div class="card shadow">
-    <div class="card-body">
-        <form method="post">
-            {% csrf_token %}
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-edit me-2"></i> Informações da Aula</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" id="lesson-form">
+                    {% csrf_token %}
 
-            <div class="row">
-                <div class="col-md-8">
-                    <div class="mb-3">
+                    <div class="mb-4">
                         {{ form.title|as_crispy_field }}
+                        <small class="form-text text-muted">Um título claro e descritivo do conteúdo da aula.</small>
                     </div>
 
-                    <div class="mb-3">
+                    <div class="mb-4">
                         {{ form.description|as_crispy_field }}
+                        <small class="form-text text-muted">Descreva detalhadamente o que o aluno aprenderá nesta
+                            aula.</small>
                     </div>
 
-                    <div class="mb-3">
-                        {{ form.video_url|as_crispy_field }}
-                        {% if form.instance.video_url %}
-                        <div class="mt-2">
-                            <p>Link atual: <a href="{{ form.instance.video_url }}" target="_blank">{{
-                                    form.instance.video_url }}</a></p>
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                {{ form.video_url|as_crispy_field }}
+                                <small class="form-text text-muted">Cole a URL do vídeo do YouTube (ex:
+                                    https://www.youtube.com/watch?v=VIDEO_ID)</small>
+                                {% if form.instance.video_url %}
+                                <div class="mt-2">
+                                    <small class="text-muted">URL atual: <a href="{{ form.instance.video_url }}"
+                                            target="_blank">{{ form.instance.video_url }}</a></small>
+                                </div>
+                                {% endif %}
+                            </div>
                         </div>
-                        {% endif %}
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="id_private_video_url" class="form-label">URL do vídeo privado</label>
-                        <input type="url" name="private_video_url" id="id_private_video_url" class="form-control"
-                            placeholder="https://www.youtube.com/watch?v=ID_DO_VIDEO_PRIVADO">
-                        <div class="form-text text-muted">Adicione aqui o link para o vídeo privado, se disponível.
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="id_private_video_url" class="form-label">URL do vídeo privado</label>
+                                <input type="url" name="private_video_url" id="id_private_video_url"
+                                    class="form-control"
+                                    placeholder="https://www.youtube.com/watch?v=ID_DO_VIDEO_PRIVADO">
+                                <small class="form-text text-muted">URL opcional para vídeo com acesso restrito.</small>
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                <div class="col-md-4">
-                    <div class="mb-3">
-                        {{ form.order|as_crispy_field }}
-                    </div>
-
-                    <div class="mb-3">
-                        {{ form.status|as_crispy_field }}
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            {{ form.order|as_crispy_field }}
+                            <small class="form-text text-muted">Posição desta aula na sequência do curso.</small>
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.status|as_crispy_field }}
+                            <small class="form-text text-muted">
+                                <i class="fas fa-info-circle me-1"></i> Alunos só podem ver aulas publicadas.
+                            </small>
+                        </div>
                     </div>
 
                     <div class="mb-4">
@@ -75,71 +103,109 @@
                             <label class="form-check-label" for="id_enable_schedule">Agendar liberação</label>
                         </div>
 
-                        <div id="schedule_fields" class="mt-3" style="display: none;">
-                            <div class="mb-3">
-                                <label for="id_release_date" class="form-label">Data de liberação</label>
-                                <input type="date" class="form-control" id="id_release_date" name="release_date">
+                        <div id="schedule_fields" class="mt-3 border p-3 rounded" style="display: none;">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <label for="id_release_date" class="form-label">Data de liberação</label>
+                                    <input type="date" class="form-control" id="id_release_date" name="release_date">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="id_release_time" class="form-label">Hora de liberação</label>
+                                    <input type="time" class="form-control" id="id_release_time" name="release_time">
+                                </div>
                             </div>
-                            <div class="mb-3">
-                                <label for="id_release_time" class="form-label">Hora de liberação</label>
-                                <input type="time" class="form-control" id="id_release_time" name="release_time">
-                            </div>
-                            <div class="form-text text-muted">
-                                O conteúdo só estará disponível na data e hora programadas.
-                            </div>
+                            <small class="form-text text-muted mt-2">
+                                <i class="fas fa-clock me-1"></i> O conteúdo só estará disponível na data e hora
+                                programadas.
+                            </small>
                         </div>
                     </div>
+
+                    <div class="d-flex justify-content-between mt-4">
+                        <a href="{% url 'courses:course_detail' course.id %}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Cancelar
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> {% if form.instance.pk %}Atualizar{% else %}Criar{% endif %}
+                            Aula
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <!-- Preview Panel -->
+        <div class="card shadow mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-eye me-2"></i> Pré-visualização</h5>
+            </div>
+            <div class="card-body">
+                <div id="video-preview" class="mb-3 bg-light p-3 rounded text-center">
+                    <div class="ratio ratio-16x9" id="youtube-container"
+                        style="display: {% if form.instance.video_url %}block{% else %}none{% endif %};">
+                        <iframe id="youtube-preview" src="" title="Preview do vídeo" frameborder="0"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowfullscreen></iframe>
+                    </div>
+                    <div class="py-5" id="video-placeholder"
+                        style="display: {% if form.instance.video_url %}none{% else %}block{% endif %};">
+                        <i class="fas fa-video fa-3x mb-3 text-muted"></i>
+                        <p class="text-muted">Preview do vídeo aparecerá aqui</p>
+                    </div>
+                </div>
+
+                <div class="border-start border-info border-4 ps-3 mb-3">
+                    <h5 id="preview-title">{{ form.instance.title|default:"Título da Aula" }}</h5>
+                    <p class="small text-muted">
+                        {{ form.instance.description|default:"A descrição da aula aparecerá aqui..."|truncatewords:20 }}
+                    </p>
+                </div>
+
+                <div class="d-flex justify-content-between">
+                    <span class="badge bg-primary">Aula {{ form.instance.order|default:"0" }}</span>
+                    {% if form.instance.status == 'PUBLISHED' %}
+                    <span class="badge bg-success">Publicada</span>
+                    {% else %}
+                    <span class="badge bg-secondary">Rascunho</span>
+                    {% endif %}
                 </div>
             </div>
+        </div>
 
-            <div class="mt-4 d-flex justify-content-between">
-                <a href="{% url 'courses:course_detail' course.id %}" class="btn btn-secondary">
-                    <i class="fas fa-arrow-left"></i> Voltar para o Curso
-                </a>
-                <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-save"></i> {% if form.instance.pk %}Atualizar{% else %}Criar{% endif %} Aula
-                </button>
+        <!-- Tips Panel -->
+        <div class="card shadow">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="fas fa-lightbulb me-2"></i> Dicas</h5>
             </div>
-        </form>
-    </div>
-</div>
-
-<div class="card shadow mt-4">
-    <div class="card-header bg-info text-white">
-        <h5 class="mb-0">Dicas para criação de aulas</h5>
-    </div>
-    <div class="card-body">
-        <div class="row">
-            <div class="col-md-4">
-                <div class="mb-3">
-                    <h5><i class="fas fa-heading text-warning"></i> Título Claro</h5>
-                    <p class="text-muted">Use títulos descritivos que indiquem claramente o conteúdo da aula.</p>
+            <div class="card-body">
+                <div class="border-start border-warning ps-3 mb-3">
+                    <h6><i class="fas fa-heading text-warning me-2"></i> Título Claro</h6>
+                    <p class="small mb-0">Use títulos descritivos que indiquem claramente o conteúdo da aula.</p>
                 </div>
-            </div>
-            <div class="col-md-4">
-                <div class="mb-3">
-                    <h5><i class="fas fa-sort-numeric-down text-primary"></i> Ordem Lógica</h5>
-                    <p class="text-muted">Mantenha uma sequência lógica nas aulas para facilitar o aprendizado dos
+                <div class="border-start border-primary ps-3 mb-3">
+                    <h6><i class="fas fa-sort-numeric-down text-primary me-2"></i> Ordem Lógica</h6>
+                    <p class="small mb-0">Mantenha uma sequência lógica nas aulas para facilitar o aprendizado dos
                         alunos.</p>
                 </div>
-            </div>
-            <div class="col-md-4">
-                <div class="mb-3">
-                    <h5><i class="fas fa-video text-success"></i> Vídeos de Qualidade</h5>
-                    <p class="text-muted">Certifique-se de que seus vídeos tenham boa qualidade de áudio e imagem.</p>
+                <div class="border-start border-success ps-3 mb-3">
+                    <h6><i class="fas fa-video text-success me-2"></i> Vídeos de Qualidade</h6>
+                    <p class="small mb-0">Certifique-se de que seus vídeos tenham boa qualidade de áudio e imagem.</p>
                 </div>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
 
 {% block extra_js %}
 <script>
     document.addEventListener('DOMContentLoaded', function () {
+        // Agendamento toggle
         const enableScheduleCheckbox = document.getElementById('id_enable_schedule');
         const scheduleFields = document.getElementById('schedule_fields');
 
-        // Função para mostrar/esconder os campos de agendamento
         function toggleScheduleFields() {
             if (enableScheduleCheckbox.checked) {
                 scheduleFields.style.display = 'block';
@@ -148,12 +214,68 @@
             }
         }
 
-        // Associar evento ao checkbox
         enableScheduleCheckbox.addEventListener('change', toggleScheduleFields);
-
-        // Verificar estado inicial
         toggleScheduleFields();
+
+        // Atualização da pré-visualização (apenas se os elementos existirem)
+        const titleInput = document.getElementById('id_title');
+        const descriptionInput = document.getElementById('id_description');
+        const previewTitle = document.getElementById('preview-title');
+        const videoUrlInput = document.getElementById('id_video_url');
+        const youtubePreview = document.getElementById('youtube-preview');
+        const videoPlaceholder = document.getElementById('video-placeholder');
+
+        if (titleInput && previewTitle) {
+            titleInput.addEventListener('input', function () {
+                previewTitle.textContent = titleInput.value || "Título da Aula";
+            });
+        }
+
+        // Função para extrair o ID do YouTube de uma URL
+        function extractYouTubeId(url) {
+            if (!url) return null;
+
+            // Padrão para youtube.com/watch?v=ID
+            let match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\?\/]+)/);
+            return match ? match[1] : null;
+        }
+
+        // Configurar a pré-visualização do YouTube se houver URL inicial
+        function setupYouTubePreview() {
+            if (videoUrlInput && youtubePreview) {
+                const url = videoUrlInput.value;
+                const youtubeId = extractYouTubeId(url);
+
+                if (youtubeId) {
+                    youtubePreview.src = `https://www.youtube.com/embed/${youtubeId}`;
+                    if (videoPlaceholder) {
+                        videoPlaceholder.style.display = 'none';
+                    }
+                    youtubePreview.parentElement.style.display = 'block';
+                } else {
+                    youtubePreview.src = '';
+                    if (videoPlaceholder) {
+                        videoPlaceholder.style.display = 'block';
+                    }
+                    youtubePreview.parentElement.style.display = 'none';
+                }
+            }
+        }
+
+        // Atualizar pré-visualização quando a URL mudar
+        if (videoUrlInput) {
+            videoUrlInput.addEventListener('input', setupYouTubePreview);
+            // Configuração inicial
+            setupYouTubePreview();
+        }
+
+        // Configuração inicial para URL existente
+        if (youtubePreview && "{{ form.instance.video_url }}") {
+            const youtubeId = extractYouTubeId("{{ form.instance.video_url }}");
+            if (youtubeId) {
+                youtubePreview.src = `https://www.youtube.com/embed/${youtubeId}`;
+            }
+        }
     });
 </script>
-{% endblock %}
 {% endblock %}

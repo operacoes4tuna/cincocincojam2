@@ -211,17 +211,17 @@
                 <ul class="navbar-nav ms-auto">
                     {% if user.is_authenticated %}
                     {% if user.is_admin %}
-                    <li class="nav-item me-3">
+                    <li class="nav-item">
                         <a class="nav-link" href="{% url 'users:dashboard' %}">
                             <i class="fas fa-tachometer-alt"></i> Dashboard
                         </a>
                     </li>
-                    <li class="nav-item me-3">
+                    <li class="nav-item">
                         <a class="nav-link" href="{% url 'users:user_list' %}">
                             <i class="fas fa-users"></i> Usuários
                         </a>
                     </li>
-                    <li class="nav-item me-3">
+                    <li class="nav-item">
                         <a class="nav-link" href="{% url 'payments:admin_dashboard' %}">
                             <i class="fas fa-chart-line"></i> Financeiro
                         </a>

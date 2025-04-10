@@ -2,7 +2,7 @@
 {% load crispy_forms_tags %}
 
 {% block title %}
-    {% if form.instance.pk %}Editar Curso{% else %}Novo Curso{% endif %} - CincoCincoJAM 2.0
+{% if form.instance.pk %}Editar Curso{% else %}Novo Curso{% endif %} - CincoCincoJAM 2.0
 {% endblock %}
 
 {% block content %}
@@ -18,87 +18,250 @@
             </ol>
         </nav>
         <h2>{% if form.instance.pk %}Editar Curso{% else %}Novo Curso{% endif %}</h2>
+        {% if form.instance.pk %}
+        <p class="text-muted">
+            <i class="fas fa-clock me-1"></i> Última atualização: {{ form.instance.updated_at|date:"d/m/Y" }}
+            <span
+                class="badge {% if form.instance.status == 'PUBLISHED' %}bg-success{% else %}bg-secondary{% endif %} ms-2">
+                {% if form.instance.status == 'PUBLISHED' %}Publicado{% else %}Rascunho{% endif %}
+            </span>
+        </p>
+        {% endif %}
+    </div>
+    <div>
+        {% if form.instance.pk %}
+        <a href="{% url 'courses:course_detail' form.instance.pk %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Voltar para o Curso
+        </a>
+        {% else %}
+        <a href="{% url 'courses:course_list' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Voltar para Lista
+        </a>
+        {% endif %}
     </div>
 </div>
 
-<div class="card shadow">
-    <div class="card-body">
-        <form method="post" enctype="multipart/form-data">
-            {% csrf_token %}
-            
-            <div class="row">
-                <div class="col-md-8">
-                    <div class="mb-3">
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card shadow mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-edit me-2"></i> Dados do Curso</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" enctype="multipart/form-data" id="course-form">
+                    {% csrf_token %}
+
+                    <div class="mb-4">
                         {{ form.title|as_crispy_field }}
+                        <small class="form-text text-muted">Um título claro e atrativo que explique o objetivo do
+                            curso.</small>
                     </div>
-                    
-                    <div class="mb-3">
+
+                    <div class="mb-4">
                         {{ form.short_description|as_crispy_field }}
+                        <small class="form-text text-muted">Um resumo breve (até 200 caracteres) que aparecerá na lista
+                            de cursos.</small>
                     </div>
-                    
-                    <div class="mb-3">
+
+                    <div class="mb-4">
                         {{ form.description|as_crispy_field }}
+                        <small class="form-text text-muted">Descreva detalhadamente o conteúdo, objetivos e público-alvo
+                            do curso.</small>
                     </div>
-                </div>
-                
-                <div class="col-md-4">
-                    <div class="mb-3">
-                        {{ form.price|as_crispy_field }}
+
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            {{ form.price|as_crispy_field }}
+                            <small class="form-text text-muted">Valor a ser cobrado pelo curso. Use 0 para cursos
+                                gratuitos.</small>
+                        </div>
+
+                        <div class="col-md-6">
+                            {{ form.status|as_crispy_field }}
+                            <small class="form-text text-muted">
+                                <i class="fas fa-info-circle me-1"></i> Cursos em rascunho não aparecem para alunos.
+                            </small>
+                        </div>
                     </div>
-                    
-                    <div class="mb-3">
-                        {{ form.status|as_crispy_field }}
-                    </div>
-                    
-                    <div class="mb-3">
-                        {{ form.image|as_crispy_field }}
+
+                    <div class="mb-4">
+                        <label for="id_image" class="form-label fw-bold">Imagem de Capa</label>
+                        <div class="input-group mb-3">
+                            <input type="file" class="form-control" id="id_image" name="image" accept="image/*">
+                            <label class="input-group-text" for="id_image">Upload</label>
+                        </div>
+                        <small class="form-text text-muted">Use uma imagem de alta qualidade (1280x720 pixels) para
+                            atrair mais alunos.</small>
+
                         {% if form.instance.image %}
-                            <div class="mt-2">
-                                <p>Imagem atual:</p>
-                                <img src="{{ form.instance.image.url }}" alt="{{ form.instance.title }}" class="img-thumbnail" style="max-height: 150px;">
-                            </div>
+                        <div class="image-preview mt-3">
+                            <p class="mb-2">Imagem atual:</p>
+                            <img src="{{ form.instance.image.url }}" alt="{{ form.instance.title }}"
+                                class="img-thumbnail" style="max-height: 150px;">
+                        </div>
                         {% endif %}
                     </div>
-                </div>
-            </div>
-            
-            <div class="mt-4 d-flex justify-content-between">
-                <a href="{% if form.instance.pk %}{% url 'courses:course_detail' form.instance.pk %}{% else %}{% url 'courses:course_list' %}{% endif %}" class="btn btn-secondary">
-                    <i class="fas fa-arrow-left"></i> Cancelar
-                </a>
-                <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-save"></i> {% if form.instance.pk %}Atualizar{% else %}Criar{% endif %} Curso
-                </button>
-            </div>
-        </form>
-    </div>
-</div>
 
-<div class="card shadow mt-4">
-    <div class="card-header bg-info text-white">
-        <h5 class="mb-0">Dicas para criação de cursos</h5>
+                    <div class="mt-4 d-flex justify-content-end">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="fas fa-save"></i> {% if form.instance.pk %}Atualizar{% else %}Criar{% endif %}
+                            Curso
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
-    <div class="card-body">
-        <div class="row">
-            <div class="col-md-4">
-                <div class="mb-3">
-                    <h5><i class="fas fa-lightbulb text-warning"></i> Título Atrativo</h5>
-                    <p class="text-muted">Escolha um título claro e direto que descreva exatamente o que seu curso oferece.</p>
+
+    <div class="col-lg-4">
+        <!-- Preview Panel -->
+        <div class="card shadow mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-eye me-2"></i> Pré-visualização</h5>
+            </div>
+            <div class="card-body">
+                <div class="course-preview text-center mb-4">
+                    <div id="image-preview-container" class="mb-3">
+                        {% if form.instance.image %}
+                        <img src="{{ form.instance.image.url }}" alt="{{ form.instance.title }}"
+                            class="img-fluid rounded" id="image-preview">
+                        {% else %}
+                        <div class="bg-light p-5 rounded">
+                            <i class="fas fa-image fa-3x text-muted"></i>
+                            <p class="mt-2 text-muted">Preview da imagem aparecerá aqui</p>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="border-start border-info border-4 ps-3 text-start mb-3">
+                        <h5 id="title-preview">{{ form.instance.title|default:"Título do Curso" }}</h5>
+                        <p class="small text-muted" id="short-description-preview">
+                            {{ form.instance.short_description|default:"Descrição curta do curso..." }}
+                        </p>
+                    </div>
+
+                    <div class="d-flex justify-content-between">
+
+                        <span
+                            class="badge {% if form.instance.status == 'PUBLISHED' %}bg-success{% else %}bg-secondary{% endif %}"
+                            id="status-badge">
+                            {% if form.instance.status == 'PUBLISHED' %}Publicado{% else %}Rascunho{% endif %}
+                        </span>
+                    </div>
+                </div>
+
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <small>
+                        {% if form.instance.pk %}
+                        Após salvar, você poderá adicionar aulas ao curso.
+                        {% else %}
+                        Após criar o curso, você poderá adicionar aulas.
+                        {% endif %}
+                    </small>
                 </div>
             </div>
-            <div class="col-md-4">
-                <div class="mb-3">
-                    <h5><i class="fas fa-image text-primary"></i> Imagem de Qualidade</h5>
-                    <p class="text-muted">Use uma imagem de alta qualidade (1280x720px) que represente bem o conteúdo do curso.</p>
-                </div>
+        </div>
+
+        <!-- Tips Panel -->
+        <div class="card shadow">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="fas fa-lightbulb me-2"></i> Dicas para um Bom Curso</h5>
             </div>
-            <div class="col-md-4">
-                <div class="mb-3">
-                    <h5><i class="fas fa-file-alt text-success"></i> Descrição Detalhada</h5>
-                    <p class="text-muted">Explique o que os alunos aprenderão, para quem o curso é indicado e quais são os pré-requisitos.</p>
+            <div class="card-body">
+                <div class="border-start border-warning ps-3 mb-3">
+                    <h6><i class="fas fa-lightbulb text-warning me-2"></i> Título Atrativo</h6>
+                    <p class="small mb-0">Escolha um título claro e direto que descreva exatamente o que seu curso
+                        oferece.</p>
+                </div>
+                <div class="border-start border-primary ps-3 mb-3">
+                    <h6><i class="fas fa-image text-primary me-2"></i> Imagem de Qualidade</h6>
+                    <p class="small mb-0">Use uma imagem de alta qualidade (1280x720px) que represente bem o conteúdo do
+                        curso.</p>
+                </div>
+                <div class="border-start border-success ps-3 mb-3">
+                    <h6><i class="fas fa-file-alt text-success me-2"></i> Descrição Detalhada</h6>
+                    <p class="small mb-0">Explique o que os alunos aprenderão, para quem o curso é indicado e quais são
+                        os pré-requisitos.</p>
+                </div>
+                <div class="border-start border-danger ps-3 mb-3">
+                    <h6><i class="fas fa-tasks text-danger me-2"></i> Crie várias aulas</h6>
+                    <p class="small mb-0">Divida o conteúdo em múltiplas aulas para uma melhor experiência de
+                        aprendizado.</p>
                 </div>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Elementos do formulário
+        const titleInput = document.getElementById('id_title');
+        const shortDescInput = document.getElementById('id_short_description');
+        const priceInput = document.getElementById('id_price');
+        const statusSelect = document.getElementById('id_status');
+        const imageInput = document.getElementById('id_image');
+
+        // Elementos de preview
+        const titlePreview = document.getElementById('title-preview');
+        const shortDescPreview = document.getElementById('short-description-preview');
+        const pricePreview = document.getElementById('price-preview');
+        const statusBadge = document.getElementById('status-badge');
+        const imagePreviewContainer = document.getElementById('image-preview-container');
+
+        // Atualizar título em tempo real
+        if (titleInput && titlePreview) {
+            titleInput.addEventListener('input', function () {
+                titlePreview.textContent = this.value || "Título do Curso";
+            });
+        }
+
+        // Atualizar descrição curta em tempo real
+        if (shortDescInput && shortDescPreview) {
+            shortDescInput.addEventListener('input', function () {
+                shortDescPreview.textContent = this.value || "Descrição curta do curso...";
+            });
+        }
+
+        // Atualizar preço em tempo real
+        if (priceInput && pricePreview) {
+            priceInput.addEventListener('input', function () {
+                pricePreview.textContent = parseFloat(this.value || 0).toFixed(2);
+            });
+        }
+
+        // Atualizar status em tempo real
+        if (statusSelect && statusBadge) {
+            statusSelect.addEventListener('change', function () {
+                if (this.value === 'PUBLISHED') {
+                    statusBadge.textContent = 'Publicado';
+                    statusBadge.className = 'badge bg-success';
+                } else {
+                    statusBadge.textContent = 'Rascunho';
+                    statusBadge.className = 'badge bg-secondary';
+                }
+            });
+        }
+
+        // Preview de imagem em tempo real
+        if (imageInput && imagePreviewContainer) {
+            imageInput.addEventListener('change', function () {
+                if (this.files && this.files[0]) {
+                    const reader = new FileReader();
+
+                    reader.onload = function (e) {
+                        imagePreviewContainer.innerHTML = `
+                            <img src="${e.target.result}" alt="Preview" class="img-fluid rounded" id="image-preview">
+                        `;
+                    }
+
+                    reader.readAsDataURL(this.files[0]);
+                }
+            });
+        }
+    });
+</script>
 {% endblock %}
