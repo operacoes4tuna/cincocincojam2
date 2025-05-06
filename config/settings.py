@@ -13,27 +13,22 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 import os
 import dj_database_url
 from pathlib import Path
-import environ
 from decouple import config, Csv
-
-# Inicializar environ
-env = environ.Env()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-
-# Leitura do arquivo .env
-environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = env('SECRET_KEY', default='django-insecure-default-key-for-dev')
+SECRET_KEY = config('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-# DEBUG será False quando estiver no Render
-DEBUG = 'RENDER' not in os.environ
+# Usar apenas o decouple para configurar DEBUG
+DEBUG = config('DEBUG', default=False, cast=bool)
+print(f"DEBUG está configurado como: {DEBUG}")
+
 
 # Configuração de ALLOWED_HOSTS para o Render
 ALLOWED_HOSTS = ['localhost', '127.0.0.1']
@@ -196,30 +191,30 @@ LOGOUT_REDIRECT_URL = 'login'
 AUTH_USER_MODEL = 'core.User'
 
 # Configuração do OpenPix (integração de pagamento PIX)
-OPENPIX_TOKEN = env('OPENPIX_TOKEN', default="Q2xpZW50X0lkXzkyZTNlM2Q4LTM1ZTctNDk1My04ODJiLTY1MTc0MmE3NWIwMTpDbGllbnRfU2VjcmV0XzlXdHVKTTgwSXFYYkNEVzl6MjVxTmh4REFLcnhVTXRqeFBkNmk1cTZnKzQ9")
-OPENPIX_WEBHOOK_SECRET = env('OPENPIX_WEBHOOK_SECRET', default="")  # Será definido posteriormente
+OPENPIX_TOKEN = config('OPENPIX_TOKEN', default="Q2xpZW50X0lkXzkyZTNlM2Q4LTM1ZTctNDk1My04ODJiLTY1MTc0MmE3NWIwMTpDbGllbnRfU2VjcmV0XzlXdHVKTTgwSXFYYkNEVzl6MjVxTmh4REFLcnhVTXRqeFBkNmk1cTZnKzQ9")
+OPENPIX_WEBHOOK_SECRET = config('OPENPIX_WEBHOOK_SECRET', default="")  # Será definido posteriormente
 
 # Configuração do Pagar.me (integração de pagamento com cartão)
-PAGARME_API_KEY = env('PAGARME_API_KEY', default="chave_de_api_simulada_pagarme")
-PAGARME_ENCRYPTION_KEY = env('PAGARME_ENCRYPTION_KEY', default="chave_de_criptografia_simulada_pagarme")
+PAGARME_API_KEY = config('PAGARME_API_KEY', default="chave_de_api_simulada_pagarme")
+PAGARME_ENCRYPTION_KEY = config('PAGARME_ENCRYPTION_KEY', default="chave_de_criptografia_simulada_pagarme")
 
 # Settings para o Assistente Virtual/ChatBot
-OPENAI_API_KEY = env('OPENAI_API_KEY', default='')
-OPENAI_MODEL = env('OPENAI_MODEL', default='gpt-4o-mini')
-OPENAI_MAX_TOKENS = int(env('OPENAI_MAX_TOKENS', default=150))
-OPENAI_TEMPERATURE = float(env('OPENAI_TEMPERATURE', default=0.7))
-OPENAI_STORE = env.bool('OPENAI_STORE', default=True)
+OPENAI_API_KEY = config('OPENAI_API_KEY', default='')
+OPENAI_MODEL = config('OPENAI_MODEL', default='gpt-4o-mini')
+OPENAI_MAX_TOKENS = int(config('OPENAI_MAX_TOKENS', default=150))
+OPENAI_TEMPERATURE = float(config('OPENAI_TEMPERATURE', default=0.7))
+OPENAI_STORE = config('OPENAI_STORE', default=True, cast=bool)
 
 # Configurações do FocusNFe
-FOCUS_NFE_API_KEY = env('FOCUS_NFE_API_KEY', default='')
-FOCUS_NFE_SANDBOX = env.bool('FOCUS_NFE_SANDBOX', default=True)
-FOCUS_NFE_TEST_MODE = env.bool('FOCUS_NFE_TEST_MODE', default=False)
+FOCUS_NFE_API_KEY = config('FOCUS_NFE_API_KEY', default='')
+FOCUS_NFE_SANDBOX = config('FOCUS_NFE_SANDBOX', default=True, cast=bool)
+FOCUS_NFE_TEST_MODE = config('FOCUS_NFE_TEST_MODE', default=False, cast=bool)
 FOCUS_NFE_SIMULATOR = None  # Será inicializado quando o modo de teste for ativado
 
 # Configurações da API NFE.io
-NFEIO_API_KEY = env('NFEIO_API_KEY', default='')
-NFEIO_COMPANY_ID = env('NFEIO_COMPANY_ID', default='')
-NFEIO_ENVIRONMENT = env('NFEIO_ENVIRONMENT', default='Development')
+NFEIO_API_KEY = config('NFEIO_API_KEY', default='')
+NFEIO_COMPANY_ID = config('NFEIO_COMPANY_ID', default='')
+NFEIO_ENVIRONMENT = config('NFEIO_ENVIRONMENT', default='Development')
 
 # Configuração de logging
 LOGGING = {
