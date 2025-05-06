@@ -30,7 +30,9 @@ media
 # Virtual Environment
 venv/
 ENV/
-.venv  
+
+.venv/ 
+
 # .env  # Linha removida para permitir que o arquivo .env seja rastreado pelo Git
 
 # IDE

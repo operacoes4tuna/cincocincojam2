@@ -6,7 +6,7 @@ import json
 import re
 import os
 from typing import List, Dict, Any
-from openai import OpenAI
+import openai
 from django.conf import settings
 
 from .db_manager import DatabaseManager
@@ -43,11 +43,12 @@ class OpenAIManager:
         self.store = getattr(settings, 'OPENAI_STORE', True)  # Novo parâmetro, padrão True
         
         # Inicializa o cliente OpenAI se a chave API estiver disponível
-        if self.api_key:
-            self.client = OpenAI(api_key=self.api_key)
-            logger.info(f"OpenAI cliente inicializado com modelo: {self.model}")
-        else:
-            self.client = None
+ 
+        openai.api_key = self.api_key
+        self.client = openai if self.api_key else None
+        
+        if not self.client:
+
             logger.warning("OpenAI API Key não configurada. O assistente usará respostas padrão.")
             
         # Inicializa o gerenciador de banco de dados
@@ -505,12 +506,9 @@ class OpenAIManager:
         
         # Se não for consulta de dados, segue o fluxo normal
         try:
-            # Adicionando logging para debug
-            logger.info(f"Enviando requisição para OpenAI com modelo: {self.model}")
-            logger.info(f"Usando chave API: {self.api_key[:10]}...")
-            
-            # Criando a completação com os parâmetros atualizados
-            completion = self.client.chat.completions.create(
+ 
+            response = openai.ChatCompletion.create(
+ 
                 model=self.model,
                 messages=formatted_messages,
                 max_tokens=self.max_tokens,
@@ -518,11 +516,9 @@ class OpenAIManager:
                 store=self.store  # Novo parâmetro store
             )
             
-            # Log de sucesso
-            logger.info("Resposta recebida com sucesso da OpenAI")
-            
-            response = completion.choices[0].message.content.strip()
-            
+ 
+            response = response.choices[0].message.content.strip()
+             
             # Detecta frases que indicam negação ou falta de acesso aos dados
             denial_phrases = [
                 "não consigo", "não posso", "não tenho acesso", "não é possível", 
