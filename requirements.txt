@@ -1,6 +1,15 @@
+asgiref==3.8.1
+certifi==2025.4.26
+charset-normalizer==3.4.2
+crispy-bootstrap5==0.7
 Django==4.2.10
+django-crispy-forms==2.0
+django-environ==0.12.0
+idna==3.10
+Pillow==10.1.0
 psycopg2-binary==2.9.9
 python-decouple==3.8
-django-crispy-forms==2.0
-crispy-bootstrap5==0.7
-Pillow==10.1.0
+requests==2.32.3
+sqlparse==0.5.3
+urllib3==2.4.0
+openai==1.30.5  # Versão estável mais recente

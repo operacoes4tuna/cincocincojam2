@@ -5,7 +5,7 @@ import logging
 import json
 import re
 from typing import List, Dict, Any
-from openai import OpenAI
+import openai
 from django.conf import settings
 
 from .db_manager import DatabaseManager
@@ -23,10 +23,10 @@ class OpenAIManager:
         self.temperature = settings.OPENAI_TEMPERATURE
         
         # Inicializa o cliente OpenAI se a chave API estiver disponível
-        if self.api_key:
-            self.client = OpenAI(api_key=self.api_key)
-        else:
-            self.client = None
+        openai.api_key = self.api_key
+        self.client = openai if self.api_key else None
+        
+        if not self.client:
             logger.warning("OpenAI API Key não configurada. O assistente usará respostas padrão.")
             
         # Inicializa o gerenciador de banco de dados
@@ -452,14 +452,14 @@ class OpenAIManager:
         
         # Se não for consulta de dados, segue o fluxo normal
         try:
-            completion = self.client.chat.completions.create(
+            response = openai.ChatCompletion.create(
                 model=self.model,
                 messages=formatted_messages,
                 max_tokens=self.max_tokens,
                 temperature=self.temperature
             )
             
-            response = completion.choices[0].message.content.strip()
+            response = response.choices[0].message.content.strip()
             
             # Detecta frases que indicam negação ou falta de acesso aos dados
             denial_phrases = [
