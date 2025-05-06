@@ -30,7 +30,10 @@ media
 # Virtual Environment
 venv/
 ENV/
+
+# Environment files
 .env
+.venv
 
 # IDE
 .idea/
