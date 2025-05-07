@@ -123,28 +123,51 @@ class NFEioService:
                 print(f"\nDEBUG - Payload da requisição:")
                 print(json.dumps(data, indent=2, ensure_ascii=False))
             
+            print(f"\nDEBUG - Enviando requisição {method} para {url}")
             response = requests.request(method, url, headers=self.headers, json=data)
             
             # Log da resposta
             print(f"\nDEBUG - Resposta da API:")
             print(f"Status: {response.status_code}")
+            print(f"Headers: {dict(response.headers)}")
+            
             try:
-                print(json.dumps(response.json(), indent=2, ensure_ascii=False))
-            except:
-                print(response.text)
+                response_data = response.json()
+                print("Conteúdo da resposta:")
+                print(json.dumps(response_data, indent=2, ensure_ascii=False))
+            except Exception as e:
+                print(f"Erro ao decodificar JSON: {str(e)}")
+                print(f"Resposta bruta: {response.text}")
             
             # Se houver erro 5xx, tentar novamente
             if response.status_code >= 500 and retry_count < self.max_retries:
-                logger.warning(f"Erro {response.status_code} na requisição. Tentativa {retry_count + 1} de {self.max_retries}")
+                print(f"DEBUG - Erro {response.status_code} na requisição. Tentativa {retry_count + 1} de {self.max_retries}")
                 time.sleep(self.retry_delay)
                 return self._make_request(method, endpoint, data, retry_count + 1)
+            
+            # Se for erro 4xx, capturar detalhes do erro
+            if response.status_code >= 400 and response.status_code < 500:
+                try:
+                    error_data = response.json()
+                    error_msg = error_data.get('message', 'Erro não especificado')
+                    error_details = error_data.get('details', {})
+                    print(f"DEBUG - Erro {response.status_code} na requisição para NFE.io:")
+                    print(f"Mensagem: {error_msg}")
+                    if error_details:
+                        print(f"Detalhes: {json.dumps(error_details, indent=2)}")
+                    return {"error": True, "message": error_msg, "details": error_details}
+                except Exception as e:
+                    error_msg = f"Erro {response.status_code}: {response.text}"
+                    print(f"DEBUG - Erro ao processar resposta: {str(e)}")
+                    print(f"DEBUG - {error_msg}")
+                    return {"error": True, "message": error_msg}
                 
             response.raise_for_status()
             return response.json()
             
         except requests.exceptions.RequestException as e:
             error_msg = f"Erro na requisição para NFE.io: {str(e)}"
-            logger.error(error_msg)
+            print(f"DEBUG - {error_msg}")
             return {"error": True, "message": error_msg}
 
     def emit_invoice(self, invoice):
@@ -155,8 +178,11 @@ class NFEioService:
         
         # 1. Validar configuração do professor
         professor = invoice.transaction.enrollment.course.professor
+        print(f"DEBUG - Professor: {professor.get_full_name()}")
+        
         config_valid, config_message = self.validate_company_config(professor.company_config)
         if not config_valid:
+            print(f"DEBUG - Erro na configuração: {config_message}")
             invoice.status = 'error'
             invoice.error_message = config_message
             invoice.save()
@@ -164,8 +190,11 @@ class NFEioService:
             
         # 2. Validar dados do aluno
         student = invoice.transaction.enrollment.student
+        print(f"DEBUG - Aluno: {student.get_full_name()}")
+        
         student_valid, student_message = self.validate_student_data(student)
         if not student_valid:
+            print(f"DEBUG - Erro nos dados do aluno: {student_message}")
             invoice.status = 'error'
             invoice.error_message = student_message
             invoice.save()
@@ -174,34 +203,44 @@ class NFEioService:
         # 3. Verificar conectividade
         if not self.check_connectivity():
             error_msg = "Não foi possível conectar ao serviço NFE.io"
+            print(f"DEBUG - Erro de conectividade: {error_msg}")
             invoice.status = 'error'
             invoice.error_message = error_msg
             invoice.save()
             return {"error": True, "message": error_msg}
             
-        # 4. Gerar número RPS se necessário
-        if invoice.rps_numero is None:
-            self._generate_rps_for_invoice(invoice, professor)
+        # 4. Gerar número RPS
+        print("DEBUG - Gerando número RPS...")
+        self._generate_rps_for_invoice(invoice, professor)
+        print(f"DEBUG - RPS gerado: Série {invoice.rps_serie}, Número {invoice.rps_numero}")
             
         # 5. Preparar dados da nota
+        print("DEBUG - Preparando dados da nota...")
         invoice_data = self._prepare_invoice_data(invoice)
+        print("DEBUG - Dados preparados:")
+        print(json.dumps(invoice_data, indent=2, ensure_ascii=False))
         
         # 6. Emitir nota
+        print("DEBUG - Enviando para API...")
         endpoint = f"v1/companies/{self.company_id}/serviceinvoices"
         response = self._make_request('POST', endpoint, invoice_data)
         
         if response.get('error'):
+            print(f"DEBUG - Erro na API: {response.get('message')}")
             invoice.status = 'error'
             invoice.error_message = response.get('message')
             invoice.save()
             return response
             
         # 7. Atualizar nota com resposta
+        print("DEBUG - Atualizando nota com resposta...")
         self._update_invoice_with_response(invoice, response)
         
         # 8. Verificar status inicial
+        print("DEBUG - Verificando status inicial...")
         time.sleep(5)
-        self.check_invoice_status(invoice)
+        status_response = self.check_invoice_status(invoice)
+        print(f"DEBUG - Status inicial: {status_response}")
         
         return response
 
@@ -209,40 +248,57 @@ class NFEioService:
         """
         Prepara os dados da nota fiscal no formato esperado pela API
         """
+        print("\nDEBUG - Preparando dados da nota fiscal...")
+        
         transaction = invoice.transaction
         student = transaction.enrollment.student
         professor = transaction.enrollment.course.professor
+        company_config = professor.company_config
         
-        # Limpar CPF
+        print(f"DEBUG - Dados do professor:")
+        print(f"- Nome: {professor.get_full_name()}")
+        print(f"- CNPJ: {company_config.cnpj}")
+        print(f"- Código de serviço: {company_config.city_service_code}")
+        
+        # Limpar CPF e converter para número
         cpf = getattr(student, 'cpf', '00000000000')
         if cpf:
             cpf = cpf.replace('.', '').replace('-', '')
+            print(f"DEBUG - CPF do aluno: {cpf}")
         else:
             cpf = '00000000000'
+            print("DEBUG - CPF não informado, usando padrão")
             
         # Determinar tipo de pessoa
         borrower_type = "LegalEntity" if len(cpf) > 11 else "NaturalPerson"
+        print(f"DEBUG - Tipo de pessoa: {borrower_type}")
         
         # Descrição do serviço
         service_description = f"Aula de {transaction.enrollment.course.title}"
         if hasattr(transaction, 'customized_description') and transaction.customized_description:
             service_description = transaction.customized_description
+        print(f"DEBUG - Descrição do serviço: {service_description}")
             
         # Formatar valor do serviço
         services_amount = float(transaction.amount)
         if services_amount <= 0:
             services_amount = 0.01  # Valor mínimo para evitar erro
+            print("DEBUG - Valor do serviço ajustado para mínimo")
+        print(f"DEBUG - Valor do serviço: {services_amount}")
             
         # Formatar CEP
         zipcode = getattr(student, 'zipcode', '00000000')
         if zipcode:
             zipcode = zipcode.replace('-', '')
+            print(f"DEBUG - CEP do aluno: {zipcode}")
         else:
             zipcode = '00000000'
+            print("DEBUG - CEP não informado, usando padrão")
             
         # Obter estado e cidade
         state = getattr(student, 'state', 'SP') or 'SP'
         city = getattr(student, 'city', 'São Paulo') or 'São Paulo'
+        print(f"DEBUG - Localização: {city}/{state}")
         
         # Mapear código da cidade baseado no estado
         city_codes = {
@@ -260,54 +316,134 @@ class NFEioService:
         
         # Usar código da cidade do estado ou São Paulo como fallback
         city_code = city_codes.get(state.upper(), '3550308')
+        print(f"DEBUG - Código da cidade: {city_code}")
+        
+        # Formatar o código de serviço (remover pontos e garantir 4 dígitos)
+        service_code = company_config.city_service_code
+        if not service_code:
+            print("DEBUG - ERRO: Código de serviço não configurado!")
+            raise ValueError("Código de serviço não configurado para o professor")
+        
+        service_code = service_code.replace('.', '')
+        if len(service_code) < 4:
+            service_code = service_code.zfill(4)
+        print(f"DEBUG - Código de serviço formatado: {service_code}")
             
-        return {
+        # Preparar dados do endereço
+        address = {
+            "country": "BRA",
+            "state": state.upper(),
+            "city": {
+                "code": city_code,
+                "name": city
+            },
+            "district": getattr(student, 'neighborhood', 'Centro') or 'Centro',
+            "street": getattr(student, 'address_line', 'Endereço não informado') or 'Endereço não informado',
+            "number": getattr(student, 'address_number', 'S/N') or 'S/N',
+            "postalCode": zipcode,
+            "additionalInformation": getattr(student, 'address_complement', '') or ''
+        }
+        print("DEBUG - Endereço formatado:")
+        print(json.dumps(address, indent=2, ensure_ascii=False))
+            
+        # Montar payload final
+        payload = {
             "borrower": {
                 "type": borrower_type,
                 "name": f"{student.first_name} {student.last_name}".strip(),
                 "email": student.email,
-                "federalTaxNumber": str(cpf),  # Garantir que é string
-                "address": {
-                    "country": "BRA",
-                    "state": state.upper(),  # Garantir que estado está em maiúsculo
-                    "city": {
-                        "code": city_code,
-                        "name": city
-                    },
-                    "district": getattr(student, 'neighborhood', 'Centro') or 'Centro',
-                    "street": getattr(student, 'address_line', 'Endereço não informado') or 'Endereço não informado',
-                    "number": getattr(student, 'address_number', 'S/N') or 'S/N',
-                    "postalCode": zipcode,
-                    "additionalInformation": getattr(student, 'address_complement', '') or ''
-                }
+                "federalTaxNumber": int(cpf),  # Converter para número inteiro
+                "address": address
             },
-            "cityServiceCode": "0107",
+            "cityServiceCode": service_code,  # Usar cityServiceCode em vez de serviceCode
             "description": service_description,
-            "servicesAmount": str(services_amount),  # Enviar como string
-            "environment": "Production" if self.environment == "production" else "Testing",
+            "servicesAmount": str(services_amount),
+            "environment": "Production" if self.environment.lower() == "production" else "Testing",
             "reference": f"TRANSACTION_{transaction.id}",
             "additionalInformation": f"Aula ministrada por {professor.first_name} {professor.last_name}. Plataforma: 555JAM",
-            "rpsSerialNumber": str(invoice.rps_serie),  # Garantir que é string
-            "rpsNumber": str(invoice.rps_numero)  # Garantir que é string
+            "rpsSerialNumber": str(invoice.rps_serie),
+            "rpsNumber": str(invoice.rps_numero)
         }
+        
+        print("\nDEBUG - Payload final:")
+        print(json.dumps(payload, indent=2, ensure_ascii=False))
+        
+        return payload
 
     def _update_invoice_with_response(self, invoice, response):
         """
         Atualiza o objeto Invoice com os dados da resposta da API
         """
+        print(f"\nDEBUG - Atualizando invoice {invoice.id} com resposta:")
+        print(json.dumps(response, indent=2, ensure_ascii=False))
+        
+        # Verificar se a resposta contém erro
+        if response.get('error'):
+            invoice.status = 'error'
+            invoice.error_message = response.get('message', 'Erro não especificado')
+            invoice.save()
+            return
+            
+        # Extrair ID externo
         invoice.external_id = response.get('id')
-        invoice.focus_status = response.get('flowStatus')
-        invoice.status = 'processing'
+        
+        # Mapear status da API para status interno
+        status_mapping = {
+            'Issued': 'approved',
+            'Authorized': 'approved',
+            'Processing': 'processing',
+            'Pending': 'processing',
+            'Error': 'error',
+            'Draft': 'pending',
+            'Cancelled': 'cancelled',
+            'WaitingCalculateTaxes': 'processing',
+            'WaitingSend': 'processing',
+            'WaitingAuthorize': 'processing',
+            'WaitingCancel': 'processing',
+            'Cancelled': 'cancelled',
+            'Rejected': 'error'
+        }
+        
+        # Obter status da API
+        api_status = response.get('status', 'Unknown')
+        flow_status = response.get('flowStatus', '')
+        
+        print(f"DEBUG - Status da API: {api_status}")
+        print(f"DEBUG - Flow Status: {flow_status}")
+        
+        # Determinar status interno
+        if api_status in status_mapping:
+            invoice.status = status_mapping[api_status]
+            print(f"DEBUG - Status mapeado do api_status: {invoice.status}")
+        elif flow_status in status_mapping:
+            invoice.status = status_mapping[flow_status]
+            print(f"DEBUG - Status mapeado do flow_status: {invoice.status}")
+        else:
+            invoice.status = 'error'
+            invoice.error_message = f"Status desconhecido: {api_status} / {flow_status}"
+            print(f"DEBUG - Status desconhecido, marcando como erro: {invoice.error_message}")
+        
+        # Atualizar outros campos
+        invoice.focus_status = flow_status
         invoice.response_data = response
         
         if 'pdf' in response and response['pdf'] is not None:
             invoice.focus_pdf_url = response['pdf'].get('url')
+            print(f"DEBUG - URL do PDF: {invoice.focus_pdf_url}")
             
         if 'xml' in response and response['xml'] is not None:
             invoice.focus_xml_url = response['xml'].get('url')
+            print(f"DEBUG - URL do XML: {invoice.focus_xml_url}")
             
         invoice.emitted_at = timezone.now()
         invoice.save()
+        
+        print(f"DEBUG - Invoice atualizada:")
+        print(f"Status: {invoice.status}")
+        print(f"Status API: {api_status}")
+        print(f"Flow Status: {flow_status}")
+        if invoice.error_message:
+            print(f"Mensagem de erro: {invoice.error_message}")
 
     def _simulate_request(self, method, endpoint, data=None):
         """
@@ -391,6 +527,14 @@ class NFEioService:
             # Fazer requisição para a API
             response = requests.get(url, headers=self.headers)
             
+            # Log da resposta
+            logger.info(f"Resposta da API NFE.io para nota {invoice.id}:")
+            logger.info(f"Status: {response.status_code}")
+            try:
+                logger.info(f"Conteúdo: {json.dumps(response.json(), indent=2)}")
+            except:
+                logger.info(f"Conteúdo: {response.text}")
+            
             # Verificar se a requisição foi bem-sucedida
             if response.status_code == 200:
                 data = response.json()
@@ -398,8 +542,10 @@ class NFEioService:
                 # Mapear status da API para status interno
                 status_mapping = {
                     'Issued': 'approved',
+                    'Authorized': 'approved',
                     'Cancelled': 'cancelled',
                     'Processing': 'processing',
+                    'Pending': 'processing',
                     'Error': 'error',
                     'Draft': 'pending'
                 }
@@ -407,11 +553,26 @@ class NFEioService:
                 api_status = data.get('status', 'Unknown')
                 internal_status = status_mapping.get(api_status, 'error')
                 
+                # Atualizar o status da nota
+                invoice.status = internal_status
+                invoice.external_status = api_status
+                invoice.external_message = data.get('flowStatus', '')  # flowStatus é uma string
+                invoice.last_checked = timezone.now()
+                invoice.save()
+                
+                # Se a nota foi aprovada, atualizar URLs do PDF e XML
+                if internal_status == 'approved':
+                    if 'pdf' in data and data['pdf'] is not None:
+                        invoice.focus_pdf_url = data['pdf'].get('url')
+                    if 'xml' in data and data['xml'] is not None:
+                        invoice.focus_xml_url = data['xml'].get('url')
+                    invoice.save()
+                
                 return {
                     'success': True,
                     'status': internal_status,
                     'external_status': api_status,
-                    'message': data.get('flowStatus', {}).get('message', '')
+                    'message': data.get('flowStatus', '')
                 }
             else:
                 # Tratar erros da API
@@ -423,6 +584,12 @@ class NFEioService:
                 except:
                     pass
                 
+                # Atualizar status da nota para erro
+                invoice.status = 'error'
+                invoice.error_message = error_message
+                invoice.last_checked = timezone.now()
+                invoice.save()
+                
                 return {
                     'success': False,
                     'status': 'error',
@@ -432,6 +599,12 @@ class NFEioService:
         except Exception as e:
             logger.error(f"Erro ao verificar status da nota fiscal: {str(e)}")
             logger.error(traceback.format_exc())
+            
+            # Atualizar status da nota para erro
+            invoice.status = 'error'
+            invoice.error_message = f'Erro interno: {str(e)}'
+            invoice.last_checked = timezone.now()
+            invoice.save()
             
             return {
                 'success': False,

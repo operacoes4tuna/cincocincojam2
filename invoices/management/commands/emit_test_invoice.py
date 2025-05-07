@@ -89,17 +89,17 @@ class Command(BaseCommand):
                 # Buscar matrículas em cursos do professor que tenham transações pagas
                 enrollments = Enrollment.objects.filter(
                     course__professor=professor,
-                    payment_status='paid'
+                    status=Enrollment.Status.ACTIVE
                 ).select_related('course', 'student')
                 
                 if not enrollments.exists():
-                    self.stdout.write(self.style.ERROR("Nenhuma matrícula paga encontrada para o professor."))
+                    self.stdout.write(self.style.ERROR("Nenhuma matrícula ativa encontrada para o professor."))
                     return
                 
                 # Buscar transações das matrículas
                 transactions = PaymentTransaction.objects.filter(
                     enrollment__in=enrollments,
-                    status='approved'
+                    status=PaymentTransaction.Status.PAID
                 ).order_by('-created_at')
                 
                 if not transactions.exists():

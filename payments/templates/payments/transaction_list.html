@@ -8,11 +8,16 @@
                     <div id="invoice-status-{{ invoice.id }}">
                         {% if invoice.status == 'approved' %}
                             <span class="badge bg-success">Nota fiscal emitida</span>
-                            <a href="{% url 'invoices:invoice_detail' invoice_id=invoice.id %}" class="btn btn-sm btn-outline-info">
-                                <i class="fas fa-file-invoice"></i> Ver nota
+                            <a href="{{ invoice.focus_pdf_url }}" target="_blank" class="btn btn-sm btn-outline-info">
+                                <i class="fas fa-eye"></i> Visualizar nota
+                            </a>
+                            <a href="{% url 'invoices:invoice_detail' invoice_id=invoice.id %}" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-file-invoice"></i> Detalhes
                             </a>
                         {% elif invoice.status == 'pending' or invoice.status == 'processing' %}
-                            <span class="badge bg-warning">Nota fiscal em processamento</span>
+                            <div class="alert alert-info mb-2">
+                                <i class="fas fa-info-circle"></i> Nota fiscal em processamento. Acompanhe o status na lista de transações.
+                            </div>
                             <button class="btn btn-sm btn-outline-secondary check-status-btn" data-invoice-id="{{ invoice.id }}">
                                 <i class="fas fa-sync"></i> Verificar status
                             </button>
@@ -111,15 +116,20 @@
                 case 'approved':
                     statusHtml = `
                         <span class="badge bg-success">Nota fiscal emitida</span>
-                        <a href="/invoices/detail/${invoiceId}/" class="btn btn-sm btn-outline-info">
-                            <i class="fas fa-file-invoice"></i> Ver nota
+                        <a href="/invoices/pdf/${invoiceId}/" target="_blank" class="btn btn-sm btn-outline-info">
+                            <i class="fas fa-eye"></i> Visualizar nota
+                        </a>
+                        <a href="/invoices/detail/${invoiceId}/" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-file-invoice"></i> Detalhes
                         </a>
                     `;
                     break;
                 case 'processing':
                 case 'pending':
                     statusHtml = `
-                        <span class="badge bg-warning">Nota fiscal em processamento</span>
+                        <div class="alert alert-info mb-2">
+                            <i class="fas fa-info-circle"></i> Nota fiscal em processamento. Acompanhe o status na lista de transações.
+                        </div>
                         <button class="btn btn-sm btn-outline-secondary check-status-btn" data-invoice-id="${invoiceId}">
                             <i class="fas fa-sync"></i> Verificar status
                         </button>

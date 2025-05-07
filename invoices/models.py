@@ -143,6 +143,12 @@ class CompanyConfig(models.Model):
         default='simples_nacional',
         verbose_name=_('regime tributário')
     )
+    city_service_code = models.CharField(
+        max_length=10,
+        default='0107',
+        verbose_name=_('código de serviço municipal'),
+        help_text=_('Código de serviço específico do município para atividades educacionais')
+    )
     
     # Campos para controle de RPS (Recibo Provisório de Serviço)
     rps_serie = models.CharField(
@@ -198,7 +204,8 @@ class CompanyConfig(models.Model):
             self.bairro, 
             self.municipio, 
             self.uf, 
-            self.cep
+            self.cep,
+            self.city_service_code
         ]
         
         return all(field is not None and field != '' for field in required_fields) and self.enabled
@@ -212,6 +219,7 @@ class Invoice(models.Model):
         ('draft', _('Rascunho')),
         ('pending', _('Pendente')),
         ('processing', _('Processando')),
+        ('issued', _('Emitida')),
         ('approved', _('Aprovada')),
         ('cancelled', _('Cancelada')),
         ('error', _('Erro'))

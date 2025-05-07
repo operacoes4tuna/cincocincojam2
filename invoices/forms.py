@@ -23,7 +23,7 @@ class CompanyConfigForm(forms.ModelForm):
         fields = [
             'enabled', 'cnpj', 'razao_social', 'nome_fantasia', 'inscricao_municipal',
             'regime_tributario', 'endereco', 'numero', 'complemento', 'bairro',
-            'municipio', 'uf', 'cep', 'telefone', 'email',
+            'municipio', 'uf', 'cep', 'telefone', 'email', 'city_service_code',
             'rps_serie', 'rps_numero_atual', 'rps_lote'
         ]
         widgets = {
@@ -42,6 +42,7 @@ class CompanyConfigForm(forms.ModelForm):
             'cep': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '00000-000'}),
             'telefone': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '(00) 00000-0000'}),
             'email': forms.EmailInput(attrs={'class': 'form-control'}),
+            'city_service_code': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '0107'}),
             'rps_serie': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '1'}),
             'rps_numero_atual': forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}),
             'rps_lote': forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}),
@@ -82,7 +83,8 @@ class CompanyConfigForm(forms.ModelForm):
         if enabled:
             required_fields = [
                 'cnpj', 'razao_social', 'regime_tributario', 
-                'endereco', 'numero', 'bairro', 'municipio', 'uf', 'cep'
+                'endereco', 'numero', 'bairro', 'municipio', 'uf', 'cep',
+                'city_service_code'
             ]
             
             for field in required_fields:
