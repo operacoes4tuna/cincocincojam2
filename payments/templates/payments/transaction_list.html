@@ -1,0 +1,169 @@
+<!-- ... existing code ... -->
+
+<td>
+    {% if transaction.status == 'PAID' %}
+        {% if has_invoice_app %}
+            {% if transaction.invoices.exists %}
+                {% with invoice=transaction.invoices.first %}
+                    <div id="invoice-status-{{ invoice.id }}">
+                        {% if invoice.status == 'approved' %}
+                            <span class="badge bg-success">Nota fiscal emitida</span>
+                            <a href="{% url 'invoices:invoice_detail' invoice_id=invoice.id %}" class="btn btn-sm btn-outline-info">
+                                <i class="fas fa-file-invoice"></i> Ver nota
+                            </a>
+                        {% elif invoice.status == 'pending' or invoice.status == 'processing' %}
+                            <span class="badge bg-warning">Nota fiscal em processamento</span>
+                            <button class="btn btn-sm btn-outline-secondary check-status-btn" data-invoice-id="{{ invoice.id }}">
+                                <i class="fas fa-sync"></i> Verificar status
+                            </button>
+                        {% elif invoice.status == 'error' %}
+                            <span class="badge bg-danger">Erro na emissão</span>
+                            <a href="{% url 'invoices:retry' invoice_id=invoice.id %}" class="btn btn-sm btn-outline-danger">
+                                <i class="fas fa-redo"></i> Tentar novamente
+                            </a>
+                        {% endif %}
+                    </div>
+                {% endwith %}
+            {% else %}
+                {% if request.user.is_professor and transaction.enrollment.course.professor == request.user %}
+                    <button class="btn btn-sm btn-primary emit-invoice-btn" data-transaction-id="{{ transaction.id }}">
+                        <i class="fas fa-file-invoice"></i> Emitir nota fiscal
+                    </button>
+                {% endif %}
+            {% endif %}
+        {% endif %}
+    {% endif %}
+</td>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Adicionar evento para os botões de emissão de nota fiscal
+        const emitButtons = document.querySelectorAll('.emit-invoice-btn');
+        emitButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const transactionId = this.getAttribute('data-transaction-id');
+                this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processando...';
+                this.disabled = true;
+                
+                // Abrir uma nova aba para a emissão da nota fiscal
+                const emitWindow = window.open(`/invoices/emit/${transactionId}/?open_new_tab=true`, '_blank');
+                
+                // Verificar periodicamente se a nota foi emitida
+                const checkInterval = setInterval(() => {
+                    fetch(`/invoices/transaction/${transactionId}/status/`)
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.has_invoice) {
+                                clearInterval(checkInterval);
+                                this.innerHTML = '<i class="fas fa-check-circle"></i> Nota Emitida';
+                                this.disabled = false;
+                                
+                                // Recarregar a página para mostrar o status atualizado
+                                window.location.reload();
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Erro ao verificar status da nota:', error);
+                        });
+                }, 3000); // Verificar a cada 3 segundos
+                
+                // Parar de verificar após 30 segundos (10 tentativas)
+                setTimeout(() => {
+                    clearInterval(checkInterval);
+                    this.innerHTML = '<i class="fas fa-file-invoice"></i> Emitir nota fiscal';
+                    this.disabled = false;
+                }, 30000);
+            });
+        });
+        
+        // Adicionar evento para os botões de verificação de status
+        const checkButtons = document.querySelectorAll('.check-status-btn');
+        checkButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const invoiceId = this.getAttribute('data-invoice-id');
+                this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verificando...';
+                this.disabled = true;
+                
+                // Fazer requisição AJAX para verificar o status
+                fetch(`/invoices/check-status/${invoiceId}/json/`)
+                    .then(response => response.json())
+                    .then(data => {
+                        // Atualizar a interface com o status atual
+                        updateInvoiceStatusUI(invoiceId, data.status, data.message);
+                        this.disabled = false;
+                    })
+                    .catch(error => {
+                        console.error('Erro ao verificar status:', error);
+                        this.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Erro';
+                        this.disabled = false;
+                    });
+            });
+        });
+        
+        // Função para atualizar a interface com o status da nota fiscal
+        function updateInvoiceStatusUI(invoiceId, status, message) {
+            const statusElement = document.getElementById(`invoice-status-${invoiceId}`);
+            if (!statusElement) return;
+            
+            let statusHtml = '';
+            
+            switch (status) {
+                case 'approved':
+                    statusHtml = `
+                        <span class="badge bg-success">Nota fiscal emitida</span>
+                        <a href="/invoices/detail/${invoiceId}/" class="btn btn-sm btn-outline-info">
+                            <i class="fas fa-file-invoice"></i> Ver nota
+                        </a>
+                    `;
+                    break;
+                case 'processing':
+                case 'pending':
+                    statusHtml = `
+                        <span class="badge bg-warning">Nota fiscal em processamento</span>
+                        <button class="btn btn-sm btn-outline-secondary check-status-btn" data-invoice-id="${invoiceId}">
+                            <i class="fas fa-sync"></i> Verificar status
+                        </button>
+                    `;
+                    break;
+                case 'error':
+                    statusHtml = `
+                        <span class="badge bg-danger">Erro na emissão</span>
+                        <a href="/invoices/retry/${invoiceId}/" class="btn btn-sm btn-outline-danger">
+                            <i class="fas fa-redo"></i> Tentar novamente
+                        </a>
+                    `;
+                    break;
+                default:
+                    statusHtml = `
+                        <span class="badge bg-info">Status desconhecido</span>
+                    `;
+            }
+            
+            statusElement.innerHTML = statusHtml;
+            
+            // Adicionar evento para o novo botão de verificação de status
+            const newCheckButton = statusElement.querySelector('.check-status-btn');
+            if (newCheckButton) {
+                newCheckButton.addEventListener('click', function() {
+                    const invoiceId = this.getAttribute('data-invoice-id');
+                    this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verificando...';
+                    this.disabled = true;
+                    
+                    // Fazer requisição AJAX para verificar o status
+                    fetch(`/invoices/check-status/${invoiceId}/json/`)
+                        .then(response => response.json())
+                        .then(data => {
+                            // Atualizar a interface com o status atual
+                            updateInvoiceStatusUI(invoiceId, data.status, data.message);
+                            this.disabled = false;
+                        })
+                        .catch(error => {
+                            console.error('Erro ao verificar status:', error);
+                            this.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Erro';
+                            this.disabled = false;
+                        });
+                });
+            }
+        }
+    });
+</script>

@@ -68,6 +68,57 @@ class User(AbstractUser):
         default=Types.STUDENT,
     )
     
+    # CPF (apenas para alunos)
+    cpf = models.CharField(
+        _('CPF'),
+        max_length=14,
+        blank=True,
+        null=True,
+        help_text=_('CPF do aluno no formato XXX.XXX.XXX-XX')
+    )
+    
+    # Campos de endereço
+    address_line = models.CharField(
+        _('endereço'),
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text=_('Rua, Avenida, etc.')
+    )
+    address_number = models.CharField(
+        _('número'),
+        max_length=10,
+        blank=True,
+        null=True,
+        help_text=_('Número do endereço')
+    )
+    neighborhood = models.CharField(
+        _('bairro'),
+        max_length=100,
+        blank=True,
+        null=True
+    )
+    city = models.CharField(
+        _('cidade'),
+        max_length=100,
+        blank=True,
+        null=True
+    )
+    state = models.CharField(
+        _('estado'),
+        max_length=2,
+        blank=True,
+        null=True,
+        help_text=_('UF do estado (ex: SP, RJ)')
+    )
+    zipcode = models.CharField(
+        _('CEP'),
+        max_length=9,
+        blank=True,
+        null=True,
+        help_text=_('CEP no formato XXXXX-XXX')
+    )
+    
     # Informações adicionais
     bio = models.TextField(_('biografia'), blank=True)
     profile_image = models.ImageField(

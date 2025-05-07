@@ -64,6 +64,8 @@ singlesale_patterns = [
     path('sales/<int:sale_id>/pix/', views.singlesale_pix_detail, name='singlesale_pix_detail'),
     path('sales/<int:sale_id>/check-status/', views.check_singlesale_payment_status, name='check_singlesale_status'),
     path('admin/sales/', views.SingleSaleAdminListView.as_view(), name='admin_singlesale_list'),
+    path('transactions/', views.transaction_list, name='transactions'),
+    path('transactions/emit-invoice/<int:transaction_id>/', views.emit_invoice_from_transactions, name='emit_invoice_from_transactions'),
 ]
 
 urlpatterns = [

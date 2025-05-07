@@ -1,0 +1,9 @@
+# ... existing code ...
+
+# Configurações do NFE.io
+NFEIO_API_KEY = os.environ.get('NFEIO_API_KEY', '')
+NFEIO_COMPANY_ID = os.environ.get('NFEIO_COMPANY_ID', '')
+NFEIO_ENVIRONMENT = os.environ.get('NFEIO_ENVIRONMENT', 'sandbox')
+NFEIO_OFFLINE_MODE = os.environ.get('NFEIO_OFFLINE_MODE', 'False') == 'True'
+
+# ... existing code ...

@@ -1043,3 +1043,46 @@ class SingleSaleUpdateView(LoginRequiredMixin, ProfessorRequiredMixin, UpdateVie
         response = super().form_valid(form)
         messages.success(self.request, _('Venda avulsa atualizada com sucesso!'))
         return response
+
+
+@login_required
+def transaction_list(request):
+    """
+    Lista todas as transações do usuário.
+    """
+    # Verificar tipo de usuário
+    if request.user.is_professor:
+        # Redirecionar para a view específica de professor
+        return redirect('payments:professor_transactions')
+    
+    # Para alunos, mostrar apenas suas próprias transações
+    transactions = PaymentTransaction.objects.filter(
+        enrollment__student=request.user
+    ).select_related('enrollment', 'enrollment__course').order_by('-created_at')
+    
+    # Adicionar informações de notas fiscais, se disponíveis
+    try:
+        from invoices.models import Invoice
+        transactions = transactions.prefetch_related('invoices')
+        has_invoice_app = True
+    except ImportError:
+        has_invoice_app = False
+    
+    return render(request, 'payments/transaction_list.html', {
+        'transactions': transactions,
+        'has_invoice_app': has_invoice_app
+    })
+
+
+@login_required
+def emit_invoice_from_transactions(request, transaction_id):
+    """
+    Emite uma nota fiscal a partir da página de transações.
+    """
+    # Verificar se o usuário é professor
+    if not request.user.is_professor:
+        messages.error(request, _('Apenas professores podem emitir notas fiscais.'))
+        return redirect('payments:transactions')
+    
+    # Redirecionar para a função de emissão de nota fiscal no app invoices
+    return redirect('invoices:emit', transaction_id=transaction_id)

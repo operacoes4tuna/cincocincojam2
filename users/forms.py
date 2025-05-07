@@ -18,10 +18,56 @@ class CustomUserCreationForm(UserCreationForm):
         choices=User.Types.choices,
         required=True
     )
+    cpf = forms.CharField(
+        label='CPF',
+        required=False,
+        max_length=14,
+        help_text='Digite o CPF no formato XXX.XXX.XXX-XX'
+    )
+    
+    # Campos de endereço
+    address_line = forms.CharField(
+        label='Endereço',
+        required=False,
+        max_length=255,
+        help_text='Rua, Avenida, etc.'
+    )
+    address_number = forms.CharField(
+        label='Número',
+        required=False,
+        max_length=10,
+        help_text='Número do endereço'
+    )
+    neighborhood = forms.CharField(
+        label='Bairro',
+        required=False,
+        max_length=100
+    )
+    city = forms.CharField(
+        label='Cidade',
+        required=False,
+        max_length=100
+    )
+    state = forms.CharField(
+        label='Estado',
+        required=False,
+        max_length=2,
+        help_text='UF do estado (ex: SP, RJ)'
+    )
+    zipcode = forms.CharField(
+        label='CEP',
+        required=False,
+        max_length=9,
+        help_text='CEP no formato XXXXX-XXX'
+    )
     
     class Meta:
         model = User
-        fields = ('email', 'first_name', 'last_name', 'user_type', 'password1', 'password2')
+        fields = (
+            'email', 'first_name', 'last_name', 'user_type', 'cpf',
+            'address_line', 'address_number', 'neighborhood', 'city',
+            'state', 'zipcode', 'password1', 'password2'
+        )
         
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -29,6 +75,16 @@ class CustomUserCreationForm(UserCreationForm):
         self.fields['password1'].help_text = 'Sua senha deve conter pelo menos 8 caracteres e não pode ser muito comum.'
         self.fields['password2'].help_text = 'Repita a senha para confirmação.'
         self.fields['email'].help_text = 'Este será o login do usuário. Precisa ser um email válido.'
+        
+        # Tornar campos obrigatórios apenas para alunos
+        if self.data.get('user_type') == 'STUDENT':
+            self.fields['cpf'].required = True
+            self.fields['address_line'].required = True
+            self.fields['address_number'].required = True
+            self.fields['neighborhood'].required = True
+            self.fields['city'].required = True
+            self.fields['state'].required = True
+            self.fields['zipcode'].required = True
 
 
 class CustomUserChangeForm(UserChangeForm):
@@ -40,7 +96,11 @@ class CustomUserChangeForm(UserChangeForm):
     
     class Meta:
         model = User
-        fields = ('email', 'first_name', 'last_name', 'user_type', 'bio', 'profile_image', 'is_active')
+        fields = (
+            'email', 'first_name', 'last_name', 'user_type', 'cpf',
+            'address_line', 'address_number', 'neighborhood', 'city',
+            'state', 'zipcode', 'bio', 'profile_image', 'is_active'
+        )
         widgets = {
             'bio': forms.Textarea(attrs={'rows': 3}),
         }
@@ -60,3 +120,13 @@ class CustomUserChangeForm(UserChangeForm):
             
             # E fazer o email somente leitura
             self.fields['email'].widget.attrs['readonly'] = True
+            
+        # Tornar campos obrigatórios apenas para alunos
+        if self.instance and self.instance.user_type == 'STUDENT':
+            self.fields['cpf'].required = True
+            self.fields['address_line'].required = True
+            self.fields['address_number'].required = True
+            self.fields['neighborhood'].required = True
+            self.fields['city'].required = True
+            self.fields['state'].required = True
+            self.fields['zipcode'].required = True

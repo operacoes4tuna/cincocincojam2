@@ -54,6 +54,68 @@
                     <div class="row mb-3">
                         <div class="col-12">
                             <div class="form-group">
+                                <label for="id_cpf">CPF</label>
+                                <input type="text" name="cpf" value="{{ form.instance.cpf }}" maxlength="14" class="form-control" id="id_cpf">
+                                <small class="form-text text-muted">Digite o CPF no formato XXX.XXX.XXX-XX (obrigatório para alunos)</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Campos de endereço -->
+                    <div class="row mb-3">
+                        <div class="col-12">
+                            <h5 class="mb-3">Endereço</h5>
+                        </div>
+                        <div class="col-md-8">
+                            <div class="form-group">
+                                <label for="id_address_line">Endereço</label>
+                                <input type="text" name="address_line" value="{{ form.instance.address_line }}" maxlength="255" class="form-control" id="id_address_line">
+                                <small class="form-text text-muted">Rua, Avenida, etc. (obrigatório para alunos)</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label for="id_address_number">Número</label>
+                                <input type="text" name="address_number" value="{{ form.instance.address_number }}" maxlength="10" class="form-control" id="id_address_number">
+                                <small class="form-text text-muted">Número do endereço (obrigatório para alunos)</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label for="id_neighborhood">Bairro</label>
+                                <input type="text" name="neighborhood" value="{{ form.instance.neighborhood }}" maxlength="100" class="form-control" id="id_neighborhood">
+                                <small class="form-text text-muted">Bairro (obrigatório para alunos)</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label for="id_city">Cidade</label>
+                                <input type="text" name="city" value="{{ form.instance.city }}" maxlength="100" class="form-control" id="id_city">
+                                <small class="form-text text-muted">Cidade (obrigatório para alunos)</small>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="form-group">
+                                <label for="id_state">Estado</label>
+                                <input type="text" name="state" value="{{ form.instance.state }}" maxlength="2" class="form-control" id="id_state">
+                                <small class="form-text text-muted">UF (obrigatório para alunos)</small>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="form-group">
+                                <label for="id_zipcode">CEP</label>
+                                <input type="text" name="zipcode" value="{{ form.instance.zipcode }}" maxlength="9" class="form-control" id="id_zipcode">
+                                <small class="form-text text-muted">XXXXX-XXX (obrigatório para alunos)</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-12">
+                            <div class="form-group">
                                 <label for="id_bio">Biografia</label>
                                 <textarea name="bio" rows="3" class="form-control" id="id_bio">{{ form.instance.bio }}</textarea>
                             </div>

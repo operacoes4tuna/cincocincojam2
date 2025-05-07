@@ -61,9 +61,6 @@ def emit_invoice(request, transaction_id):
     """
     Emite uma nota fiscal para uma transação.
     """
-    logger.info(f"Iniciando emissão de nota fiscal para transação ID: {transaction_id}")
-    
-    # Obter a transação e verificar se o professor tem permissão para emiti-la
     try:
         transaction = get_object_or_404(
             PaymentTransaction,
@@ -183,108 +180,64 @@ def retry_invoice(request, invoice_id):
 
 @login_required
 @professor_required
-def check_invoice_status(request, invoice_id):
+def check_invoice_status(request, invoice_id, format=None):
     """
     Verifica o status de uma nota fiscal.
     """
-    logger.info(f"Verificando status da nota fiscal ID: {invoice_id}")
-    
     try:
-        invoice = get_object_or_404(
-            Invoice,
-            id=invoice_id,
-            transaction__enrollment__course__professor=request.user
-        )
-        logger.debug(f"Invoice encontrada: {invoice_id}, status atual: {invoice.status}, focus_status: {invoice.focus_status}")
+        # Obter a nota fiscal
+        invoice = get_object_or_404(Invoice, id=invoice_id)
         
-        # Salvar o status atual antes da verificação
-        status_before = invoice.status
-        focus_status_before = invoice.focus_status
-        logger.debug(f"Status antes da verificação: {status_before}, focus_status antes: {focus_status_before}")
-        
-        service = NFEioService()
-        try:
-            # Chamar o serviço para verificar o status na API externa
-            logger.debug(f"Chamando service.check_invoice_status para invoice ID {invoice_id}")
-            response = service.check_invoice_status(invoice)
-            logger.info(f"Resposta da verificação de status: {response}")
-            
-            # Se o status mudou, mostre uma mensagem de sucesso
-            if status_before != invoice.status:
-                logger.info(f"Status alterado: {status_before} -> {invoice.status}")
-                messages.success(request, _(f'Status da nota fiscal atualizado de {status_before} para {invoice.status}.'))
-            elif focus_status_before != invoice.focus_status:
-                logger.info(f"Focus status alterado: {focus_status_before} -> {invoice.focus_status}")
-                messages.success(request, _(f'Status alterado no sistema NFE.io para {invoice.focus_status}.'))
-            else:
-                messages.info(request, _('Status da nota fiscal verificado, sem alterações.'))
-            
-            # Verificar se é uma requisição AJAX
-            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                # Preparar uma resposta detalhada para AJAX
-                response_data = {
-                    'status': invoice.status,
-                    'focus_status': invoice.focus_status,
-                    'message': _('Status atualizado com sucesso'),
-                    'status_changed': status_before != invoice.status,
-                    'focus_status_changed': focus_status_before != invoice.focus_status,
-                    'previous_status': status_before,
-                    'previous_focus_status': focus_status_before,
-                    'invoice_id': invoice.id
-                }
-                
-                # Incluir informações de erro se existirem
-                if invoice.error_message:
-                    response_data['error_message'] = invoice.error_message
-                    logger.warning(f"Mensagem de erro na nota: {invoice.error_message}")
-                    
-                # Incluir URL do PDF se disponível
-                if invoice.focus_pdf_url:
-                    response_data['pdf_url'] = invoice.focus_pdf_url
-                    logger.debug(f"PDF URL disponível: {invoice.focus_pdf_url}")
-                    
-                # Incluir informações adicionais de resposta da API se disponíveis
-                if invoice.response_data:
-                    response_data['api_details'] = {
-                        'flowStatus': invoice.response_data.get('flowStatus', None),
-                        'flowMessage': invoice.response_data.get('flowMessage', None)
-                    }
-                    logger.debug(f"Detalhes adicionais da API: {response_data['api_details']}")
-                    
-                logger.info(f"Retornando resposta JSON de status para invoice ID {invoice_id}")
-                return JsonResponse(response_data)
-            else:
-                # Redirecionar para a página de lista de transações
-                return redirect('payments:professor_transactions')
-                
-        except Exception as e:
-            error_traceback = traceback.format_exc()
-            logger.error(f"Exceção ao verificar status: {str(e)}\n{error_traceback}")
-            
-            messages.error(request, _(f'Erro ao verificar status: {str(e)}'))
-            
-            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        # Verificar permissão (apenas o professor que emitiu ou o aluno destinatário)
+        if not (request.user == invoice.transaction.enrollment.course.professor or 
+                request.user == invoice.transaction.enrollment.student):
+            if format == 'json':
                 return JsonResponse({
                     'status': 'error',
-                    'message': str(e),
-                    'error_detail': str(error_traceback),
-                    'invoice_id': invoice.id
-                }, status=400)
-            else:
-                return redirect('payments:professor_transactions')
+                    'message': 'Você não tem permissão para verificar esta nota fiscal.'
+                }, status=403)
+            messages.error(request, _('Você não tem permissão para verificar esta nota fiscal.'))
+            return redirect('payments:transactions')
+        
+        # Verificar status atual na API NFE.io
+        nfe_service = NFEioService()
+        status_result = nfe_service.check_invoice_status(invoice)
+        
+        # Atualizar o status da nota fiscal no banco de dados
+        if status_result['success']:
+            invoice.status = status_result['status']
+            invoice.external_status = status_result.get('external_status', '')
+            invoice.external_message = status_result.get('message', '')
+            invoice.last_checked = timezone.now()
+            invoice.save()
+        
+        # Retornar resposta baseada no formato solicitado
+        if format == 'json':
+            return JsonResponse({
+                'status': invoice.status,
+                'external_status': invoice.external_status,
+                'message': invoice.external_message,
+                'last_checked': invoice.last_checked.isoformat() if invoice.last_checked else None,
+                'success': status_result['success']
+            })
+        
+        # Redirecionar para a página de detalhes da nota fiscal
+        messages.info(request, _('Status da nota fiscal atualizado.'))
+        return redirect('invoices:invoice_detail', invoice_id=invoice_id)
+        
     except Exception as e:
-        logger.error(f"Erro ao localizar invoice {invoice_id} para verificação de status: {str(e)}")
+        logger.error(f"Erro ao verificar status da nota fiscal {invoice_id}: {str(e)}")
+        logger.error(traceback.format_exc())
         
-        messages.error(request, _('Nota fiscal não encontrada.'))
-        
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        if format == 'json':
             return JsonResponse({
                 'status': 'error',
-                'message': 'Nota fiscal não encontrada',
-                'invoice_id': invoice_id
-            }, status=404)
-        else:
-            return redirect('payments:professor_transactions')
+                'message': f'Erro ao verificar status: {str(e)}',
+                'success': False
+            }, status=500)
+        
+        messages.error(request, _('Erro ao verificar status da nota fiscal.'))
+        return redirect('payments:transactions')
 
 @login_required
 @professor_required
@@ -478,3 +431,49 @@ def approve_invoice_manually(request, invoice_id):
     
     messages.success(request, _(f'Nota fiscal #{invoice.id} aprovada manualmente com sucesso. Status alterado de {previous_status} para approved. ATENÇÃO: Esta é apenas uma simulação para testes.'))
     return redirect('invoices:invoice_detail', invoice_id=invoice_id)
+
+
+@login_required
+def transaction_invoice_status(request, transaction_id):
+    """
+    Verifica se uma transação possui nota fiscal e retorna seu status.
+    """
+    try:
+        transaction = get_object_or_404(Transaction, id=transaction_id)
+        
+        # Verificar permissão (apenas o professor que emitiu ou o aluno destinatário)
+        if not (request.user == transaction.enrollment.course.professor or 
+                request.user == transaction.enrollment.student):
+            return JsonResponse({
+                'success': False,
+                'message': 'Você não tem permissão para verificar esta transação.'
+            }, status=403)
+        
+        # Verificar se a transação possui nota fiscal
+        has_invoice = transaction.invoices.exists()
+        
+        response_data = {
+            'success': True,
+            'has_invoice': has_invoice
+        }
+        
+        # Se tiver nota fiscal, incluir informações adicionais
+        if has_invoice:
+            invoice = transaction.invoices.first()
+            response_data.update({
+                'invoice_id': invoice.id,
+                'status': invoice.status,
+                'external_id': invoice.external_id,
+                'detail_url': reverse('invoices:invoice_detail', kwargs={'invoice_id': invoice.id})
+            })
+        
+        return JsonResponse(response_data)
+        
+    except Exception as e:
+        logger.error(f"Erro ao verificar status da nota fiscal para transação {transaction_id}: {str(e)}")
+        logger.error(traceback.format_exc())
+        
+        return JsonResponse({
+            'success': False,
+            'message': f'Erro ao verificar status: {str(e)}'
+        }, status=500)
