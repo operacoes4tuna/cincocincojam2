@@ -21,14 +21,32 @@ python manage.py collectstatic --no-input
 # Criar schema public se não existir (apenas em produção)
 if [ "$RENDER" = "true" ]; then
     echo "Criando schema public no banco de dados..."
-    # Extrair informações da URL do banco de dados
-    DB_URL=$(echo $DATABASE_URL | sed 's/postgres:///postgresql:\/\//')
     
-    # Criar schema e configurar permissões
-    psql "$DB_URL" << EOF
-    CREATE SCHEMA IF NOT EXISTS public;
-    GRANT ALL ON SCHEMA public TO cincocincojam2;
-    ALTER DATABASE cincocincojam2 SET search_path TO public;
+    # Criar schema e configurar permissões usando Python
+    python << EOF
+import os
+import psycopg2
+from urllib.parse import urlparse
+
+# Obter URL do banco de dados
+db_url = os.environ.get('DATABASE_URL')
+if not db_url:
+    print("DATABASE_URL não encontrada")
+    exit(1)
+
+# Conectar ao banco de dados
+conn = psycopg2.connect(db_url)
+conn.autocommit = True
+cur = conn.cursor()
+
+# Executar comandos SQL
+cur.execute("CREATE SCHEMA IF NOT EXISTS public;")
+cur.execute("GRANT ALL ON SCHEMA public TO cincocincojam2;")
+cur.execute("ALTER DATABASE cincocincojam2 SET search_path TO public;")
+
+# Fechar conexão
+cur.close()
+conn.close()
 EOF
 fi
 
