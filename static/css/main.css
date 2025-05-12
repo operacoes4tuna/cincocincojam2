@@ -62,7 +62,7 @@ main {
 }
 
 .navbar-brand img {
-    height: 70px;
+    height: 50px;
     width: auto;
     max-width: 100%;
     object-fit: contain;
@@ -112,13 +112,13 @@ main {
 /* Responsividade em dispositivos móveis */
 @media (max-width: 767px) {
     .navbar {
-        min-height: 75px;
+        min-height: 65px;
         padding-top: 8px;
         padding-bottom: 8px;
     }
     
     .navbar-brand img {
-        height: 55px;
+        height: 40px;
     }
 }
 
