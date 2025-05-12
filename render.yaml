@@ -16,6 +16,22 @@ services:
         fromDatabase:
           name: cincocincojam2_db
           property: connectionString
+      - key: DB_NAME
+        fromDatabase:
+          name: cincocincojam2_db
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: cincocincojam2_db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: cincocincojam2_db
+          property: password
+      - key: DB_HOST
+        fromDatabase:
+          name: cincocincojam2_db
+          property: host
       - key: SECRET_KEY
         generateValue: true
       - key: RENDER

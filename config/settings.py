@@ -104,17 +104,9 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # Configuração do banco de dados baseada no ambiente
 if 'RENDER' in os.environ:
     # No Render, usa o PostgreSQL do serviço
-    DATABASE_URL = os.environ.get('DATABASE_URL')
-    if DATABASE_URL:
-        # Adiciona o schema public à URL do banco de dados
-        if '?' in DATABASE_URL:
-            DATABASE_URL += '&options=-c%20search_path%3Dpublic'
-        else:
-            DATABASE_URL += '?options=-c%20search_path%3Dpublic'
-    
     DATABASES = {
         'default': dj_database_url.config(
-            default=DATABASE_URL,
+            default=os.environ.get('DATABASE_URL'),
             conn_max_age=600
         )
     }
