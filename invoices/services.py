@@ -346,6 +346,15 @@ class NFEioService:
         print("DEBUG - Endereço formatado:")
         print(json.dumps(address, indent=2, ensure_ascii=False))
             
+        # Preparar dados para informações adicionais
+        professor_name = professor.get_full_name().strip()
+        if not professor_name:  # Verificar se o nome está vazio
+            # Fallback para o nome de usuário ou email se o nome completo não estiver disponível
+            professor_name = professor.username if hasattr(professor, 'username') else professor.email
+            
+        # Log para debug
+        print(f"DEBUG - Nome do professor para additionalInformation: {professor_name}")
+            
         # Montar payload final
         payload = {
             "borrower": {
@@ -360,7 +369,7 @@ class NFEioService:
             "servicesAmount": str(services_amount),
             "environment": "Production" if self.environment.lower() == "production" else "Testing",
             "reference": f"TRANSACTION_{transaction.id}",
-            "additionalInformation": f"Aula ministrada por {professor.first_name} {professor.last_name}. Plataforma: 555JAM",
+            "additionalInformation": f"Aula ministrada por {professor_name}. Plataforma: 555JAM",
             "rpsSerialNumber": str(invoice.rps_serie),
             "rpsNumber": str(invoice.rps_numero)
         }
