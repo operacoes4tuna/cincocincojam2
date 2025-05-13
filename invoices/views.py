@@ -670,8 +670,7 @@ def sync_invoice_status(request, invoice_id):
         
         # Verificar se a nota está com status de erro
         if invoice.status != 'error':
-            messages.info(request, _('A nota fiscal não está em estado de erro.'))
-            return redirect('invoices:invoice_detail', invoice_id=invoice_id)
+            return JsonResponse({'success': False, 'message': _('A nota fiscal não está em estado de erro.')})
         
         # Inicializar o serviço NFE.io
         service = NFEioService()
@@ -680,12 +679,10 @@ def sync_invoice_status(request, invoice_id):
         status_result = service.check_invoice_status(invoice)
         
         if status_result['success']:
-            messages.success(request, _('Status da nota fiscal sincronizado com sucesso.'))
+            return JsonResponse({'success': True, 'message': _('Status da nota fiscal sincronizado com sucesso.')})
         else:
-            messages.error(request, _('Erro ao sincronizar status da nota fiscal: {}').format(status_result['message']))
+            return JsonResponse({'success': False, 'message': _('Erro ao sincronizar status da nota fiscal: {}').format(status_result['message'])})
         
     except Exception as e:
         logger.error(f"Erro ao sincronizar status da nota fiscal {invoice_id}: {str(e)}")
-        messages.error(request, _('Erro ao sincronizar status da nota fiscal.'))
-    
-    return redirect('invoices:invoice_detail', invoice_id=invoice_id)
+        return JsonResponse({'success': False, 'message': _('Erro ao sincronizar status da nota fiscal.')})

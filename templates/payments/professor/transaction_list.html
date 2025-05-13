@@ -160,15 +160,9 @@
                                             <span class="badge bg-danger">
                                                 <i class="fas fa-exclamation-circle me-1"></i> Erro
                                             </span>
-                                            <a href="{% url 'invoices:retry' invoice.id %}" class="btn btn-sm btn-outline-danger ms-2" title="Tentar Novamente">
-                                                <i class="fas fa-redo-alt"></i>
-                                            </a>
-                                            <a href="{% url 'invoices:delete' invoice.id %}" class="btn btn-sm btn-outline-danger ms-2" title="Excluir (apenas teste)">
-                                                <i class="fas fa-trash-alt"></i>
-                                            </a>
-                                            <form action="{% url 'invoices:sync_invoice_status' invoice.id %}" method="post">
+                                            <form action="{% url 'invoices:sync_invoice_status' invoice.id %}" method="post" class="sync-status-form d-inline">
                                                 {% csrf_token %}
-                                                <button type="submit">Sincronizar Status</button>
+                                                <button type="submit" class="btn btn-sm btn-outline-primary ms-2">Sincronizar Status</button>
                                             </form>
                                         {% elif invoice.status == 'cancelling' %}
                                             <span class="badge bg-warning text-dark">
@@ -465,5 +459,37 @@
                 alert('Ocorreu um erro ao verificar o status da nota fiscal.');
             });
     }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const forms = document.querySelectorAll('.sync-status-form');
+        forms.forEach(form => {
+            form.addEventListener('submit', function(event) {
+                event.preventDefault(); // Prevent default form submission
+                const formData = new FormData(form);
+                const url = form.action;
+
+                fetch(url, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Status sincronizado com sucesso!');
+                        location.reload(); // Reload the page on success
+                    } else {
+                        alert('Erro ao sincronizar status: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro ao sincronizar status:', error);
+                    alert('Erro ao sincronizar status.');
+                });
+            });
+        });
+    });
 </script>
 {% endblock %}
