@@ -10,9 +10,7 @@ from django.utils.translation import gettext_lazy as _
 import logging
 import traceback
 import json
-from django.views.decorators.http import require_POST
 
-from core.models import User
 from payments.models import PaymentTransaction
 from users.decorators import professor_required, admin_required
 
@@ -115,12 +113,16 @@ def emit_invoice(request, transaction_id):
             try:
                 logger.debug(f"Chamando service.emit_invoice para invoice ID {invoice.id}")
                 response = service.emit_invoice(invoice)
-                logger.info(f"Resposta da emissão: {response}")
+                logger.info(f"Resposta da emissão: {json.dumps(response, indent=2)}")
                 
                 # Verificar se houve erro na resposta
-                if response and isinstance(response, dict) and response.get('error'):
-                    logger.error(f"Erro na emissão: {response.get('message', 'Erro não especificado')}")
-                    messages.error(request, _('Erro ao emitir nota fiscal: {}').format(response.get('message', 'Erro não especificado')))
+                if response and isinstance(response, dict):
+                    if response.get('error') is True:
+                        logger.error(f"Erro na emissão: {response.get('message', 'Erro não especificado')}")
+                        messages.error(request, _('Erro ao emitir nota fiscal: {}').format(response.get('message', 'Erro não especificado')))
+                    else:
+                        logger.info(f"Nota fiscal em processamento para invoice ID {invoice.id}")
+                        messages.success(request, _('Nota fiscal em processamento. Acompanhe o status na lista de transações.'))
                 else:
                     logger.info(f"Nota fiscal em processamento para invoice ID {invoice.id}")
                     messages.success(request, _('Nota fiscal em processamento. Acompanhe o status na lista de transações.'))
@@ -157,11 +159,15 @@ def retry_invoice(request, invoice_id):
         try:
             logger.debug(f"Chamando service.emit_invoice para retry da invoice ID {invoice_id}")
             response = service.emit_invoice(invoice)
-            logger.info(f"Resposta da re-emissão: {response}")
+            logger.info(f"Resposta da re-emissão: {json.dumps(response, indent=2)}")
             
-            if response and isinstance(response, dict) and response.get('error'):
-                logger.error(f"Erro na re-emissão: {response.get('message', 'Erro não especificado')}")
-                messages.error(request, _('Erro ao re-emitir nota fiscal: {}').format(response.get('message', 'Erro não especificado')))
+            if response and isinstance(response, dict):
+                if response.get('error') is True:
+                    logger.error(f"Erro na re-emissão: {response.get('message', 'Erro não especificado')}")
+                    messages.error(request, _('Erro ao re-emitir nota fiscal: {}').format(response.get('message', 'Erro não especificado')))
+                else:
+                    logger.info(f"Nota fiscal em processamento após retry para invoice ID {invoice_id}")
+                    messages.success(request, _('Nota fiscal em processamento. Acompanhe o status na lista de transações.'))
             else:
                 logger.info(f"Nota fiscal em processamento após retry para invoice ID {invoice_id}")
                 messages.success(request, _('Nota fiscal em processamento. Acompanhe o status na lista de transações.'))
@@ -439,7 +445,7 @@ def transaction_invoice_status(request, transaction_id):
     Verifica se uma transação possui nota fiscal e retorna seu status.
     """
     try:
-        transaction = get_object_or_404(Transaction, id=transaction_id)
+        transaction = get_object_or_404(PaymentTransaction, id=transaction_id)
         
         # Verificar permissão (apenas o professor que emitiu ou o aluno destinatário)
         if not (request.user == transaction.enrollment.course.professor or 
