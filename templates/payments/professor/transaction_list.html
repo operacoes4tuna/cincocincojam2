@@ -5,26 +5,7 @@
 {% block content %}
 <div class="container-fluid px-4 py-4">
     <div class="row mb-4">
-        <div class="col">
-            <h2 class="mb-0">Transações Financeiras</h2>
-            <p class="text-muted mb-3">Histórico de pagamentos recebidos e emissão de notas fiscais.</p>
-            
-            <div class="d-flex mb-4">
-                <!-- Botão para reenviar notas fiscais aguardando envio -->
-                <a href="{% url 'invoices:retry_waiting_invoices' %}" class="btn btn-warning me-2">
-                    <i class="fas fa-sync-alt me-1"></i> Reenviar Notas Pendentes
-                    <span class="small">(WaitingSend)</span>
-                </a>
-                
-                <!-- Botões existentes -->
-                <a href="#" class="btn btn-primary me-2" data-bs-toggle="modal" data-bs-target="#emitirNota">
-                    <i class="fas fa-file-invoice me-1"></i> Emitir Nota Fiscal
-                </a>
-                <a href="{% url 'invoices:company_settings' %}" class="btn btn-outline-primary">
-                    <i class="fas fa-cog me-1"></i> Configurações de Emissão
-                </a>
-            </div>
-        </div>
+         
     </div>
 
     <div class="d-flex justify-content-between align-items-center mb-4">
