@@ -769,3 +769,23 @@ class NFEioService:
         else:
             logger.error(f"Erro ao obter URL do PDF: {response.get('message', 'Erro desconhecido')}")
             return None
+
+    def get_pdf_url(self, company_id, invoice_focus_id):
+        """
+        Retorna a URL para acessar o PDF da nota fiscal.
+        Em vez de retornar URL direta da API (que exige autenticação),
+        retorna URL para uma view local que fará a requisição autenticada.
+        """
+        # Se estamos em modo de teste, retorna uma URL de teste
+        if self.offline_mode:
+            logger.info(f"Modo offline - retornando URL simulada para PDF")
+            return f"https://example.com/test-pdf/{invoice_focus_id}.pdf"
+        
+        # Retornar URL para a view local que irá buscar o PDF
+        from django.urls import reverse
+        
+        # Construir URL local para a view que fará download do PDF
+        pdf_url = reverse('invoices:download_pdf', kwargs={'invoice_id': invoice_focus_id})
+        
+        logger.info(f"URL local para download do PDF gerada: {pdf_url}")
+        return pdf_url

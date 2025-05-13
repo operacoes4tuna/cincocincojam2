@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponseRedirect
 from django.conf import settings
 from django.utils import timezone
 from django.urls import reverse
@@ -477,3 +477,91 @@ def transaction_invoice_status(request, transaction_id):
             'success': False,
             'message': f'Erro ao verificar status: {str(e)}'
         }, status=500)
+
+@login_required
+def view_pdf(request, invoice_id):
+    """
+    Redireciona para o PDF da nota fiscal usando o endpoint da API.
+    /v1/companies/{company_id}/serviceinvoices/{id}/pdf
+    """
+    try:
+        # Obter a nota fiscal
+        invoice = get_object_or_404(Invoice, id=invoice_id)
+        
+        # Verificar permissão
+        if not (request.user == invoice.transaction.enrollment.course.professor or 
+                request.user == invoice.transaction.enrollment.student or
+                request.user.is_superuser):
+            messages.error(request, _('Você não tem permissão para visualizar esta nota fiscal.'))
+            return redirect('payments:transactions')
+        
+        # Verificar se o campo external_id está preenchido
+        if not invoice.external_id:
+            messages.error(request, _('Não foi possível gerar o PDF. A nota fiscal ainda não possui um ID externo.'))
+            return redirect('payments:transactions')
+        
+        # Obter a configuração da empresa
+        company_config = get_object_or_404(CompanyConfig, user=invoice.transaction.enrollment.course.professor)
+        
+        # Construir a URL para o PDF usando o endpoint da API
+        service = NFEioService()
+        pdf_url = service.get_pdf_url(company_config.id, invoice.external_id)
+        
+        # Redirecionar para a URL do PDF
+        return HttpResponseRedirect(pdf_url)
+        
+    except Exception as e:
+        logger.error(f"Erro ao obter PDF da nota fiscal {invoice_id}: {str(e)}")
+        messages.error(request, _('Erro ao obter o PDF da nota fiscal.'))
+        return redirect('payments:transactions')
+
+@login_required
+def download_pdf(request, invoice_id):
+    """
+    Faz download do PDF da nota fiscal diretamente da API NFE.io
+    usando as credenciais adequadas e retorna o conteúdo para o usuário.
+    """
+    try:
+        # Verificar se o usuário está autenticado
+        if not request.user.is_authenticated:
+            return HttpResponseRedirect(reverse('login'))
+            
+        # Obter a nota fiscal pelo external_id
+        invoice = get_object_or_404(Invoice, external_id=invoice_id)
+        
+        # Verificar permissão
+        if not (request.user == invoice.transaction.enrollment.course.professor or 
+                request.user == invoice.transaction.enrollment.student or
+                request.user.is_superuser):
+            messages.error(request, _('Você não tem permissão para visualizar esta nota fiscal.'))
+            return redirect('payments:transactions')
+        
+        # Obter a configuração da empresa
+        company_config = get_object_or_404(CompanyConfig, user=invoice.transaction.enrollment.course.professor)
+        
+        # Inicializar o serviço
+        service = NFEioService()
+        
+        # Construir a URL da API
+        api_url = f"{service.base_url}/v1/companies/{service.company_id}/serviceinvoices/{invoice_id}/pdf"
+        
+        # Fazer a requisição autenticada para a API
+        import requests
+        response = requests.get(api_url, headers=service.headers)
+        
+        # Verificar se a requisição foi bem-sucedida
+        if response.status_code != 200:
+            logger.error(f"Erro ao obter PDF da API: {response.status_code} {response.text}")
+            messages.error(request, _('Erro ao obter o PDF da nota fiscal. Código de erro: {}').format(response.status_code))
+            return redirect('payments:transactions')
+        
+        # Retornar o conteúdo do PDF com os cabeçalhos adequados
+        from django.http import HttpResponse
+        pdf_response = HttpResponse(response.content, content_type='application/pdf')
+        pdf_response['Content-Disposition'] = f'inline; filename="nota_fiscal_{invoice.id}.pdf"'
+        return pdf_response
+        
+    except Exception as e:
+        logger.error(f"Erro ao fazer download do PDF: {str(e)}")
+        messages.error(request, _('Erro ao obter o PDF da nota fiscal.'))
+        return redirect('payments:transactions')

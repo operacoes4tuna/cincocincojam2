@@ -19,6 +19,10 @@ urlpatterns = [
     # URL para visualização de detalhes da nota fiscal
     path('detail/<int:invoice_id>/', views.invoice_detail, name='invoice_detail'),
     
+    # URLs para visualizar o PDF da nota fiscal
+    path('pdf/<int:invoice_id>/', views.view_pdf, name='view_pdf'),
+    path('download-pdf/<str:invoice_id>/', views.download_pdf, name='download_pdf'),
+    
     # URL para teste de aprovação manual (apenas para ambiente de desenvolvimento)
     path('approve-manually/<int:invoice_id>/', views.approve_invoice_manually, name='approve_manually'),
     
