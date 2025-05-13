@@ -242,6 +242,12 @@ class NFEioService:
         status_response = self.check_invoice_status(invoice)
         print(f"DEBUG - Status inicial: {status_response}")
         
+        # 9. Se a nota estiver no estado WaitingSend, enviar explicitamente
+        if invoice.focus_status == 'WaitingSend':
+            print("DEBUG - Nota fiscal no estado WaitingSend, enviando explicitamente...")
+            send_response = self.send_invoice(invoice)
+            print(f"DEBUG - Resposta do envio explícito: {send_response}")
+        
         return response
 
     def _prepare_invoice_data(self, invoice):
@@ -798,3 +804,96 @@ class NFEioService:
         
         logger.info(f"URL local para download do PDF gerada: {pdf_url}")
         return pdf_url
+
+    def send_invoice(self, invoice):
+        """
+        Envia explicitamente uma nota fiscal que está no estado WaitingSend para processamento.
+        Este método deve ser chamado quando a nota fiscal está no estado WaitingSend.
+        """
+        if not invoice.external_id:
+            error_msg = "Nota fiscal não possui ID externo"
+            logger.error(f"Erro ao enviar nota fiscal {invoice.id}: {error_msg}")
+            invoice.error_message = error_msg
+            invoice.save()
+            return {"error": True, "message": error_msg}
+        
+        print(f"DEBUG - Enviando nota fiscal {invoice.id} (external_id: {invoice.external_id}) para processamento...")
+        
+        # Construir endpoint para envio da nota fiscal
+        endpoint = f"v1/companies/{self.company_id}/serviceinvoices/{invoice.external_id}/send"
+        
+        # Fazer requisição POST sem payload
+        response = self._make_request('POST', endpoint)
+        
+        # Processar resposta
+        if not response.get('error'):
+            print(f"DEBUG - Nota fiscal enviada com sucesso. Resposta: {response}")
+            # Atualizar nota com resposta
+            self._update_invoice_with_response(invoice, response)
+            return response
+        else:
+            error_msg = response.get('message', 'Erro desconhecido ao enviar nota fiscal')
+            print(f"DEBUG - Erro ao enviar nota fiscal: {error_msg}")
+            invoice.error_message = error_msg
+            invoice.save()
+            return response
+            
+    def check_and_retry_waiting_invoices(self):
+        """
+        Verifica todas as notas fiscais no estado WaitingSend e tenta enviá-las novamente.
+        Este método pode ser chamado periodicamente através de um cronjob ou Celery task.
+        """
+        try:
+            # Buscar todas as notas com status 'processing' e focus_status 'WaitingSend'
+            waiting_invoices = Invoice.objects.filter(
+                status='processing', 
+                focus_status='WaitingSend', 
+                external_id__isnull=False
+            )
+            
+            logger.info(f"Encontradas {waiting_invoices.count()} notas fiscais aguardando envio")
+            
+            # Para cada nota, tentar enviar novamente
+            results = {
+                'success': 0,
+                'error': 0,
+                'invoices': []
+            }
+            
+            for invoice in waiting_invoices:
+                logger.info(f"Tentando enviar nota fiscal {invoice.id} (external_id: {invoice.external_id})")
+                
+                # Tentar enviar a nota
+                response = self.send_invoice(invoice)
+                
+                # Registrar resultado
+                if not response.get('error'):
+                    results['success'] += 1
+                    results['invoices'].append({
+                        'id': invoice.id,
+                        'external_id': invoice.external_id,
+                        'result': 'success'
+                    })
+                else:
+                    results['error'] += 1
+                    results['invoices'].append({
+                        'id': invoice.id,
+                        'external_id': invoice.external_id,
+                        'result': 'error',
+                        'error_message': response.get('message')
+                    })
+                
+                # Aguardar um pouco entre as requisições para não sobrecarregar a API
+                time.sleep(1)
+            
+            logger.info(f"Resultados do reenvio de notas: {results['success']} sucessos, {results['error']} erros")
+            return results
+            
+        except Exception as e:
+            logger.error(f"Erro ao verificar e reenviar notas fiscais: {str(e)}")
+            logger.error(traceback.format_exc())
+            return {
+                'success': 0,
+                'error': 1,
+                'error_message': str(e)
+            }

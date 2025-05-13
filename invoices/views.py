@@ -565,3 +565,91 @@ def download_pdf(request, invoice_id):
         logger.error(f"Erro ao fazer download do PDF: {str(e)}")
         messages.error(request, _('Erro ao obter o PDF da nota fiscal.'))
         return redirect('payments:transactions')
+
+@login_required
+@professor_required
+def retry_waiting_invoices(request):
+    """
+    Busca todas as notas fiscais no estado WaitingSend e tenta enviá-las novamente.
+    Esta view pode ser acessada manualmente pelo professor ou administrador.
+    """
+    try:
+        # Inicializar o serviço NFE.io
+        service = NFEioService()
+        
+        # Verificar se o usuário é admin ou professor
+        is_admin = hasattr(request.user, 'is_admin') and request.user.is_admin
+        
+        # Se for professor, buscar apenas suas notas
+        if not is_admin:
+            # Buscar todas as notas do professor com status 'processing' e focus_status 'WaitingSend'
+            waiting_invoices = Invoice.objects.filter(
+                transaction__enrollment__course__professor=request.user,
+                status='processing', 
+                focus_status='WaitingSend', 
+                external_id__isnull=False
+            )
+        else:
+            # Se for admin, buscar todas as notas
+            waiting_invoices = Invoice.objects.filter(
+                status='processing', 
+                focus_status='WaitingSend', 
+                external_id__isnull=False
+            )
+        
+        if not waiting_invoices.exists():
+            messages.info(request, _('Não há notas fiscais aguardando envio.'))
+            if is_admin:
+                return redirect('payments:admin_dashboard')
+            else:
+                return redirect('payments:professor_transactions')
+        
+        # Para cada nota, tentar enviar novamente
+        success_count = 0
+        error_count = 0
+        
+        for invoice in waiting_invoices:
+            # Tentar enviar a nota
+            response = service.send_invoice(invoice)
+            
+            # Registrar resultado
+            if not response.get('error'):
+                success_count += 1
+            else:
+                error_count += 1
+            
+            # Aguardar um pouco entre as requisições para não sobrecarregar a API
+            import time
+            time.sleep(1)
+        
+        # Exibir mensagem de sucesso
+        if success_count > 0:
+            messages.success(
+                request, 
+                _('%(success)s nota(s) fiscal(is) reenviada(s) com sucesso. %(error)s nota(s) com erro.') % {
+                    'success': success_count,
+                    'error': error_count
+                }
+            )
+        else:
+            messages.warning(
+                request, 
+                _('Nenhuma nota fiscal foi reenviada com sucesso. %(error)s nota(s) com erro.') % {'error': error_count}
+            )
+        
+        # Redirecionar para a página apropriada
+        if is_admin:
+            return redirect('payments:admin_dashboard')
+        else:
+            return redirect('payments:professor_transactions')
+            
+    except Exception as e:
+        logger.error(f"Erro ao reenviar notas fiscais: {str(e)}")
+        logger.error(traceback.format_exc())
+        messages.error(request, _('Erro ao reenviar notas fiscais: %s') % str(e))
+        
+        # Redirecionar para a página apropriada
+        if hasattr(request.user, 'is_admin') and request.user.is_admin:
+            return redirect('payments:admin_dashboard')
+        else:
+            return redirect('payments:professor_transactions')

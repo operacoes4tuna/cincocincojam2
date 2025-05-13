@@ -3,238 +3,263 @@
 {% block title %}Transações Financeiras - CincoCincoJAM 2.0{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2>Transações Financeiras</h2>
-    <div>
-        <a href="{% url 'payments:professor_dashboard' %}" class="btn btn-outline-primary">
-            <i class="fas fa-chart-line"></i> Dashboard Financeiro
-        </a>
-        <a href="{% url 'invoices:company_settings' %}" class="btn btn-outline-secondary ms-2">
-            <i class="fas fa-file-invoice"></i> Configurações Fiscais
-        </a>
-    </div>
-</div>
-
-<!-- Filtros -->
-<div class="card shadow mb-4">
-    <div class="card-header">
-        <h5 class="mb-0">Filtros</h5>
-    </div>
-    <div class="card-body">
-        <form method="get" class="row g-3">
-            <div class="col-md-5">
-                <label for="course" class="form-label">Curso</label>
-                <select name="course" id="course" class="form-select">
-                    <option value="">Todos os cursos</option>
-                    {% for course in courses %}
-                        <option value="{{ course.id }}" {% if selected_course == course.id|stringformat:"i" %}selected{% endif %}>
-                            {{ course.title }}
-                        </option>
-                    {% endfor %}
-                </select>
+<div class="container-fluid px-4 py-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h2 class="mb-0">Transações Financeiras</h2>
+            <p class="text-muted mb-3">Histórico de pagamentos recebidos e emissão de notas fiscais.</p>
+            
+            <div class="d-flex mb-4">
+                <!-- Botão para reenviar notas fiscais aguardando envio -->
+                <a href="{% url 'invoices:retry_waiting_invoices' %}" class="btn btn-warning me-2">
+                    <i class="fas fa-sync-alt me-1"></i> Reenviar Notas Pendentes
+                    <span class="small">(WaitingSend)</span>
+                </a>
+                
+                <!-- Botões existentes -->
+                <a href="#" class="btn btn-primary me-2" data-bs-toggle="modal" data-bs-target="#emitirNota">
+                    <i class="fas fa-file-invoice me-1"></i> Emitir Nota Fiscal
+                </a>
+                <a href="{% url 'invoices:company_settings' %}" class="btn btn-outline-primary">
+                    <i class="fas fa-cog me-1"></i> Configurações de Emissão
+                </a>
             </div>
-            <div class="col-md-5">
-                <label for="status" class="form-label">Status</label>
-                <select name="status" id="status" class="form-select">
-                    <option value="">Todos os status</option>
-                    {% for status_key, status_label in status_choices %}
-                        <option value="{{ status_key }}" {% if selected_status == status_key %}selected{% endif %}>
-                            {{ status_label }}
-                        </option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="col-md-2 d-flex align-items-end">
-                <button type="submit" class="btn btn-primary w-100">Filtrar</button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<!-- Resumo -->
-<div class="alert alert-info">
-    <div class="row">
-        <div class="col-md-6">
-            <strong>Total Encontrado:</strong> {{ paginator.count }} transação(ões)
-        </div>
-        <div class="col-md-6 text-end">
-            <strong>Valor Total:</strong> R$ {{ total_amount|floatformat:2 }}
         </div>
     </div>
-</div>
 
-<!-- Lista de Transações -->
-<div class="card shadow mb-4">
-    <div class="card-header">
-        <h5 class="mb-0">Transações</h5>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Transações Financeiras</h2>
+        <div>
+            <a href="{% url 'payments:professor_dashboard' %}" class="btn btn-outline-primary">
+                <i class="fas fa-chart-line"></i> Dashboard Financeiro
+            </a>
+            <a href="{% url 'invoices:company_settings' %}" class="btn btn-outline-secondary ms-2">
+                <i class="fas fa-file-invoice"></i> Configurações Fiscais
+            </a>
+        </div>
     </div>
-    <div class="card-body">
-        {% if transactions %}
-            <div class="table-responsive">
-                <table class="table table-hover">
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Data</th>
-                            <th>Aluno</th>
-                            <th>Curso</th>
-                            <th class="text-end">Valor</th>
-                            <th>Status</th>
-                            <th>Método</th>
-                            <th>Nota Fiscal</th>
-                            <th class="text-end">Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for transaction in transactions %}
-                        <tr data-transaction-id="{{ transaction.id }}">
-                            <td>{{ transaction.id }}</td>
-                            <td>{{ transaction.created_at|date:"d/m/Y H:i" }}</td>
-                            <td>{{ transaction.enrollment.student.email }}</td>
-                            <td>{{ transaction.enrollment.course.title }}</td>
-                            <td class="text-end">R$ {{ transaction.amount|floatformat:2 }}</td>
-                            <td>
-                                {% if transaction.status == 'PAID' %}
-                                    <span class="badge bg-success">Pago</span>
-                                {% elif transaction.status == 'PENDING' %}
-                                    <span class="badge bg-warning text-dark">Pendente</span>
-                                {% elif transaction.status == 'REFUNDED' %}
-                                    <span class="badge bg-danger">Estornado</span>
-                                {% elif transaction.status == 'FAILED' %}
-                                    <span class="badge bg-danger">Falhou</span>
-                                {% else %}
-                                    <span class="badge bg-secondary">{{ transaction.status }}</span>
-                                {% endif %}
-                            </td>
-                            <td>{{ transaction.payment_method|default:"--" }}</td>
-                            <td>
-                                {% if transaction.invoices.all|length > 0 %}
-                                    {% with invoice=transaction.invoices.all.0 %}
-                                    {% if invoice.status == 'approved' %}
-                                        <span class="badge bg-success">
-                                            <i class="fas fa-check-circle me-1"></i> Emitida
-                                        </span>
-                                        <a href="{% url 'invoices:download_pdf' invoice.external_id %}" target="_blank" class="btn btn-sm btn-outline-primary ms-2" title="Visualizar PDF">
-                                            <i class="fas fa-file-pdf"></i>
-                                        </a>
-                                        <a href="{% url 'invoices:delete' invoice.id %}" class="btn btn-sm btn-outline-danger ms-2" title="Excluir (apenas teste)">
-                                            <i class="fas fa-trash-alt"></i>
-                                        </a>
-                                    {% elif invoice.status == 'processing' %}
-                                        <span class="badge bg-warning text-dark">
-                                            <i class="fas fa-spinner fa-spin me-1"></i> Processando
-                                        </span>
-                                        <button class="btn btn-sm btn-outline-secondary ms-2 check-status-btn" 
-                                                data-invoice-id="{{ invoice.id }}"
-                                                title="Verificar Status">
-                                            <i class="fas fa-sync-alt"></i>
-                                        </button>
-                                        <a href="{% url 'invoices:delete' invoice.id %}" class="btn btn-sm btn-outline-danger ms-2" title="Excluir (apenas teste)">
-                                            <i class="fas fa-trash-alt"></i>
-                                        </a>
-                                    {% elif invoice.status == 'error' %}
-                                        <span class="badge bg-danger">
-                                            <i class="fas fa-exclamation-circle me-1"></i> Erro
-                                        </span>
-                                        <a href="{% url 'invoices:retry' invoice.id %}" class="btn btn-sm btn-outline-danger ms-2" title="Tentar Novamente">
-                                            <i class="fas fa-redo-alt"></i>
-                                        </a>
-                                        <a href="{% url 'invoices:delete' invoice.id %}" class="btn btn-sm btn-outline-danger ms-2" title="Excluir (apenas teste)">
-                                            <i class="fas fa-trash-alt"></i>
-                                        </a>
-                                    {% elif invoice.status == 'cancelling' %}
-                                        <span class="badge bg-warning text-dark">
-                                            <i class="fas fa-spinner fa-spin me-1"></i> Cancelando
-                                        </span>
-                                        <a href="{% url 'invoices:delete' invoice.id %}" class="btn btn-sm btn-outline-danger ms-2" title="Excluir (apenas teste)">
-                                            <i class="fas fa-trash-alt"></i>
-                                        </a>
-                                    {% elif invoice.status == 'cancelled' %}
-                                        <span class="badge bg-secondary">
-                                            <i class="fas fa-ban me-1"></i> Cancelada
-                                        </span>
-                                        <a href="{% url 'invoices:delete' invoice.id %}" class="btn btn-sm btn-outline-danger ms-2" title="Excluir (apenas teste)">
-                                            <i class="fas fa-trash-alt"></i>
-                                        </a>
+
+    <!-- Filtros -->
+    <div class="card shadow mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">Filtros</h5>
+        </div>
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-5">
+                    <label for="course" class="form-label">Curso</label>
+                    <select name="course" id="course" class="form-select">
+                        <option value="">Todos os cursos</option>
+                        {% for course in courses %}
+                            <option value="{{ course.id }}" {% if selected_course == course.id|stringformat:"i" %}selected{% endif %}>
+                                {{ course.title }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-5">
+                    <label for="status" class="form-label">Status</label>
+                    <select name="status" id="status" class="form-select">
+                        <option value="">Todos os status</option>
+                        {% for status_key, status_label in status_choices %}
+                            <option value="{{ status_key }}" {% if selected_status == status_key %}selected{% endif %}>
+                                {{ status_label }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">Filtrar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Resumo -->
+    <div class="alert alert-info">
+        <div class="row">
+            <div class="col-md-6">
+                <strong>Total Encontrado:</strong> {{ paginator.count }} transação(ões)
+            </div>
+            <div class="col-md-6 text-end">
+                <strong>Valor Total:</strong> R$ {{ total_amount|floatformat:2 }}
+            </div>
+        </div>
+    </div>
+
+    <!-- Lista de Transações -->
+    <div class="card shadow mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">Transações</h5>
+        </div>
+        <div class="card-body">
+            {% if transactions %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Data</th>
+                                <th>Aluno</th>
+                                <th>Curso</th>
+                                <th class="text-end">Valor</th>
+                                <th>Status</th>
+                                <th>Método</th>
+                                <th>Nota Fiscal</th>
+                                <th class="text-end">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for transaction in transactions %}
+                            <tr data-transaction-id="{{ transaction.id }}">
+                                <td>{{ transaction.id }}</td>
+                                <td>{{ transaction.created_at|date:"d/m/Y H:i" }}</td>
+                                <td>{{ transaction.enrollment.student.email }}</td>
+                                <td>{{ transaction.enrollment.course.title }}</td>
+                                <td class="text-end">R$ {{ transaction.amount|floatformat:2 }}</td>
+                                <td>
+                                    {% if transaction.status == 'PAID' %}
+                                        <span class="badge bg-success">Pago</span>
+                                    {% elif transaction.status == 'PENDING' %}
+                                        <span class="badge bg-warning text-dark">Pendente</span>
+                                    {% elif transaction.status == 'REFUNDED' %}
+                                        <span class="badge bg-danger">Estornado</span>
+                                    {% elif transaction.status == 'FAILED' %}
+                                        <span class="badge bg-danger">Falhou</span>
                                     {% else %}
-                                        <span class="badge bg-info">
-                                            <i class="fas fa-clock me-1"></i> Pendente
-                                        </span>
-                                        <a href="{% url 'invoices:delete' invoice.id %}" class="btn btn-sm btn-outline-danger ms-2" title="Excluir (apenas teste)">
-                                            <i class="fas fa-trash-alt"></i>
+                                        <span class="badge bg-secondary">{{ transaction.status }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ transaction.payment_method|default:"--" }}</td>
+                                <td>
+                                    {% if transaction.invoices.all|length > 0 %}
+                                        {% with invoice=transaction.invoices.all.0 %}
+                                        {% if invoice.status == 'approved' %}
+                                            <span class="badge bg-success">
+                                                <i class="fas fa-check-circle me-1"></i> Emitida
+                                            </span>
+                                            <a href="{% url 'invoices:download_pdf' invoice.external_id %}" target="_blank" class="btn btn-sm btn-outline-primary ms-2" title="Visualizar PDF">
+                                                <i class="fas fa-file-pdf"></i>
+                                            </a>
+                                            <a href="{% url 'invoices:delete' invoice.id %}" class="btn btn-sm btn-outline-danger ms-2" title="Excluir (apenas teste)">
+                                                <i class="fas fa-trash-alt"></i>
+                                            </a>
+                                        {% elif invoice.status == 'processing' %}
+                                            <span class="badge bg-warning text-dark">
+                                                <i class="fas fa-spinner fa-spin me-1"></i> Processando
+                                            </span>
+                                            <button class="btn btn-sm btn-outline-secondary ms-2 check-status-btn" 
+                                                    data-invoice-id="{{ invoice.id }}"
+                                                    title="Verificar Status">
+                                                <i class="fas fa-sync-alt"></i>
+                                            </button>
+                                            <a href="{% url 'invoices:delete' invoice.id %}" class="btn btn-sm btn-outline-danger ms-2" title="Excluir (apenas teste)">
+                                                <i class="fas fa-trash-alt"></i>
+                                            </a>
+                                        {% elif invoice.status == 'error' %}
+                                            <span class="badge bg-danger">
+                                                <i class="fas fa-exclamation-circle me-1"></i> Erro
+                                            </span>
+                                            <a href="{% url 'invoices:retry' invoice.id %}" class="btn btn-sm btn-outline-danger ms-2" title="Tentar Novamente">
+                                                <i class="fas fa-redo-alt"></i>
+                                            </a>
+                                            <a href="{% url 'invoices:delete' invoice.id %}" class="btn btn-sm btn-outline-danger ms-2" title="Excluir (apenas teste)">
+                                                <i class="fas fa-trash-alt"></i>
+                                            </a>
+                                        {% elif invoice.status == 'cancelling' %}
+                                            <span class="badge bg-warning text-dark">
+                                                <i class="fas fa-spinner fa-spin me-1"></i> Cancelando
+                                            </span>
+                                            <a href="{% url 'invoices:delete' invoice.id %}" class="btn btn-sm btn-outline-danger ms-2" title="Excluir (apenas teste)">
+                                                <i class="fas fa-trash-alt"></i>
+                                            </a>
+                                        {% elif invoice.status == 'cancelled' %}
+                                            <span class="badge bg-secondary">
+                                                <i class="fas fa-ban me-1"></i> Cancelada
+                                            </span>
+                                            <a href="{% url 'invoices:delete' invoice.id %}" class="btn btn-sm btn-outline-danger ms-2" title="Excluir (apenas teste)">
+                                                <i class="fas fa-trash-alt"></i>
+                                            </a>
+                                        {% else %}
+                                            <span class="badge bg-info">
+                                                <i class="fas fa-clock me-1"></i> Pendente
+                                            </span>
+                                            <a href="{% url 'invoices:delete' invoice.id %}" class="btn btn-sm btn-outline-danger ms-2" title="Excluir (apenas teste)">
+                                                <i class="fas fa-trash-alt"></i>
+                                            </a>
+                                        {% endif %}
+                                        {% endwith %}
+                                    {% else %}
+                                        <a href="{% url 'invoices:emit' transaction.id %}" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-file-invoice me-1"></i> Emitir NFe
                                         </a>
                                     {% endif %}
-                                    {% endwith %}
-                                {% else %}
-                                    <a href="{% url 'invoices:emit' transaction.id %}" class="btn btn-sm btn-outline-primary">
-                                        <i class="fas fa-file-invoice me-1"></i> Emitir NFe
+                                </td>
+                                <td class="text-end">
+                                    {% if transaction.status == 'PENDING' %}
+                                    <a href="{% url 'payments:emit_payment_charge' transaction.id %}" class="btn btn-sm btn-warning">
+                                        <i class="fas fa-paper-plane me-1"></i> Emitir Cobrança
                                     </a>
-                                {% endif %}
-                            </td>
-                            <td class="text-end">
-                                {% if transaction.status == 'PENDING' %}
-                                <a href="{% url 'payments:emit_payment_charge' transaction.id %}" class="btn btn-sm btn-warning">
-                                    <i class="fas fa-paper-plane me-1"></i> Emitir Cobrança
-                                </a>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-            
-            <!-- Paginação -->
-            {% if is_paginated %}
-            <div class="mt-4">
-                <nav aria-label="Navegação de páginas">
-                    <ul class="pagination justify-content-center">
-                        {% if page_obj.has_previous %}
-                            <li class="page-item">
-                                <a class="page-link" href="?page=1{% if selected_course %}&course={{ selected_course }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}">&laquo; Primeira</a>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Paginação -->
+                {% if is_paginated %}
+                <div class="mt-4">
+                    <nav aria-label="Navegação de páginas">
+                        <ul class="pagination justify-content-center">
+                            {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page=1{% if selected_course %}&course={{ selected_course }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}">&laquo; Primeira</a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if selected_course %}&course={{ selected_course }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}">Anterior</a>
+                                </li>
+                            {% else %}
+                                <li class="page-item disabled">
+                                    <a class="page-link" href="#">&laquo; Primeira</a>
+                                </li>
+                                <li class="page-item disabled">
+                                    <a class="page-link" href="#">Anterior</a>
+                                </li>
+                            {% endif %}
+                            
+                            <li class="page-item active">
+                                <span class="page-link">
+                                    Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
+                                </span>
                             </li>
-                            <li class="page-item">
-                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if selected_course %}&course={{ selected_course }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}">Anterior</a>
-                            </li>
-                        {% else %}
-                            <li class="page-item disabled">
-                                <a class="page-link" href="#">&laquo; Primeira</a>
-                            </li>
-                            <li class="page-item disabled">
-                                <a class="page-link" href="#">Anterior</a>
-                            </li>
-                        {% endif %}
-                        
-                        <li class="page-item active">
-                            <span class="page-link">
-                                Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
-                            </span>
-                        </li>
-                        
-                        {% if page_obj.has_next %}
-                            <li class="page-item">
-                                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if selected_course %}&course={{ selected_course }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}">Próxima</a>
-                            </li>
-                            <li class="page-item">
-                                <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if selected_course %}&course={{ selected_course }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}">Última &raquo;</a>
-                            </li>
-                        {% else %}
-                            <li class="page-item disabled">
-                                <a class="page-link" href="#">Próxima</a>
-                            </li>
-                            <li class="page-item disabled">
-                                <a class="page-link" href="#">Última &raquo;</a>
-                            </li>
-                        {% endif %}
-                    </ul>
-                </nav>
-            </div>
+                            
+                            {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if selected_course %}&course={{ selected_course }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}">Próxima</a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if selected_course %}&course={{ selected_course }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}">Última &raquo;</a>
+                                </li>
+                            {% else %}
+                                <li class="page-item disabled">
+                                    <a class="page-link" href="#">Próxima</a>
+                                </li>
+                                <li class="page-item disabled">
+                                    <a class="page-link" href="#">Última &raquo;</a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
+                {% endif %}
+            {% else %}
+                <div class="alert alert-info">
+                    Nenhuma transação encontrada com os filtros selecionados.
+                </div>
             {% endif %}
-        {% else %}
-            <div class="alert alert-info">
-                Nenhuma transação encontrada com os filtros selecionados.
-            </div>
-        {% endif %}
+        </div>
     </div>
 </div>
 {% endblock %}

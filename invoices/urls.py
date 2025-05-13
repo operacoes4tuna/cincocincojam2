@@ -28,4 +28,7 @@ urlpatterns = [
     
     # URLs para o modo de teste
     path('test-mode/', views.test_mode, name='test_mode'),
+    
+    # Ações em lote
+    path('retry-waiting/', views.retry_waiting_invoices, name='retry_waiting_invoices'),
 ]
