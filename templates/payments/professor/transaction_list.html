@@ -166,6 +166,10 @@
                                             <a href="{% url 'invoices:delete' invoice.id %}" class="btn btn-sm btn-outline-danger ms-2" title="Excluir (apenas teste)">
                                                 <i class="fas fa-trash-alt"></i>
                                             </a>
+                                            <form action="{% url 'invoices:sync_invoice_status' invoice.id %}" method="post">
+                                                {% csrf_token %}
+                                                <button type="submit">Sincronizar Status</button>
+                                            </form>
                                         {% elif invoice.status == 'cancelling' %}
                                             <span class="badge bg-warning text-dark">
                                                 <i class="fas fa-spinner fa-spin me-1"></i> Cancelando

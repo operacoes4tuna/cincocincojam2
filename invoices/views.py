@@ -97,21 +97,20 @@ def emit_invoice(request, transaction_id):
         messages.error(request, _('Configure suas informações fiscais antes de emitir notas fiscais.'))
         return redirect('invoices:company_settings')
     
-    # Criar a invoice no banco de dados
+    # Criar a invoice no banco de dados somente após sucesso na emissão
     logger.info(f"Criando nova invoice para transação {transaction_id}")
     with db_transaction.atomic():
         try:
-            invoice = Invoice.objects.create(
-                transaction=transaction,
-                status='pending'
-            )
-            logger.debug(f"Invoice criada com ID {invoice.id}")
-            
             # Tentar emitir a nota fiscal
-            logger.info(f"Iniciando emissão via NFEioService para invoice ID {invoice.id}")
+            logger.info(f"Iniciando emissão via NFEioService para transação {transaction_id}")
             service = NFEioService()
             try:
-                logger.debug(f"Chamando service.emit_invoice para invoice ID {invoice.id}")
+                logger.debug(f"Chamando service.emit_invoice para transação {transaction_id}")
+                # Criar a invoice antes de chamar o serviço
+                invoice = Invoice.objects.create(
+                    transaction=transaction,
+                    status='pending'
+                )
                 response = service.emit_invoice(invoice)
                 logger.info(f"Resposta da emissão: {json.dumps(response, indent=2)}")
                 
@@ -124,7 +123,7 @@ def emit_invoice(request, transaction_id):
                         logger.info(f"Nota fiscal em processamento para invoice ID {invoice.id}")
                         messages.success(request, _('Nota fiscal em processamento. Acompanhe o status na lista de transações.'))
                 else:
-                    logger.info(f"Nota fiscal em processamento para invoice ID {invoice.id}")
+                    logger.info(f"Nota fiscal em processamento para transação {transaction_id}")
                     messages.success(request, _('Nota fiscal em processamento. Acompanhe o status na lista de transações.'))
             except Exception as e:
                 error_traceback = traceback.format_exc()
@@ -659,3 +658,34 @@ def retry_waiting_invoices(request):
             return redirect('payments:admin_dashboard')
         else:
             return redirect('payments:professor_transactions')
+
+@login_required
+@professor_required
+def sync_invoice_status(request, invoice_id):
+    """
+    Sincroniza o status da nota fiscal com a API NFE.io.
+    """
+    try:
+        invoice = get_object_or_404(Invoice, id=invoice_id, transaction__enrollment__course__professor=request.user)
+        
+        # Verificar se a nota está com status de erro
+        if invoice.status != 'error':
+            messages.info(request, _('A nota fiscal não está em estado de erro.'))
+            return redirect('invoices:invoice_detail', invoice_id=invoice_id)
+        
+        # Inicializar o serviço NFE.io
+        service = NFEioService()
+        
+        # Verificar o status atual na API
+        status_result = service.check_invoice_status(invoice)
+        
+        if status_result['success']:
+            messages.success(request, _('Status da nota fiscal sincronizado com sucesso.'))
+        else:
+            messages.error(request, _('Erro ao sincronizar status da nota fiscal: {}').format(status_result['message']))
+        
+    except Exception as e:
+        logger.error(f"Erro ao sincronizar status da nota fiscal {invoice_id}: {str(e)}")
+        messages.error(request, _('Erro ao sincronizar status da nota fiscal.'))
+    
+    return redirect('invoices:invoice_detail', invoice_id=invoice_id)

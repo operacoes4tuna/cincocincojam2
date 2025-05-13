@@ -31,4 +31,7 @@ urlpatterns = [
     
     # Ações em lote
     path('retry-waiting/', views.retry_waiting_invoices, name='retry_waiting_invoices'),
+    
+    # URL para sincronizar o status da nota fiscal
+    path('sync-invoice-status/<int:invoice_id>/', views.sync_invoice_status, name='sync_invoice_status'),
 ]
