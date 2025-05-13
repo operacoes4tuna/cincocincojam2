@@ -114,11 +114,9 @@
                                         <span class="badge bg-success">
                                             <i class="fas fa-check-circle me-1"></i> Emitida
                                         </span>
-                                        {% if invoice.focus_pdf_url %}
-                                            <a href="{{ invoice.focus_pdf_url }}" target="_blank" class="btn btn-sm btn-outline-primary ms-2" title="Visualizar PDF">
-                                                <i class="fas fa-file-pdf"></i>
-                                            </a>
-                                        {% endif %}
+                                        <a href="{{ invoice.focus_pdf_url }}" target="_blank" class="btn btn-sm btn-outline-primary ms-2" title="Visualizar PDF">
+                                            <i class="fas fa-file-pdf"></i>
+                                        </a>
                                         <a href="{% url 'invoices:delete' invoice.id %}" class="btn btn-sm btn-outline-danger ms-2" title="Excluir (apenas teste)">
                                             <i class="fas fa-trash-alt"></i>
                                         </a>
