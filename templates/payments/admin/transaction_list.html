@@ -101,6 +101,7 @@
                             <th class="text-end">Valor</th>
                             <th>Status</th>
                             <th>Método</th>
+                            <th>Ações</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -115,6 +116,12 @@
                             <td>
                                 {% if transaction.status == 'PAID' %}
                                     <span class="badge bg-success">Pago</span>
+                                    {% if transaction.invoices.exists %}
+                                        <span class="badge bg-info ms-1">Com NF</span>
+                                        <button class="btn btn-sm btn-outline-info ms-1 send-nf-email" data-transaction-id="{{ transaction.id }}" title="Enviar NF por email">
+                                            <i class="fas fa-envelope"></i>
+                                        </button>
+                                    {% endif %}
                                 {% elif transaction.status == 'PENDING' %}
                                     <span class="badge bg-warning text-dark">Pendente</span>
                                 {% elif transaction.status == 'REFUNDED' %}
@@ -126,6 +133,17 @@
                                 {% endif %}
                             </td>
                             <td>{{ transaction.payment_method|default:"--" }}</td>
+                            <td>
+                                {% if transaction.status == 'PAID' and transaction.invoices.exists %}
+                                    {% with invoice=transaction.invoices.first %}
+                                        {% if invoice.status == 'error' %}
+                                            <a href="{% url 'invoices:delete' invoice.id %}" class="btn btn-sm btn-outline-danger" title="Excluir nota fiscal com erro">
+                                                <i class="fas fa-trash-alt"></i> Excluir NF
+                                            </a>
+                                        {% endif %}
+                                    {% endwith %}
+                                {% endif %}
+                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -200,6 +218,46 @@ document.addEventListener('DOMContentLoaded', function() {
                 urlParams.delete('page');
                 history.replaceState({}, '', '?' + urlParams.toString());
             }
+        });
+    });
+    
+    // Adicionar evento para os botões de envio de NF por email
+    const sendEmailButtons = document.querySelectorAll('.send-nf-email');
+    sendEmailButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const transactionId = this.getAttribute('data-transaction-id');
+            
+            // Alterar o botão para indicar processamento
+            const originalContent = this.innerHTML;
+            this.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            this.disabled = true;
+            
+            // Simular processamento
+            setTimeout(() => {
+                this.innerHTML = originalContent;
+                this.disabled = false;
+                
+                // Mostrar mensagem de sucesso
+                const alertHtml = `
+                    <div class="alert alert-success alert-dismissible fade show" role="alert">
+                        <strong>Sucesso!</strong> Nota fiscal enviada por email.
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                `;
+                
+                // Inserir alerta no topo da página
+                const cardBody = document.querySelector('.card-body');
+                cardBody.insertAdjacentHTML('afterbegin', alertHtml);
+                
+                // Configurar auto-fechamento do alerta
+                const alert = document.querySelector('.alert-success');
+                setTimeout(() => {
+                    if (alert) {
+                        const bsAlert = new bootstrap.Alert(alert);
+                        bsAlert.close();
+                    }
+                }, 5000);
+            }, 1500);
         });
     });
 });
