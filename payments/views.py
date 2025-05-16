@@ -765,7 +765,11 @@ class SingleSaleListView(LoginRequiredMixin, ProfessorRequiredMixin, ListView):
     paginate_by = 20
     
     def get_queryset(self):
-        queryset = SingleSale.objects.filter(seller=self.request.user)
+        # Use only the basic fields to avoid any errors with potentially missing fields
+        queryset = SingleSale.objects.filter(seller=self.request.user).only(
+            'id', 'description', 'amount', 'status', 'customer_name', 
+            'customer_email', 'created_at', 'updated_at', 'paid_at'
+        )
         
         # Filtro por status
         status = self.request.GET.get('status')
@@ -816,7 +820,15 @@ class SingleSaleCreateView(LoginRequiredMixin, ProfessorRequiredMixin, CreateVie
     """
     model = SingleSale
     template_name = 'payments/professor/singlesale_form.html'
-    fields = ['description', 'amount', 'customer_name', 'customer_email', 'customer_cpf']
+    fields = [
+        'description', 'amount', 
+        'customer_name', 'customer_email', 'customer_cpf',
+        'customer_address', 'customer_address_number', 'customer_address_complement',
+        'customer_neighborhood', 'customer_city', 'customer_state', 'customer_zipcode',
+        'customer_phone',
+        'product_code', 'ncm_code', 'cfop_code', 'quantity', 'unit_value',
+        'invoice_type', 'generate_invoice'
+    ]
     success_url = reverse_lazy('payments:singlesale_list')
     
     def form_valid(self, form):
@@ -1030,7 +1042,11 @@ class SingleSaleUpdateView(LoginRequiredMixin, ProfessorRequiredMixin, UpdateVie
     """
     model = SingleSale
     template_name = 'payments/professor/singlesale_form.html'
-    fields = ['description', 'amount', 'customer_name', 'customer_email', 'customer_cpf', 'status']
+    fields = [
+        'description', 'amount', 
+        'customer_name', 'customer_email', 'customer_cpf',
+        'status'
+    ]
     
     def get_queryset(self):
         # Garantir que só atualiza vendas do professor atual
@@ -1040,9 +1056,8 @@ class SingleSaleUpdateView(LoginRequiredMixin, ProfessorRequiredMixin, UpdateVie
         return reverse_lazy('payments:singlesale_detail', kwargs={'pk': self.object.pk})
     
     def form_valid(self, form):
-        response = super().form_valid(form)
-        messages.success(self.request, _('Venda avulsa atualizada com sucesso!'))
-        return response
+        messages.success(self.request, _('Venda atualizada com sucesso!'))
+        return super().form_valid(form)
 
 
 @login_required

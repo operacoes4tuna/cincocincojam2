@@ -200,26 +200,40 @@
                                     {% elif sale.status == 'PENDING' %}
                                         {% translate "Aguardando Pagamento" %}
                                     {% else %}
-                                        {{ sale.get_status_display }}
+                                        {% translate "Pagamento Cancelado" %}
                                     {% endif %}
                                 </h6>
-                                <p class="text-muted mb-0" id="status-update-time">
+                                <small class="text-muted" id="status-date">
                                     {% if sale.paid_at %}
-                                        {% translate "Pago em" %}: {{ sale.paid_at|date:"d/m/Y H:i" }}
+                                        {{ sale.paid_at|date:"d/m/Y H:i" }}
                                     {% else %}
-                                        {% translate "Atualizado em" %}: {{ sale.updated_at|date:"d/m/Y H:i" }}
+                                        {{ sale.updated_at|date:"d/m/Y H:i" }}
                                     {% endif %}
-                                </p>
+                                </small>
                             </div>
                         </div>
-                    </div>
-
-                    <div id="loading-status" style="display: none;">
-                        <div class="d-flex justify-content-center">
-                            <div class="spinner-border text-primary" role="status">
-                                <span class="visually-hidden">{% translate "Carregando..." %}</span>
+                        
+                        <!-- QR Code e dados do Pix -->
+                        {% if sale.qrcode_image %}
+                        <div class="text-center mb-3">
+                            <img src="{{ sale.qrcode_image }}" alt="QR Code Pix" class="img-fluid" style="max-width: 200px;">
+                        </div>
+                        {% endif %}
+                        
+                        {% if sale.brcode %}
+                        <div class="mb-3">
+                            <label for="brcode" class="form-label">{% translate "Pix Copia e Cola" %}</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="brcode" value="{{ sale.brcode }}" readonly>
+                                <button class="btn btn-outline-secondary" type="button" onclick="copyBRCode()">
+                                    <i class="fas fa-copy"></i>
+                                </button>
+                            </div>
+                            <div id="brcode-copied" class="text-success mt-1" style="display: none;">
+                                <i class="fas fa-check"></i> {% translate "Código copiado!" %}
                             </div>
                         </div>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -228,57 +242,65 @@
     </div>
 </div>
 
-{% endblock %}
-
 {% block extra_js %}
 <script>
     function copyPaymentLink() {
-        const linkInput = document.getElementById('payment-link');
-        linkInput.select();
-        document.execCommand('copy');
+        var copyText = document.getElementById("payment-link");
+        copyText.select();
+        copyText.setSelectionRange(0, 99999);
+        document.execCommand("copy");
         
-        const linkCopied = document.getElementById('link-copied');
-        linkCopied.style.display = 'block';
+        var copyMessage = document.getElementById("link-copied");
+        copyMessage.style.display = "block";
+        setTimeout(function(){
+            copyMessage.style.display = "none";
+        }, 3000);
+    }
+    
+    function copyBRCode() {
+        var copyText = document.getElementById("brcode");
+        copyText.select();
+        copyText.setSelectionRange(0, 99999);
+        document.execCommand("copy");
         
-        setTimeout(() => {
-            linkCopied.style.display = 'none';
+        var copyMessage = document.getElementById("brcode-copied");
+        copyMessage.style.display = "block";
+        setTimeout(function(){
+            copyMessage.style.display = "none";
         }, 3000);
     }
     
     function checkPaymentStatus() {
-        // Mostrar loading
-        document.getElementById('payment-status').style.display = 'none';
-        document.getElementById('loading-status').style.display = 'block';
-        
-        // Fazer a requisição para verificar o status
-        fetch('{% url "payments:check_singlesale_status" sale_id=sale.id %}')
+        fetch("{% url 'payments:check_singlesale_status' sale_id=sale.id %}")
             .then(response => response.json())
             .then(data => {
-                // Ocultar loading
-                document.getElementById('loading-status').style.display = 'none';
-                document.getElementById('payment-status').style.display = 'block';
-                
-                // Atualizar os elementos conforme o status retornado
                 if (data.status === 'PAID') {
-                    document.getElementById('status-text').innerHTML = '{% translate "Pagamento Confirmado" %}';
-                    document.getElementById('status-text').parentNode.previousElementSibling.innerHTML = '<i class="fas fa-check-circle text-success fa-3x"></i>';
-                    
-                    if (data.paid_at) {
-                        document.getElementById('status-update-time').innerHTML = '{% translate "Pago em" %}: ' + new Date(data.paid_at).toLocaleString();
+                    // Atualizar para pago sem recarregar a página
+                    document.getElementById("status-text").innerHTML = '{% translate "Pagamento Confirmado" %}';
+                    var statusIcon = document.querySelector("#payment-status .fa-clock");
+                    if (statusIcon) {
+                        statusIcon.classList.remove("fa-clock", "text-warning");
+                        statusIcon.classList.add("fa-check-circle", "text-success");
                     }
                     
-                    // Recarregar a página após 2 segundos para atualizar tudo
-                    setTimeout(() => {
+                    // Atualizar data de pagamento
+                    if (data.paid_at) {
+                        document.getElementById("status-date").innerHTML = new Date(data.paid_at).toLocaleString();
+                    }
+                    
+                    // Recarregar a página após 2 segundos
+                    setTimeout(function() {
                         window.location.reload();
                     }, 2000);
+                } else {
+                    alert("{% translate 'O pagamento ainda não foi confirmado.' %}");
                 }
             })
             .catch(error => {
                 console.error('Erro ao verificar status:', error);
-                document.getElementById('loading-status').style.display = 'none';
-                document.getElementById('payment-status').style.display = 'block';
-                alert('{% translate "Erro ao verificar o status do pagamento. Tente novamente." %}');
+                alert("{% translate 'Erro ao verificar o status do pagamento. Tente novamente.' %}");
             });
     }
 </script>
+{% endblock %}
 {% endblock %} 

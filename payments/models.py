@@ -125,6 +125,50 @@ class SingleSale(models.Model):
     customer_email = models.EmailField(_('Email do Cliente'), max_length=255)
     customer_cpf = models.CharField(_('CPF do Cliente'), max_length=14, blank=True, null=True)
     
+    # Campos adicionais para emissão de Nota Fiscal (NFe)
+    customer_address = models.CharField(_('Endereço do Cliente'), max_length=255, blank=True, null=True)
+    customer_address_number = models.CharField(_('Número'), max_length=20, blank=True, null=True)
+    customer_address_complement = models.CharField(_('Complemento'), max_length=100, blank=True, null=True)
+    customer_neighborhood = models.CharField(_('Bairro'), max_length=100, blank=True, null=True)
+    customer_city = models.CharField(_('Cidade'), max_length=100, blank=True, null=True)
+    customer_state = models.CharField(_('Estado'), max_length=2, blank=True, null=True)
+    customer_zipcode = models.CharField(_('CEP'), max_length=9, blank=True, null=True)
+    customer_phone = models.CharField(_('Telefone'), max_length=20, blank=True, null=True)
+    
+    # Campo para confirmar pagamento (já existe na tabela)
+    is_payment_confirmed = models.BooleanField(_('Pagamento Confirmado'), default=False, blank=True, null=True)
+    
+    # Informações do produto/serviço para Nota Fiscal
+    product_code = models.CharField(_('Código do Produto'), max_length=60, blank=True, null=True)
+    ncm_code = models.CharField(
+        _('Código NCM'), 
+        max_length=8, 
+        blank=True, 
+        null=True, 
+        help_text=_('Código da Nomenclatura Comum do Mercosul')
+    )
+    cfop_code = models.CharField(
+        _('CFOP'), 
+        max_length=4, 
+        blank=True, 
+        null=True,
+        help_text=_('Código Fiscal de Operações e Prestações')
+    )
+    quantity = models.DecimalField(_('Quantidade'), max_digits=10, decimal_places=2, default=1)
+    unit_value = models.DecimalField(_('Valor Unitário'), max_digits=10, decimal_places=2, null=True, blank=True)
+    
+    # Opções da Nota Fiscal
+    invoice_type = models.CharField(
+        _('Tipo de Nota Fiscal'),
+        max_length=10,
+        choices=[('nfe', _('Nota Fiscal Eletrônica')), ('nfse', _('Nota Fiscal de Serviço'))],
+        default='nfse',
+        blank=True,
+        null=True
+    )
+    
+    generate_invoice = models.BooleanField(_('Gerar Nota Fiscal'), default=False)
+    
     # Datas
     created_at = models.DateTimeField(_('Criado em'), auto_now_add=True)
     updated_at = models.DateTimeField(_('Atualizado em'), auto_now=True)
@@ -151,15 +195,23 @@ class SingleSale(models.Model):
         """Marca a venda como paga e registra a data/hora do pagamento."""
         self.status = self.Status.PAID
         self.paid_at = timezone.now()
+        self.is_payment_confirmed = True
         if save:
             self.save()
     
     def mark_as_refunded(self, save=True):
         """Marca a venda como estornada."""
         self.status = self.Status.REFUNDED
+        self.is_payment_confirmed = False
         if save:
             self.save()
     
     def is_paid(self):
         """Verifica se a venda está paga."""
         return self.status == self.Status.PAID
+    
+    def save(self, *args, **kwargs):
+        # Se unit_value estiver vazio, usa o valor amount
+        if not self.unit_value:
+            self.unit_value = self.amount
+        super().save(*args, **kwargs)

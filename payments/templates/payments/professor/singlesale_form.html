@@ -26,54 +26,127 @@
         </a>
     </div>
 
-    <div class="card">
-        <div class="card-body">
-            <form method="post">
-                {% csrf_token %}
-                
+    <form method="post">
+        {% csrf_token %}
+        
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">{% translate "Informações da Venda" %}</h5>
+            </div>
+            <div class="card-body">
                 <div class="row">
                     <div class="col-md-6">
-                        <h5 class="mb-3">{% translate "Informações da Venda" %}</h5>
-                        <div class="mb-3">
-                            {{ form.description|as_crispy_field }}
-                        </div>
-                        <div class="mb-3">
-                            {{ form.amount|as_crispy_field }}
-                        </div>
+                        {{ form.description|as_crispy_field }}
+                    </div>
+                    <div class="col-md-3">
+                        {{ form.amount|as_crispy_field }}
+                    </div>
+                    <div class="col-md-3">
                         {% if object %}
-                            <div class="mb-3">
-                                {{ form.status|as_crispy_field }}
-                            </div>
+                            {{ form.status|as_crispy_field }}
                         {% endif %}
                     </div>
-                    
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">{% translate "Informações do Cliente" %}</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
                     <div class="col-md-6">
-                        <h5 class="mb-3">{% translate "Informações do Cliente" %}</h5>
-                        <div class="mb-3">
-                            {{ form.customer_name|as_crispy_field }}
-                        </div>
-                        <div class="mb-3">
-                            {{ form.customer_email|as_crispy_field }}
-                        </div>
-                        <div class="mb-3">
-                            {{ form.customer_cpf|as_crispy_field }}
-                        </div>
+                        {{ form.customer_name|as_crispy_field }}
+                    </div>
+                    <div class="col-md-3">
+                        {{ form.customer_email|as_crispy_field }}
+                    </div>
+                    <div class="col-md-3">
+                        {{ form.customer_cpf|as_crispy_field }}
                     </div>
                 </div>
                 
                 <div class="row">
-                    <div class="col-12 text-end">
-                        <button type="submit" class="btn btn-primary">
-                            {% if object %}
-                                <i class="fas fa-save me-1"></i> {% translate "Salvar Alterações" %}
-                            {% else %}
-                                <i class="fas fa-plus me-1"></i> {% translate "Criar Venda" %}
-                            {% endif %}
-                        </button>
+                    <div class="col-md-6">
+                        {{ form.customer_address|as_crispy_field }}
+                    </div>
+                    <div class="col-md-2">
+                        {{ form.customer_address_number|as_crispy_field }}
+                    </div>
+                    <div class="col-md-4">
+                        {{ form.customer_address_complement|as_crispy_field }}
                     </div>
                 </div>
-            </form>
+                
+                <div class="row">
+                    <div class="col-md-3">
+                        {{ form.customer_neighborhood|as_crispy_field }}
+                    </div>
+                    <div class="col-md-3">
+                        {{ form.customer_city|as_crispy_field }}
+                    </div>
+                    <div class="col-md-2">
+                        {{ form.customer_state|as_crispy_field }}
+                    </div>
+                    <div class="col-md-2">
+                        {{ form.customer_zipcode|as_crispy_field }}
+                    </div>
+                    <div class="col-md-2">
+                        {{ form.customer_phone|as_crispy_field }}
+                    </div>
+                </div>
+            </div>
         </div>
-    </div>
+        
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">{% translate "Informações para Nota Fiscal" %}</h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <div class="form-check form-switch">
+                            {{ form.generate_invoice }}
+                            <label class="form-check-label" for="{{ form.generate_invoice.id_for_label }}">
+                                {% translate "Gerar Nota Fiscal" %}
+                            </label>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        {{ form.invoice_type|as_crispy_field }}
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-3">
+                        {{ form.product_code|as_crispy_field }}
+                    </div>
+                    <div class="col-md-3">
+                        {{ form.ncm_code|as_crispy_field }}
+                    </div>
+                    <div class="col-md-2">
+                        {{ form.cfop_code|as_crispy_field }}
+                    </div>
+                    <div class="col-md-2">
+                        {{ form.quantity|as_crispy_field }}
+                    </div>
+                    <div class="col-md-2">
+                        {{ form.unit_value|as_crispy_field }}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="d-flex justify-content-end">
+            <button type="submit" class="btn btn-primary">
+                {% if object %}
+                    <i class="fas fa-save me-1"></i> {% translate "Salvar Alterações" %}
+                {% else %}
+                    <i class="fas fa-plus me-1"></i> {% translate "Criar Venda" %}
+                {% endif %}
+            </button>
+        </div>
+    </form>
 </div>
 {% endblock %} 
