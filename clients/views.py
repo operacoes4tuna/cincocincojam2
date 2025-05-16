@@ -6,6 +6,8 @@ from django.contrib import messages
 from django.utils.translation import gettext_lazy as _
 from django.http import JsonResponse, HttpResponseRedirect
 from django.db.models import Q
+from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_GET
 
 from courses.views import ProfessorRequiredMixin
 from .models import Client, IndividualClient, CompanyClient
@@ -266,3 +268,42 @@ class ClientDeleteView(LoginRequiredMixin, ProfessorRequiredMixin, View):
             messages.success(request, _(f'Cliente pessoa física "{client_name}" excluído com sucesso!'))
         
         return redirect('clients:client_list')
+
+
+@login_required
+@require_GET
+def api_company_clients(request):
+    """
+    API endpoint to fetch company clients for the logged-in professor
+    Returns JSON data with company information
+    """
+    if not hasattr(request.user, 'is_professor') or not request.user.is_professor:
+        return JsonResponse({'error': 'Unauthorized'}, status=403)
+    
+    # Fetch company clients for this professor
+    companies = CompanyClient.objects.filter(
+        client__professor=request.user
+    ).select_related('client')
+    
+    # Format the data
+    company_data = []
+    for company in companies:
+        company_data.append({
+            'id': company.id,
+            'company_name': company.company_name,
+            'trade_name': company.trade_name,
+            'cnpj': company.cnpj,
+            'email': company.client.email,
+            'phone': company.client.phone,
+            'address': company.client.address,
+            'address_number': company.client.address_number,
+            'address_complement': company.client.address_complement,
+            'neighborhood': company.client.neighborhood,
+            'city': company.client.city,
+            'state': company.client.state,
+            'zipcode': company.client.zipcode,
+            'responsible_name': company.responsible_name,
+            'responsible_cpf': company.responsible_cpf,
+        })
+    
+    return JsonResponse({'companies': company_data})

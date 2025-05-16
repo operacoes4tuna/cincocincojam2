@@ -51,8 +51,34 @@
         </div>
         
         <div class="card mb-4">
-            <div class="card-header">
+            <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">{% translate "Informações do Cliente" %}</h5>
+                
+                <!-- Select a company client dropdown -->
+                {% if company_clients %}
+                <div>
+                    <select id="company-client-select" class="form-select">
+                        <option value="">{% translate "Selecionar empresa cadastrada" %}</option>
+                        {% for company in company_clients %}
+                            <option value="{{ company.id }}" 
+                                data-name="{{ company.company_name }}"
+                                data-email="{{ company.client.email }}"
+                                data-cnpj="{{ company.cnpj }}"
+                                data-address="{{ company.client.address }}"
+                                data-number="{{ company.client.address_number }}"
+                                data-complement="{{ company.client.address_complement|default:'' }}"
+                                data-neighborhood="{{ company.client.neighborhood }}"
+                                data-city="{{ company.client.city }}"
+                                data-state="{{ company.client.state }}"
+                                data-zipcode="{{ company.client.zipcode }}"
+                                data-phone="{{ company.client.phone }}"
+                            >
+                                {{ company.company_name }} ({{ company.cnpj }})
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
             </div>
             <div class="card-body">
                 <div class="row">
@@ -149,4 +175,37 @@
         </div>
     </form>
 </div>
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Get company client select element
+    const companySelect = document.getElementById('company-client-select');
+    if (companySelect) {
+        companySelect.addEventListener('change', function() {
+            // Get selected option
+            const selectedOption = this.options[this.selectedIndex];
+            
+            if (this.value) {
+                // Fill form fields with selected company data
+                document.getElementById('id_customer_name').value = selectedOption.getAttribute('data-name');
+                document.getElementById('id_customer_email').value = selectedOption.getAttribute('data-email');
+                document.getElementById('id_customer_cpf').value = selectedOption.getAttribute('data-cnpj');
+                document.getElementById('id_customer_address').value = selectedOption.getAttribute('data-address');
+                document.getElementById('id_customer_address_number').value = selectedOption.getAttribute('data-number');
+                document.getElementById('id_customer_address_complement').value = selectedOption.getAttribute('data-complement');
+                document.getElementById('id_customer_neighborhood').value = selectedOption.getAttribute('data-neighborhood');
+                document.getElementById('id_customer_city').value = selectedOption.getAttribute('data-city');
+                document.getElementById('id_customer_state').value = selectedOption.getAttribute('data-state');
+                document.getElementById('id_customer_zipcode').value = selectedOption.getAttribute('data-zipcode');
+                document.getElementById('id_customer_phone').value = selectedOption.getAttribute('data-phone');
+                
+                // Set invoice flag to true by default when selecting a company
+                document.getElementById('id_generate_invoice').checked = true;
+            }
+        });
+    }
+});
+</script>
+{% endblock %}
 {% endblock %} 

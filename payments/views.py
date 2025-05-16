@@ -831,6 +831,22 @@ class SingleSaleCreateView(LoginRequiredMixin, ProfessorRequiredMixin, CreateVie
     ]
     success_url = reverse_lazy('payments:singlesale_list')
     
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        
+        # Try to load company clients for this professor
+        try:
+            from clients.models import CompanyClient
+            # Get company clients for the dropdown
+            company_clients = CompanyClient.objects.filter(
+                client__professor=self.request.user
+            ).select_related('client')
+            context['company_clients'] = company_clients
+        except ImportError:
+            context['company_clients'] = []
+            
+        return context
+    
     def form_valid(self, form):
         # Define o vendedor como o usuário atual
         form.instance.seller = self.request.user
@@ -1045,12 +1061,33 @@ class SingleSaleUpdateView(LoginRequiredMixin, ProfessorRequiredMixin, UpdateVie
     fields = [
         'description', 'amount', 
         'customer_name', 'customer_email', 'customer_cpf',
+        'customer_address', 'customer_address_number', 'customer_address_complement',
+        'customer_neighborhood', 'customer_city', 'customer_state', 'customer_zipcode',
+        'customer_phone',
+        'product_code', 'ncm_code', 'cfop_code', 'quantity', 'unit_value',
+        'invoice_type', 'generate_invoice',
         'status'
     ]
     
     def get_queryset(self):
         # Garantir que só atualiza vendas do professor atual
         return SingleSale.objects.filter(seller=self.request.user)
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        
+        # Try to load company clients for this professor
+        try:
+            from clients.models import CompanyClient
+            # Get company clients for the dropdown
+            company_clients = CompanyClient.objects.filter(
+                client__professor=self.request.user
+            ).select_related('client')
+            context['company_clients'] = company_clients
+        except ImportError:
+            context['company_clients'] = []
+            
+        return context
     
     def get_success_url(self):
         return reverse_lazy('payments:singlesale_detail', kwargs={'pk': self.object.pk})
