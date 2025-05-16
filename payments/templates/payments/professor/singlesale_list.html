@@ -127,11 +127,6 @@
                                             <a href="{% url 'payments:singlesale_detail' pk=sale.id %}" class="btn btn-sm btn-outline-primary">
                                                 <i class="fas fa-eye"></i>
                                             </a>
-                                            {% if sale.status == 'PENDING' %}
-                                                <a href="{% url 'payments:create_singlesale_pix' sale_id=sale.id %}" class="btn btn-sm btn-outline-success" title="{% translate 'Gerar Pix' %}">
-                                                    <i class="fas fa-qrcode"></i>
-                                                </a>
-                                            {% endif %}
                                             <a href="{% url 'payments:singlesale_update' pk=sale.id %}" class="btn btn-sm btn-outline-secondary">
                                                 <i class="fas fa-edit"></i>
                                             </a>

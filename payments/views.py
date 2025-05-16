@@ -1092,7 +1092,7 @@ class SingleSaleUpdateView(LoginRequiredMixin, ProfessorRequiredMixin, UpdateVie
         return context
     
     def get_success_url(self):
-        return reverse_lazy('payments:singlesale_detail', kwargs={'pk': self.object.pk})
+        return reverse_lazy('payments:singlesale_list')
     
     def form_valid(self, form):
         messages.success(self.request, _('Venda atualizada com sucesso!'))
