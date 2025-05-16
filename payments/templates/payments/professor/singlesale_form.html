@@ -30,27 +30,6 @@
         {% csrf_token %}
         
         <div class="card mb-4">
-            <div class="card-header">
-                <h5 class="mb-0">{% translate "Informações da Venda" %}</h5>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-6">
-                        {{ form.description|as_crispy_field }}
-                    </div>
-                    <div class="col-md-3">
-                        {{ form.amount|as_crispy_field }}
-                    </div>
-                    <div class="col-md-3">
-                        {% if object %}
-                            {{ form.status|as_crispy_field }}
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="card mb-4">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">{% translate "Informações do Cliente" %}</h5>
                 
@@ -120,6 +99,27 @@
                     </div>
                     <div class="col-md-2">
                         {{ form.customer_phone|as_crispy_field }}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">{% translate "Informações da Venda" %}</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        {{ form.description|as_crispy_field }}
+                    </div>
+                    <div class="col-md-3">
+                        {{ form.amount|as_crispy_field }}
+                    </div>
+                    <div class="col-md-3">
+                        {% if object %}
+                            {{ form.status|as_crispy_field }}
+                        {% endif %}
                     </div>
                 </div>
             </div>
