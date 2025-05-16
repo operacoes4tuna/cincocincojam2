@@ -131,7 +131,7 @@ class IndividualClient(models.Model):
     # Personal information
     full_name = models.CharField(_('nome completo'), max_length=255)
     cpf = models.CharField(
-        _('CPF'), max_length=14, validators=[cpf_validator]
+        _('CPF'), max_length=14, validators=[cpf_validator], unique=True
     )
     rg = models.CharField(_('RG'), max_length=30, blank=True, null=True)
     birth_date = models.DateField(_('data de nascimento'))
@@ -174,7 +174,7 @@ class CompanyClient(models.Model):
     company_name = models.CharField(_('razão social'), max_length=255)
     trade_name = models.CharField(_('nome fantasia'), max_length=255)
     cnpj = models.CharField(
-        _('CNPJ'), max_length=18, validators=[cnpj_validator]
+        _('CNPJ'), max_length=18, validators=[cnpj_validator], unique=True
     )
     state_registration = models.CharField(
         _('inscrição estadual'), max_length=30, blank=True, null=True

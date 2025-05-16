@@ -2,6 +2,7 @@ from django import forms
 from django.utils.translation import gettext_lazy as _
 from django.db import transaction
 from django.core.validators import RegexValidator
+from django.core.exceptions import ValidationError
 
 from .models import Client, IndividualClient, CompanyClient
 
@@ -42,6 +43,28 @@ class IndividualClientForm(forms.ModelForm):
             'rg': forms.TextInput(attrs={'class': 'form-control'}),
             'birth_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'})
         }
+    
+    def clean_cpf(self):
+        cpf = self.cleaned_data.get('cpf')
+        if cpf:
+            # Formatar CPF para comparação consistente
+            cpf_digits = ''.join(filter(str.isdigit, cpf))
+            if len(cpf_digits) == 11:
+                formatted_cpf = f"{cpf_digits[:3]}.{cpf_digits[3:6]}.{cpf_digits[6:9]}-{cpf_digits[9:]}"
+            else:
+                formatted_cpf = cpf
+            
+            # Verificar se já existe no banco, excluindo a instância atual se estiver editando
+            instance = getattr(self, 'instance', None)
+            if instance and instance.pk:
+                existing = IndividualClient.objects.filter(cpf=formatted_cpf).exclude(pk=instance.pk).exists()
+            else:
+                existing = IndividualClient.objects.filter(cpf=formatted_cpf).exists()
+            
+            if existing:
+                raise ValidationError(_('Este CPF já está cadastrado no sistema.'))
+        
+        return cpf
 
 
 class CompanyClientForm(forms.ModelForm):
@@ -64,6 +87,28 @@ class CompanyClientForm(forms.ModelForm):
             'responsible_name': forms.TextInput(attrs={'class': 'form-control'}),
             'responsible_cpf': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '000.000.000-00'})
         }
+    
+    def clean_cnpj(self):
+        cnpj = self.cleaned_data.get('cnpj')
+        if cnpj:
+            # Formatar CNPJ para comparação consistente
+            cnpj_digits = ''.join(filter(str.isdigit, cnpj))
+            if len(cnpj_digits) == 14:
+                formatted_cnpj = f"{cnpj_digits[:2]}.{cnpj_digits[2:5]}.{cnpj_digits[5:8]}/{cnpj_digits[8:12]}-{cnpj_digits[12:]}"
+            else:
+                formatted_cnpj = cnpj
+            
+            # Verificar se já existe no banco, excluindo a instância atual se estiver editando
+            instance = getattr(self, 'instance', None)
+            if instance and instance.pk:
+                existing = CompanyClient.objects.filter(cnpj=formatted_cnpj).exclude(pk=instance.pk).exists()
+            else:
+                existing = CompanyClient.objects.filter(cnpj=formatted_cnpj).exists()
+            
+            if existing:
+                raise ValidationError(_('Este CNPJ já está cadastrado no sistema.'))
+        
+        return cnpj
 
 
 class ClientRegistrationForm(forms.Form):
@@ -224,6 +269,19 @@ class ClientRegistrationForm(forms.Form):
             for field in required_fields:
                 if not cleaned_data.get(field):
                     self.add_error(field, _('Este campo é obrigatório para pessoa física.'))
+            
+            # Validar CPF único
+            cpf = cleaned_data.get('cpf')
+            if cpf:
+                # Formatar CPF para comparação consistente
+                cpf_digits = ''.join(filter(str.isdigit, cpf))
+                if len(cpf_digits) == 11:
+                    formatted_cpf = f"{cpf_digits[:3]}.{cpf_digits[3:6]}.{cpf_digits[6:9]}-{cpf_digits[9:]}"
+                else:
+                    formatted_cpf = cpf
+                
+                if IndividualClient.objects.filter(cpf=formatted_cpf).exists():
+                    self.add_error('cpf', _('Este CPF já está cadastrado no sistema.'))
         
         elif client_type == Client.Type.COMPANY:
             # Validar campos de pessoa jurídica
@@ -232,6 +290,20 @@ class ClientRegistrationForm(forms.Form):
             for field in required_fields:
                 if not cleaned_data.get(field):
                     self.add_error(field, _('Este campo é obrigatório para pessoa jurídica.'))
+            
+            # Validar CNPJ único
+            cnpj = cleaned_data.get('cnpj')
+            if cnpj:
+                # Formatar CNPJ para comparação consistente
+                cnpj_digits = ''.join(filter(str.isdigit, cnpj))
+                if len(cnpj_digits) == 14:
+                    formatted_cnpj = f"{cnpj_digits[:2]}.{cnpj_digits[2:5]}.{cnpj_digits[5:8]}/"
+                    formatted_cnpj += f"{cnpj_digits[8:12]}-{cnpj_digits[12:]}"
+                else:
+                    formatted_cnpj = cnpj
+                
+                if CompanyClient.objects.filter(cnpj=formatted_cnpj).exists():
+                    self.add_error('cnpj', _('Este CNPJ já está cadastrado no sistema.'))
         
         return cleaned_data
     
