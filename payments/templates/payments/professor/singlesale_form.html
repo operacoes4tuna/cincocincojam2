@@ -33,31 +33,59 @@
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">{% translate "Informações do Cliente" %}</h5>
                 
-                <!-- Select a company client dropdown -->
-                {% if company_clients %}
-                <div>
-                    <select id="company-client-select" class="form-select">
-                        <option value="">{% translate "Selecionar empresa cadastrada" %}</option>
-                        {% for company in company_clients %}
-                            <option value="{{ company.id }}" 
-                                data-name="{{ company.company_name }}"
-                                data-email="{{ company.client.email }}"
-                                data-cnpj="{{ company.cnpj }}"
-                                data-address="{{ company.client.address }}"
-                                data-number="{{ company.client.address_number }}"
-                                data-complement="{{ company.client.address_complement|default:'' }}"
-                                data-neighborhood="{{ company.client.neighborhood }}"
-                                data-city="{{ company.client.city }}"
-                                data-state="{{ company.client.state }}"
-                                data-zipcode="{{ company.client.zipcode }}"
-                                data-phone="{{ company.client.phone }}"
-                            >
-                                {{ company.company_name }} ({{ company.cnpj }})
-                            </option>
-                        {% endfor %}
-                    </select>
+                <div class="d-flex gap-2">
+                    <!-- Select a company client dropdown -->
+                    {% if company_clients %}
+                    <div>
+                        <select id="company-client-select" class="form-select">
+                            <option value="">{% translate "Selecionar empresa cadastrada" %}</option>
+                            {% for company in company_clients %}
+                                <option value="{{ company.id }}" 
+                                    data-name="{{ company.company_name }}"
+                                    data-email="{{ company.client.email }}"
+                                    data-cnpj="{{ company.cnpj }}"
+                                    data-address="{{ company.client.address }}"
+                                    data-number="{{ company.client.address_number }}"
+                                    data-complement="{{ company.client.address_complement|default:'' }}"
+                                    data-neighborhood="{{ company.client.neighborhood }}"
+                                    data-city="{{ company.client.city }}"
+                                    data-state="{{ company.client.state }}"
+                                    data-zipcode="{{ company.client.zipcode }}"
+                                    data-phone="{{ company.client.phone }}"
+                                >
+                                    {{ company.company_name }} ({{ company.cnpj }})
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Select an individual client dropdown -->
+                    {% if individual_clients %}
+                    <div>
+                        <select id="individual-client-select" class="form-select">
+                            <option value="">{% translate "Selecionar aluno/pessoa física" %}</option>
+                            {% for individual in individual_clients %}
+                                <option value="{{ individual.id }}" 
+                                    data-name="{{ individual.full_name }}"
+                                    data-email="{{ individual.client.email }}"
+                                    data-cpf="{{ individual.cpf }}"
+                                    data-address="{{ individual.client.address }}"
+                                    data-number="{{ individual.client.address_number }}"
+                                    data-complement="{{ individual.client.address_complement|default:'' }}"
+                                    data-neighborhood="{{ individual.client.neighborhood }}"
+                                    data-city="{{ individual.client.city }}"
+                                    data-state="{{ individual.client.state }}"
+                                    data-zipcode="{{ individual.client.zipcode }}"
+                                    data-phone="{{ individual.client.phone }}"
+                                >
+                                    {{ individual.full_name }} ({{ individual.cpf }})
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% endif %}
                 </div>
-                {% endif %}
             </div>
             <div class="card-body">
                 <div class="row">
@@ -179,29 +207,87 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Get company client select element
+    // Get client select elements
     const companySelect = document.getElementById('company-client-select');
+    const individualSelect = document.getElementById('individual-client-select');
+    
+    // Helper function to fill form fields
+    function fillFormFields(selectedOption, isCompany) {
+        // Define the highlight color
+        const highlightColor = "#e6f7ff"; // Light blue background color
+        
+        // Helper function to set value and highlight field
+        function setFieldValue(fieldId, value) {
+            const field = document.getElementById(fieldId);
+            field.value = value;
+            
+            // Add highlight to indicate the field was auto-filled
+            if (value) {
+                field.style.backgroundColor = highlightColor;
+            }
+        }
+        
+        // Fill all form fields and highlight them
+        setFieldValue('id_customer_name', selectedOption.getAttribute('data-name'));
+        setFieldValue('id_customer_email', selectedOption.getAttribute('data-email'));
+        setFieldValue('id_customer_cpf', isCompany ? 
+            selectedOption.getAttribute('data-cnpj') : 
+            selectedOption.getAttribute('data-cpf'));
+        setFieldValue('id_customer_address', selectedOption.getAttribute('data-address'));
+        setFieldValue('id_customer_address_number', selectedOption.getAttribute('data-number'));
+        setFieldValue('id_customer_address_complement', selectedOption.getAttribute('data-complement'));
+        setFieldValue('id_customer_neighborhood', selectedOption.getAttribute('data-neighborhood'));
+        setFieldValue('id_customer_city', selectedOption.getAttribute('data-city'));
+        setFieldValue('id_customer_state', selectedOption.getAttribute('data-state'));
+        setFieldValue('id_customer_zipcode', selectedOption.getAttribute('data-zipcode'));
+        setFieldValue('id_customer_phone', selectedOption.getAttribute('data-phone'));
+        
+        // Set invoice flag to true by default when selecting a client
+        document.getElementById('id_generate_invoice').checked = true;
+    }
+    
+    // Add input event listeners to all customer fields to remove highlight on manual edit
+    const customerFields = [
+        'id_customer_name', 'id_customer_email', 'id_customer_cpf',
+        'id_customer_address', 'id_customer_address_number', 'id_customer_address_complement',
+        'id_customer_neighborhood', 'id_customer_city', 'id_customer_state', 
+        'id_customer_zipcode', 'id_customer_phone'
+    ];
+    
+    customerFields.forEach(fieldId => {
+        const field = document.getElementById(fieldId);
+        if (field) {
+            field.addEventListener('input', function() {
+                // Remove background color when user manually edits the field
+                this.style.backgroundColor = '';
+            });
+        }
+    });
+    
+    // Add event listener for company client selection
     if (companySelect) {
         companySelect.addEventListener('change', function() {
-            // Get selected option
             const selectedOption = this.options[this.selectedIndex];
-            
             if (this.value) {
-                // Fill form fields with selected company data
-                document.getElementById('id_customer_name').value = selectedOption.getAttribute('data-name');
-                document.getElementById('id_customer_email').value = selectedOption.getAttribute('data-email');
-                document.getElementById('id_customer_cpf').value = selectedOption.getAttribute('data-cnpj');
-                document.getElementById('id_customer_address').value = selectedOption.getAttribute('data-address');
-                document.getElementById('id_customer_address_number').value = selectedOption.getAttribute('data-number');
-                document.getElementById('id_customer_address_complement').value = selectedOption.getAttribute('data-complement');
-                document.getElementById('id_customer_neighborhood').value = selectedOption.getAttribute('data-neighborhood');
-                document.getElementById('id_customer_city').value = selectedOption.getAttribute('data-city');
-                document.getElementById('id_customer_state').value = selectedOption.getAttribute('data-state');
-                document.getElementById('id_customer_zipcode').value = selectedOption.getAttribute('data-zipcode');
-                document.getElementById('id_customer_phone').value = selectedOption.getAttribute('data-phone');
-                
-                // Set invoice flag to true by default when selecting a company
-                document.getElementById('id_generate_invoice').checked = true;
+                // Reset individual client selector
+                if (individualSelect) {
+                    individualSelect.value = '';
+                }
+                fillFormFields(selectedOption, true);
+            }
+        });
+    }
+    
+    // Add event listener for individual client selection
+    if (individualSelect) {
+        individualSelect.addEventListener('change', function() {
+            const selectedOption = this.options[this.selectedIndex];
+            if (this.value) {
+                // Reset company client selector
+                if (companySelect) {
+                    companySelect.value = '';
+                }
+                fillFormFields(selectedOption, false);
             }
         });
     }

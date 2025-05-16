@@ -17,6 +17,7 @@ from courses.views import ProfessorRequiredMixin, AdminRequiredMixin, StudentReq
 from courses.models import Course, Enrollment
 from .models import PaymentTransaction, SingleSale
 from .openpix_service import OpenPixService
+from payments.forms import SingleSaleForm
 
 User = get_user_model()
 
@@ -820,30 +821,31 @@ class SingleSaleCreateView(LoginRequiredMixin, ProfessorRequiredMixin, CreateVie
     """
     model = SingleSale
     template_name = 'payments/professor/singlesale_form.html'
-    fields = [
-        'description', 'amount', 
-        'customer_name', 'customer_email', 'customer_cpf',
-        'customer_address', 'customer_address_number', 'customer_address_complement',
-        'customer_neighborhood', 'customer_city', 'customer_state', 'customer_zipcode',
-        'customer_phone',
-        'product_code', 'ncm_code', 'cfop_code', 'quantity', 'unit_value',
-        'invoice_type', 'generate_invoice'
-    ]
+    form_class = SingleSaleForm
     success_url = reverse_lazy('payments:singlesale_list')
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         
-        # Try to load company clients for this professor
+        # Try to load clients for this professor
         try:
-            from clients.models import CompanyClient
+            from clients.models import CompanyClient, IndividualClient
+            
             # Get company clients for the dropdown
             company_clients = CompanyClient.objects.filter(
                 client__professor=self.request.user
             ).select_related('client')
             context['company_clients'] = company_clients
+            
+            # Get individual clients for the dropdown
+            individual_clients = IndividualClient.objects.filter(
+                client__professor=self.request.user
+            ).select_related('client')
+            context['individual_clients'] = individual_clients
+            
         except ImportError:
             context['company_clients'] = []
+            context['individual_clients'] = []
             
         return context
     
@@ -1058,16 +1060,7 @@ class SingleSaleUpdateView(LoginRequiredMixin, ProfessorRequiredMixin, UpdateVie
     """
     model = SingleSale
     template_name = 'payments/professor/singlesale_form.html'
-    fields = [
-        'description', 'amount', 
-        'customer_name', 'customer_email', 'customer_cpf',
-        'customer_address', 'customer_address_number', 'customer_address_complement',
-        'customer_neighborhood', 'customer_city', 'customer_state', 'customer_zipcode',
-        'customer_phone',
-        'product_code', 'ncm_code', 'cfop_code', 'quantity', 'unit_value',
-        'invoice_type', 'generate_invoice',
-        'status'
-    ]
+    form_class = SingleSaleForm
     
     def get_queryset(self):
         # Garantir que só atualiza vendas do professor atual
@@ -1076,16 +1069,25 @@ class SingleSaleUpdateView(LoginRequiredMixin, ProfessorRequiredMixin, UpdateVie
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         
-        # Try to load company clients for this professor
+        # Try to load clients for this professor
         try:
-            from clients.models import CompanyClient
+            from clients.models import CompanyClient, IndividualClient
+            
             # Get company clients for the dropdown
             company_clients = CompanyClient.objects.filter(
                 client__professor=self.request.user
             ).select_related('client')
             context['company_clients'] = company_clients
+            
+            # Get individual clients for the dropdown
+            individual_clients = IndividualClient.objects.filter(
+                client__professor=self.request.user
+            ).select_related('client')
+            context['individual_clients'] = individual_clients
+            
         except ImportError:
             context['company_clients'] = []
+            context['individual_clients'] = []
             
         return context
     
