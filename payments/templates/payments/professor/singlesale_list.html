@@ -127,6 +127,9 @@
                                             <a href="{% url 'payments:singlesale_detail' pk=sale.id %}" class="btn btn-sm btn-outline-primary">
                                                 <i class="fas fa-eye"></i>
                                             </a>
+                                            <a href="{% url 'invoices:emit_sale' sale_id=sale.id %}" class="btn btn-sm btn-outline-success" title="{% translate 'Emitir NFe' %}">
+                                                <i class="fas fa-file-invoice"></i> Emitir NFe
+                                            </a>
                                             <a href="{% url 'payments:singlesale_update' pk=sale.id %}" class="btn btn-sm btn-outline-secondary">
                                                 <i class="fas fa-edit"></i>
                                             </a>

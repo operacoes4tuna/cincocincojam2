@@ -151,9 +151,9 @@
                         {% endif %}
                     {% endif %}
 
-                    {% if sale.status == 'PAID' and not sale.invoices.exists %}
-                        <a href="#" class="btn btn-outline-primary w-100 mb-3">
-                            <i class="fas fa-file-invoice me-1"></i> {% translate "Emitir Nota Fiscal" %}
+                    {% if not sale.invoices.exists %}
+                        <a href="{% url 'invoices:emit_sale' sale_id=sale.id %}" class="btn btn-outline-primary w-100 mb-3">
+                            <i class="fas fa-file-invoice me-1"></i> {% translate "Emitir NFe" %}
                         </a>
                     {% endif %}
 

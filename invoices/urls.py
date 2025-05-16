@@ -9,6 +9,7 @@ urlpatterns = [
     
     # URLs para emissão de notas fiscais
     path('emit/<int:transaction_id>/', views.emit_invoice, name='emit'),
+    path('emit-sale/<int:sale_id>/', views.emit_singlesale_invoice, name='emit_sale'),
     path('retry/<int:invoice_id>/', views.retry_invoice, name='retry'),
     path('check-status/<int:invoice_id>/', views.check_invoice_status, name='check_status'),
     path('check-status/<int:invoice_id>/json/', views.check_invoice_status, {'format': 'json'}, name='check_status_json'),

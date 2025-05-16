@@ -11,7 +11,7 @@ import logging
 import traceback
 import json
 
-from payments.models import PaymentTransaction
+from payments.models import PaymentTransaction, SingleSale
 from users.decorators import professor_required, admin_required
 
 from .models import CompanyConfig, Invoice
@@ -686,3 +686,108 @@ def sync_invoice_status(request, invoice_id):
     except Exception as e:
         logger.error(f"Erro ao sincronizar status da nota fiscal {invoice_id}: {str(e)}")
         return JsonResponse({'success': False, 'message': _('Erro ao sincronizar status da nota fiscal.')})
+
+@login_required
+@professor_required
+def emit_singlesale_invoice(request, sale_id):
+    """
+    Emite uma nota fiscal para uma venda avulsa.
+    """
+    try:
+        sale = get_object_or_404(
+            SingleSale,
+            id=sale_id,
+            seller=request.user
+        )
+        logger.debug(f"Venda avulsa encontrada: {sale_id}, valor: {sale.amount}, status: {sale.status}")
+    except Exception as e:
+        logger.error(f"Erro ao obter venda avulsa {sale_id}: {str(e)}")
+        messages.error(request, _('Erro ao localizar venda avulsa.'))
+        return redirect('payments:singlesale_list')
+    
+    # Verificar se já existe uma nota fiscal para esta venda
+    existing_invoice = Invoice.objects.filter(singlesale=sale).first()
+    if existing_invoice:
+        logger.info(f"Já existe nota fiscal para venda avulsa {sale_id}: Invoice ID {existing_invoice.id}, status: {existing_invoice.status}")
+        messages.info(request, _('Já existe uma nota fiscal para esta venda.'))
+        return redirect('payments:singlesale_list')
+    
+    # Verificar se o professor tem as configurações fiscais completas
+    try:
+        company_config = CompanyConfig.objects.get(user=request.user)
+        if not company_config.enabled:
+            logger.warning(f"Emissão de nota fiscal desabilitada para professor ID {request.user.id}")
+            messages.error(request, _('A emissão de notas fiscais não está habilitada. Verifique suas configurações fiscais.'))
+            return redirect('invoices:company_settings')
+        
+        if not company_config.is_complete():
+            logger.warning(f"Configurações fiscais incompletas para professor ID {request.user.id}")
+            messages.error(request, _('Configure todas as informações fiscais antes de emitir notas fiscais.'))
+            return redirect('invoices:company_settings')
+            
+        logger.debug(f"Configurações fiscais verificadas para professor ID {request.user.id}")
+    except CompanyConfig.DoesNotExist:
+        logger.warning(f"Professor ID {request.user.id} não possui configuração fiscal")
+        messages.error(request, _('Configure suas informações fiscais antes de emitir notas fiscais.'))
+        return redirect('invoices:company_settings')
+    
+    # Criar a invoice no banco de dados
+    logger.info(f"Criando nova invoice para venda avulsa {sale_id}")
+    
+    try:
+        # Criar a invoice
+        invoice = Invoice.objects.create(
+            singlesale=sale,
+            amount=sale.amount,
+            customer_name=sale.customer_name,
+            customer_email=sale.customer_email,
+            customer_tax_id=sale.customer_cpf,
+            description=sale.description,
+            type=sale.invoice_type or 'rps',
+            status='pending'
+        )
+        
+        # Iniciar o processo de emissão da nota fiscal
+        try:
+            # Inicializar o serviço NFE.io
+            service = NFEioService()
+            
+            # Gerar número RPS
+            service._generate_rps_for_invoice(invoice, request.user)
+            
+            # Emitir a nota fiscal
+            result = service.emit_invoice(invoice)
+                
+            logger.info(f"Resultado da emissão: {result}")
+            
+            if not result.get('error', False):
+                # Atualizar o status da invoice
+                invoice.status = 'processing'
+                invoice.emitted_at = timezone.now()
+                invoice.save()
+                
+                messages.success(request, _('Nota fiscal enviada para processamento. Acompanhe o status na lista de notas fiscais.'))
+            else:
+                # Em caso de erro, atualizar o status da invoice
+                invoice.status = 'error'
+                invoice.error_message = result.get('message', _('Erro desconhecido ao enviar para emissão.'))
+                invoice.save()
+                
+                messages.error(request, _('Erro ao emitir nota fiscal: {}').format(invoice.error_message))
+        except Exception as e:
+            error_traceback = traceback.format_exc()
+            logger.error(f"Exceção ao processar emissão: {str(e)}\n{error_traceback}")
+            
+            invoice.status = 'error'
+            invoice.error_message = str(e)
+            invoice.save()
+            
+            messages.error(request, _('Erro ao processar nota fiscal: {}').format(str(e)))
+        
+    except Exception as e:
+        error_traceback = traceback.format_exc()
+        logger.error(f"Exceção ao criar invoice: {str(e)}\n{error_traceback}")
+        messages.error(request, _('Erro ao criar nota fiscal: {}').format(str(e)))
+    
+    logger.info(f"Concluindo processo de emissão para venda avulsa {sale_id}")
+    return redirect('payments:singlesale_list')
