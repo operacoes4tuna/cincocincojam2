@@ -214,6 +214,9 @@ urlpatterns = [
     # Invoices
     path('invoices/', include('invoices.urls')),
     
+    # Clients
+    path('clients/', include('clients.urls')),
+    
     # Setup users (endpoint temporário)
     path('setup-users/', setup_users, name='setup_users'),
     

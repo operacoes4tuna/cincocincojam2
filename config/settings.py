@@ -64,6 +64,7 @@ INSTALLED_APPS = [
     'assistant',
     'scheduler',
     'invoices',
+    'clients',
 ]
 
 MIDDLEWARE = [

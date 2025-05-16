@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load static %}
+
+{% block title %}{% translate "Cadastro de Pessoa Física" %}{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="h3 fw-bold">{% translate "Cadastro de Pessoa Física" %}</h1>
+            <p class="text-muted">{% translate "Preencha os dados abaixo para cadastrar uma nova pessoa física." %}</p>
+        </div>
+    </div>
+    
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <form method="post" id="clientForm">
+                {% csrf_token %}
+                
+                <!-- Campo client_type oculto, será preenchido automaticamente -->
+                <input type="hidden" name="client_type" value="INDIVIDUAL">
+                
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <h5 class="fw-bold mb-3">{% translate "Informações de Contato" %}</h5>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.email.id_for_label }}" class="form-label">{{ form.email.label }} *</label>
+                        {{ form.email }}
+                        {% if form.email.errors %}
+                            <div class="text-danger">{{ form.email.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.phone.id_for_label }}" class="form-label">{{ form.phone.label }} *</label>
+                        {{ form.phone }}
+                        {% if form.phone.errors %}
+                            <div class="text-danger">{{ form.phone.errors }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <h5 class="fw-bold mb-3">{% translate "Endereço" %}</h5>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.address.id_for_label }}" class="form-label">{{ form.address.label }} *</label>
+                        {{ form.address }}
+                        {% if form.address.errors %}
+                            <div class="text-danger">{{ form.address.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        <label for="{{ form.address_number.id_for_label }}" class="form-label">{{ form.address_number.label }} *</label>
+                        {{ form.address_number }}
+                        {% if form.address_number.errors %}
+                            <div class="text-danger">{{ form.address_number.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label for="{{ form.address_complement.id_for_label }}" class="form-label">{{ form.address_complement.label }}</label>
+                        {{ form.address_complement }}
+                        {% if form.address_complement.errors %}
+                            <div class="text-danger">{{ form.address_complement.errors }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="row mb-4">
+                    <div class="col-md-4 mb-3">
+                        <label for="{{ form.neighborhood.id_for_label }}" class="form-label">{{ form.neighborhood.label }} *</label>
+                        {{ form.neighborhood }}
+                        {% if form.neighborhood.errors %}
+                            <div class="text-danger">{{ form.neighborhood.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label for="{{ form.city.id_for_label }}" class="form-label">{{ form.city.label }} *</label>
+                        {{ form.city }}
+                        {% if form.city.errors %}
+                            <div class="text-danger">{{ form.city.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        <label for="{{ form.state.id_for_label }}" class="form-label">{{ form.state.label }} *</label>
+                        {{ form.state }}
+                        {% if form.state.errors %}
+                            <div class="text-danger">{{ form.state.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        <label for="{{ form.zipcode.id_for_label }}" class="form-label">{{ form.zipcode.label }} *</label>
+                        {{ form.zipcode }}
+                        {% if form.zipcode.errors %}
+                            <div class="text-danger">{{ form.zipcode.errors }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <!-- Campos específicos para Pessoa Física -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <h5 class="fw-bold mb-3">{% translate "Dados Pessoais" %}</h5>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.full_name.id_for_label }}" class="form-label">{{ form.full_name.label }} *</label>
+                        {{ form.full_name }}
+                        {% if form.full_name.errors %}
+                            <div class="text-danger">{{ form.full_name.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label for="{{ form.cpf.id_for_label }}" class="form-label">{{ form.cpf.label }} *</label>
+                        {{ form.cpf }}
+                        {% if form.cpf.errors %}
+                            <div class="text-danger">{{ form.cpf.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label for="{{ form.rg.id_for_label }}" class="form-label">{{ form.rg.label }}</label>
+                        {{ form.rg }}
+                        {% if form.rg.errors %}
+                            <div class="text-danger">{{ form.rg.errors }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="row mb-4">
+                    <div class="col-md-4 mb-3">
+                        <label for="{{ form.birth_date.id_for_label }}" class="form-label">{{ form.birth_date.label }} *</label>
+                        {{ form.birth_date }}
+                        {% if form.birth_date.errors %}
+                            <div class="text-danger">{{ form.birth_date.errors }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="row mt-4">
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-primary">{% translate "Cadastrar Pessoa Física" %}</button>
+                        <a href="{% url 'clients:client_list' %}" class="btn btn-secondary ms-2">{% translate "Cancelar" %}</a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Máscara para CPF
+    const cpfFields = document.querySelectorAll('input[name="cpf"]');
+    cpfFields.forEach(field => {
+        field.addEventListener('input', function(e) {
+            let value = e.target.value.replace(/\D/g, '');
+            if (value.length <= 11) {
+                value = value.replace(/(\d{3})(\d)/, '$1.$2');
+                value = value.replace(/(\d{3})(\d)/, '$1.$2');
+                value = value.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+                e.target.value = value;
+            }
+        });
+    });
+    
+    // Máscara para CEP
+    const cepField = document.querySelector('input[name="zipcode"]');
+    if (cepField) {
+        cepField.addEventListener('input', function(e) {
+            let value = e.target.value.replace(/\D/g, '');
+            if (value.length <= 8) {
+                value = value.replace(/(\d{5})(\d{1,3})$/, '$1-$2');
+                e.target.value = value;
+            }
+        });
+    }
+});
+</script>
+{% endblock %} 

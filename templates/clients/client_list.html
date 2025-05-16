@@ -1,0 +1,292 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load static %}
+
+{% block title %}{% translate "Gerenciar Clientes" %}{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Estilo para números de documentos */
+    .document-number {
+        font-family: monospace;
+        font-size: 0.9rem;
+        color: #555;
+    }
+    
+    /* Hover mais suave nas linhas da tabela */
+    .table-hover tbody tr:hover {
+        background-color: rgba(0, 123, 255, 0.05);
+    }
+    
+    /* Estilos sutis para diferenciar tipos de cliente */
+    .table-row-individual:hover {
+        border-left: 3px solid #0dcaf0; /* Bootstrap info color */
+    }
+    
+    .table-row-company:hover {
+        border-left: 3px solid #ffc107; /* Bootstrap warning color */
+    }
+    
+    /* Melhoria nos botões de ação */
+    .btn-group .btn {
+        margin-right: 2px;
+    }
+    
+    /* Aumentando o tamanho dos botões de ação */
+    .btn-action {
+        padding: 0.375rem 0.75rem;
+        font-size: 1rem;
+    }
+    
+    /* Melhorando a visualização dos ícones */
+    .btn-action i {
+        font-size: 1.1rem;
+    }
+    
+    /* Cores mais contrastantes para os badges */
+    .badge.bg-info.text-dark {
+        background-color: #e3f2fd !important;
+        border: 1px solid #0dcaf0;
+    }
+    
+    .badge.bg-warning.text-dark {
+        background-color: #fff8e1 !important;
+        border: 1px solid #ffc107;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row mb-4 align-items-center">
+        <div class="col-md-6">
+            <h1 class="h3 fw-bold mb-0">{% translate "Meus Clientes" %}</h1>
+            <p class="text-muted">{% translate "Gerencie seus clientes para emissão de notas fiscais" %}</p>
+        </div>
+        <div class="col-md-6 text-md-end">
+            <div class="btn-group">
+                <button type="button" class="btn btn-primary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="bi bi-plus-circle"></i> {% translate "Cadastrar Cliente" %}
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li>
+                        <a class="dropdown-item" href="{% url 'clients:individual_client_registration' %}">
+                            <i class="bi bi-person"></i> {% translate "Pessoa Física" %}
+                        </a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item" href="{% url 'clients:company_client_registration' %}">
+                            <i class="bi bi-building"></i> {% translate "Pessoa Jurídica" %}
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <div class="btn-group" role="group">
+                                <a href="{% url 'clients:client_list' %}" class="btn {% if not client_type %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                                    {% translate "Todos" %} ({{ total_clients }})
+                                </a>
+                                <a href="{% url 'clients:client_list' %}?client_type=INDIVIDUAL" class="btn {% if client_type == 'INDIVIDUAL' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                                    {% translate "Pessoa Física" %} ({{ individual_count }})
+                                </a>
+                                <a href="{% url 'clients:client_list' %}?client_type=COMPANY" class="btn {% if client_type == 'COMPANY' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                                    {% translate "Pessoa Jurídica" %} ({{ company_count }})
+                                </a>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <form method="get" action="{% url 'clients:client_list' %}" class="mt-3 mt-md-0">
+                                {% if client_type %}
+                                <input type="hidden" name="client_type" value="{{ client_type }}">
+                                {% endif %}
+                                <div class="input-group">
+                                    <input type="text" name="search" class="form-control" placeholder="{% translate 'Buscar...' %}" value="{{ search }}">
+                                    <button type="submit" class="btn btn-outline-primary">
+                                        <i class="bi bi-search"></i>
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>{% translate "Nome" %}</th>
+                            <th>{% translate "Tipo" %}</th>
+                            <th>{% translate "CPF/CNPJ" %}</th>
+                            <th>{% translate "Email" %}</th>
+                            <th>{% translate "Telefone" %}</th>
+                            <th>{% translate "Cidade/UF" %}</th>
+                            <th class="text-end">{% translate "Ações" %}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for client in clients %}
+                        <tr class="{% if client.client_type == 'INDIVIDUAL' %}table-row-individual{% else %}table-row-company{% endif %}">
+                            <td>
+                                <strong>
+                                {% if client.client_type == 'INDIVIDUAL' and client.individual %}
+                                    {{ client.individual.full_name }}
+                                {% elif client.client_type == 'COMPANY' and client.company %}
+                                    {{ client.company.company_name }}
+                                {% else %}
+                                    {% translate "Nome não disponível" %}
+                                {% endif %}
+                                </strong>
+                            </td>
+                            <td>
+                                {% if client.client_type == 'INDIVIDUAL' %}
+                                    <span class="badge bg-info text-dark">{% translate "Pessoa Física" %}</span>
+                                {% else %}
+                                    <span class="badge bg-warning text-dark">{% translate "Pessoa Jurídica" %}</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-monospace">
+                                {% if client.client_type == 'INDIVIDUAL' and client.individual %}
+                                    <span class="document-number">{{ client.individual.cpf }}</span>
+                                {% elif client.client_type == 'COMPANY' and client.company %}
+                                    <span class="document-number">{{ client.company.cnpj }}</span>
+                                {% else %}
+                                    —
+                                {% endif %}
+                            </td>
+                            <td>{{ client.email }}</td>
+                            <td>{{ client.phone }}</td>
+                            <td>{{ client.city }}/{{ client.state }}</td>
+                            <td class="text-end">
+                                <div class="btn-group">
+                                    <a href="{% url 'clients:client_detail' client.pk %}" class="btn btn-action btn-outline-primary" 
+                                       data-bs-toggle="tooltip" data-bs-placement="top" title="{% translate 'Visualizar detalhes' %}">
+                                        <i class="bi bi-info-circle-fill"></i>
+                                    </a>
+                                    <a href="{% url 'clients:client_update' client.pk %}" class="btn btn-action btn-outline-success"
+                                       data-bs-toggle="tooltip" data-bs-placement="top" title="{% translate 'Editar dados' %}">
+                                        <i class="bi bi-pencil-square"></i>
+                                    </a>
+                                    {% if 'invoices:emit' in available_urls %}
+                                    <a href="{% url 'invoices:emit' %}?client_id={{ client.pk }}" class="btn btn-action btn-outline-warning" 
+                                       data-bs-toggle="tooltip" data-bs-placement="top" title="{% translate 'Emitir nota fiscal' %}">
+                                        <i class="bi bi-receipt"></i>
+                                    </a>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center py-4">
+                                <div class="text-muted">
+                                    {% if search %}
+                                        {% translate "Nenhum cliente encontrado para esta busca." %}
+                                    {% else %}
+                                        {% translate "Você ainda não cadastrou nenhum cliente." %}
+                                    {% endif %}
+                                </div>
+                                <div class="mt-3">
+                                    <a href="{% url 'clients:individual_client_registration' %}" class="btn btn-primary me-2">
+                                        <i class="bi bi-person-plus"></i> {% translate "Cadastrar Pessoa Física" %}
+                                    </a>
+                                    <a href="{% url 'clients:company_client_registration' %}" class="btn btn-primary">
+                                        <i class="bi bi-building-plus"></i> {% translate "Cadastrar Pessoa Jurídica" %}
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    {% if is_paginated %}
+    <div class="mt-4">
+        <nav aria-label="{% translate 'Navegação de páginas' %}">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page=1{% if client_type %}&client_type={{ client_type }}{% endif %}{% if search %}&search={{ search }}{% endif %}">
+                        <i class="bi bi-chevron-double-left"></i>
+                    </a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if client_type %}&client_type={{ client_type }}{% endif %}{% if search %}&search={{ search }}{% endif %}">
+                        <i class="bi bi-chevron-left"></i>
+                    </a>
+                </li>
+                {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link"><i class="bi bi-chevron-double-left"></i></span>
+                </li>
+                <li class="page-item disabled">
+                    <span class="page-link"><i class="bi bi-chevron-left"></i></span>
+                </li>
+                {% endif %}
+                
+                {% for i in paginator.page_range %}
+                    {% if page_obj.number == i %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ i }}</span>
+                    </li>
+                    {% elif i > page_obj.number|add:'-3' and i < page_obj.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ i }}{% if client_type %}&client_type={{ client_type }}{% endif %}{% if search %}&search={{ search }}{% endif %}">
+                            {{ i }}
+                        </a>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if client_type %}&client_type={{ client_type }}{% endif %}{% if search %}&search={{ search }}{% endif %}">
+                        <i class="bi bi-chevron-right"></i>
+                    </a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ paginator.num_pages }}{% if client_type %}&client_type={{ client_type }}{% endif %}{% if search %}&search={{ search }}{% endif %}">
+                        <i class="bi bi-chevron-double-right"></i>
+                    </a>
+                </li>
+                {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link"><i class="bi bi-chevron-right"></i></span>
+                </li>
+                <li class="page-item disabled">
+                    <span class="page-link"><i class="bi bi-chevron-double-right"></i></span>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Inicializar todos os tooltips
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+    });
+</script>
+{% endblock %} 

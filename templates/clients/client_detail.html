@@ -1,0 +1,212 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load static %}
+
+{% block title %}
+    {% if client.client_type == 'INDIVIDUAL' and client.individual %}
+        {{ client.individual.full_name }}
+    {% elif client.client_type == 'COMPANY' and client.company %}
+        {{ client.company.company_name }}
+    {% else %}
+        {% translate "Detalhes do Cliente" %}
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'clients:client_list' %}">{% translate "Clientes" %}</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">
+                        {% if client.client_type == 'INDIVIDUAL' and client.individual %}
+                            {{ client.individual.full_name }}
+                        {% elif client.client_type == 'COMPANY' and client.company %}
+                            {{ client.company.company_name }}
+                        {% else %}
+                            {% translate "Detalhes do Cliente" %}
+                        {% endif %}
+                    </li>
+                </ol>
+            </nav>
+            
+            <h1 class="h3 fw-bold mb-0">
+                {% if client.client_type == 'INDIVIDUAL' and client.individual %}
+                    {{ client.individual.full_name }}
+                {% elif client.client_type == 'COMPANY' and client.company %}
+                    {{ client.company.company_name }}
+                {% else %}
+                    {% translate "Cliente #" %}{{ client.id }}
+                {% endif %}
+            </h1>
+            <p class="text-muted">
+                {% if client.client_type == 'INDIVIDUAL' %}
+                    <span class="badge bg-info me-1">{% translate "Pessoa Física" %}</span>
+                {% else %}
+                    <span class="badge bg-warning me-1">{% translate "Pessoa Jurídica" %}</span>
+                {% endif %}
+                <span>{% translate "Cadastrado em" %} {{ client.created_at|date:"d/m/Y" }}</span>
+            </p>
+        </div>
+        <div class="col-md-4 text-md-end">
+            <a href="{% url 'clients:client_update' client.pk %}" class="btn btn-primary">
+                <i class="bi bi-pencil"></i> {% translate "Editar Cliente" %}
+            </a>
+            <a href="{% url 'clients:client_list' %}" class="btn btn-outline-secondary ms-2">
+                <i class="bi bi-arrow-left"></i> {% translate "Voltar" %}
+            </a>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-6 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">{% translate "Informações de Contato" %}</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="fw-bold">{% translate "Email" %}</label>
+                        <p>{{ client.email }}</p>
+                    </div>
+                    <div class="mb-3">
+                        <label class="fw-bold">{% translate "Telefone" %}</label>
+                        <p>{{ client.phone }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">{% translate "Endereço" %}</h5>
+                </div>
+                <div class="card-body">
+                    <p>
+                        {{ client.address }}, {{ client.address_number }}
+                        {% if client.address_complement %} - {{ client.address_complement }}{% endif %}<br>
+                        {{ client.neighborhood }}<br>
+                        {{ client.city }}/{{ client.state }} - {{ client.zipcode }}
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    {% if client.client_type == 'INDIVIDUAL' and individual %}
+    <!-- Detalhes específicos para Pessoa Física -->
+    <div class="row">
+        <div class="col-12 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">{% translate "Dados Pessoais" %}</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="fw-bold">{% translate "Nome Completo" %}</label>
+                            <p>{{ individual.full_name }}</p>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="fw-bold">{% translate "CPF" %}</label>
+                            <p>{{ individual.cpf }}</p>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="fw-bold">{% translate "RG" %}</label>
+                            <p>{{ individual.rg|default:"—" }}</p>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="fw-bold">{% translate "Data de Nascimento" %}</label>
+                            <p>{{ individual.birth_date|date:"d/m/Y" }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% elif client.client_type == 'COMPANY' and company %}
+    <!-- Detalhes específicos para Pessoa Jurídica -->
+    <div class="row">
+        <div class="col-12 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">{% translate "Dados da Empresa" %}</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="fw-bold">{% translate "Razão Social" %}</label>
+                            <p>{{ company.company_name }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="fw-bold">{% translate "Nome Fantasia" %}</label>
+                            <p>{{ company.trade_name }}</p>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="fw-bold">{% translate "CNPJ" %}</label>
+                            <p>{{ company.cnpj }}</p>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="fw-bold">{% translate "Inscrição Estadual" %}</label>
+                            <p>{{ company.state_registration|default:"—" }}</p>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="fw-bold">{% translate "Inscrição Municipal" %}</label>
+                            <p>{{ company.municipal_registration|default:"—" }}</p>
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="row">
+                        <div class="col-12 mb-2">
+                            <h6>{% translate "Responsável pela Empresa" %}</h6>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="fw-bold">{% translate "Nome do Responsável" %}</label>
+                            <p>{{ company.responsible_name }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="fw-bold">{% translate "CPF do Responsável" %}</label>
+                            <p>{{ company.responsible_cpf }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <div class="row">
+        <div class="col-12 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">{% translate "Informações Adicionais" %}</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="fw-bold">{% translate "Professor Responsável" %}</label>
+                            <p>{{ client.professor.get_full_name|default:client.professor.email }}</p>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="fw-bold">{% translate "Data de Cadastro" %}</label>
+                            <p>{{ client.created_at|date:"d/m/Y H:i" }}</p>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="fw-bold">{% translate "Última Atualização" %}</label>
+                            <p>{{ client.updated_at|date:"d/m/Y H:i" }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

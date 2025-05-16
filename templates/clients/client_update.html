@@ -1,0 +1,301 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load static %}
+
+{% block title %}
+    {% translate "Editar Cliente" %} - 
+    {% if client.client_type == 'INDIVIDUAL' and client.individual %}
+        {{ client.individual.full_name }}
+    {% elif client.client_type == 'COMPANY' and client.company %}
+        {{ client.company.company_name }}
+    {% else %}
+        {% translate "Cliente" %} #{{ client.id }}
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'clients:client_list' %}">{% translate "Clientes" %}</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'clients:client_detail' client.pk %}">
+                        {% if client.client_type == 'INDIVIDUAL' and client.individual %}
+                            {{ client.individual.full_name }}
+                        {% elif client.client_type == 'COMPANY' and client.company %}
+                            {{ client.company.company_name }}
+                        {% else %}
+                            {% translate "Cliente" %} #{{ client.id }}
+                        {% endif %}
+                    </a></li>
+                    <li class="breadcrumb-item active" aria-current="page">{% translate "Editar" %}</li>
+                </ol>
+            </nav>
+            
+            <h1 class="h3 fw-bold mb-0">{% translate "Editar Cliente" %}</h1>
+            <p class="text-muted">
+                {% if client.client_type == 'INDIVIDUAL' %}
+                    <span class="badge bg-info me-1">{% translate "Pessoa Física" %}</span>
+                {% else %}
+                    <span class="badge bg-warning me-1">{% translate "Pessoa Jurídica" %}</span>
+                {% endif %}
+                {% if client.client_type == 'INDIVIDUAL' and client.individual %}
+                    {{ client.individual.full_name }}
+                {% elif client.client_type == 'COMPANY' and client.company %}
+                    {{ client.company.company_name }}
+                {% endif %}
+            </p>
+        </div>
+        <div class="col-md-4 text-md-end">
+            <a href="{% url 'clients:client_detail' client.pk %}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> {% translate "Cancelar" %}
+            </a>
+        </div>
+    </div>
+    
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+                
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <h5 class="fw-bold mb-3">{% translate "Informações de Contato" %}</h5>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ client_form.email.id_for_label }}" class="form-label">{{ client_form.email.label }} *</label>
+                        {{ client_form.email }}
+                        {% if client_form.email.errors %}
+                            <div class="text-danger">{{ client_form.email.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ client_form.phone.id_for_label }}" class="form-label">{{ client_form.phone.label }} *</label>
+                        {{ client_form.phone }}
+                        {% if client_form.phone.errors %}
+                            <div class="text-danger">{{ client_form.phone.errors }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <h5 class="fw-bold mb-3">{% translate "Endereço" %}</h5>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ client_form.address.id_for_label }}" class="form-label">{{ client_form.address.label }} *</label>
+                        {{ client_form.address }}
+                        {% if client_form.address.errors %}
+                            <div class="text-danger">{{ client_form.address.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        <label for="{{ client_form.address_number.id_for_label }}" class="form-label">{{ client_form.address_number.label }} *</label>
+                        {{ client_form.address_number }}
+                        {% if client_form.address_number.errors %}
+                            <div class="text-danger">{{ client_form.address_number.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label for="{{ client_form.address_complement.id_for_label }}" class="form-label">{{ client_form.address_complement.label }}</label>
+                        {{ client_form.address_complement }}
+                        {% if client_form.address_complement.errors %}
+                            <div class="text-danger">{{ client_form.address_complement.errors }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="row mb-4">
+                    <div class="col-md-4 mb-3">
+                        <label for="{{ client_form.neighborhood.id_for_label }}" class="form-label">{{ client_form.neighborhood.label }} *</label>
+                        {{ client_form.neighborhood }}
+                        {% if client_form.neighborhood.errors %}
+                            <div class="text-danger">{{ client_form.neighborhood.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label for="{{ client_form.city.id_for_label }}" class="form-label">{{ client_form.city.label }} *</label>
+                        {{ client_form.city }}
+                        {% if client_form.city.errors %}
+                            <div class="text-danger">{{ client_form.city.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        <label for="{{ client_form.state.id_for_label }}" class="form-label">{{ client_form.state.label }} *</label>
+                        {{ client_form.state }}
+                        {% if client_form.state.errors %}
+                            <div class="text-danger">{{ client_form.state.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        <label for="{{ client_form.zipcode.id_for_label }}" class="form-label">{{ client_form.zipcode.label }} *</label>
+                        {{ client_form.zipcode }}
+                        {% if client_form.zipcode.errors %}
+                            <div class="text-danger">{{ client_form.zipcode.errors }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                {% if specific_form %}
+                    {% if client.client_type == 'INDIVIDUAL' %}
+                    <!-- Campos específicos para Pessoa Física -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <h5 class="fw-bold mb-3">{% translate "Dados Pessoais" %}</h5>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ specific_form.full_name.id_for_label }}" class="form-label">{{ specific_form.full_name.label }} *</label>
+                            {{ specific_form.full_name }}
+                            {% if specific_form.full_name.errors %}
+                                <div class="text-danger">{{ specific_form.full_name.errors }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="{{ specific_form.cpf.id_for_label }}" class="form-label">{{ specific_form.cpf.label }} *</label>
+                            {{ specific_form.cpf }}
+                            {% if specific_form.cpf.errors %}
+                                <div class="text-danger">{{ specific_form.cpf.errors }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="{{ specific_form.rg.id_for_label }}" class="form-label">{{ specific_form.rg.label }}</label>
+                            {{ specific_form.rg }}
+                            {% if specific_form.rg.errors %}
+                                <div class="text-danger">{{ specific_form.rg.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row mb-4">
+                        <div class="col-md-4 mb-3">
+                            <label for="{{ specific_form.birth_date.id_for_label }}" class="form-label">{{ specific_form.birth_date.label }} *</label>
+                            {{ specific_form.birth_date }}
+                            {% if specific_form.birth_date.errors %}
+                                <div class="text-danger">{{ specific_form.birth_date.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% elif client.client_type == 'COMPANY' %}
+                    <!-- Campos específicos para Pessoa Jurídica -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <h5 class="fw-bold mb-3">{% translate "Dados da Empresa" %}</h5>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ specific_form.company_name.id_for_label }}" class="form-label">{{ specific_form.company_name.label }} *</label>
+                            {{ specific_form.company_name }}
+                            {% if specific_form.company_name.errors %}
+                                <div class="text-danger">{{ specific_form.company_name.errors }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ specific_form.trade_name.id_for_label }}" class="form-label">{{ specific_form.trade_name.label }} *</label>
+                            {{ specific_form.trade_name }}
+                            {% if specific_form.trade_name.errors %}
+                                <div class="text-danger">{{ specific_form.trade_name.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row mb-4">
+                        <div class="col-md-4 mb-3">
+                            <label for="{{ specific_form.cnpj.id_for_label }}" class="form-label">{{ specific_form.cnpj.label }} *</label>
+                            {{ specific_form.cnpj }}
+                            {% if specific_form.cnpj.errors %}
+                                <div class="text-danger">{{ specific_form.cnpj.errors }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="{{ specific_form.state_registration.id_for_label }}" class="form-label">{{ specific_form.state_registration.label }}</label>
+                            {{ specific_form.state_registration }}
+                            {% if specific_form.state_registration.errors %}
+                                <div class="text-danger">{{ specific_form.state_registration.errors }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="{{ specific_form.municipal_registration.id_for_label }}" class="form-label">{{ specific_form.municipal_registration.label }}</label>
+                            {{ specific_form.municipal_registration }}
+                            {% if specific_form.municipal_registration.errors %}
+                                <div class="text-danger">{{ specific_form.municipal_registration.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <h5 class="fw-bold mb-3">{% translate "Responsável pela Empresa" %}</h5>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ specific_form.responsible_name.id_for_label }}" class="form-label">{{ specific_form.responsible_name.label }} *</label>
+                            {{ specific_form.responsible_name }}
+                            {% if specific_form.responsible_name.errors %}
+                                <div class="text-danger">{{ specific_form.responsible_name.errors }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ specific_form.responsible_cpf.id_for_label }}" class="form-label">{{ specific_form.responsible_cpf.label }} *</label>
+                            {{ specific_form.responsible_cpf }}
+                            {% if specific_form.responsible_cpf.errors %}
+                                <div class="text-danger">{{ specific_form.responsible_cpf.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+                {% endif %}
+                
+                <div class="row mt-4">
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-primary">{% translate "Salvar Alterações" %}</button>
+                        <a href="{% url 'clients:client_detail' client.pk %}" class="btn btn-secondary ms-2">{% translate "Cancelar" %}</a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Máscara para CPF
+    const cpfFields = document.querySelectorAll('input[name$="cpf"]');
+    cpfFields.forEach(field => {
+        field.addEventListener('input', function(e) {
+            let value = e.target.value.replace(/\D/g, '');
+            if (value.length <= 11) {
+                value = value.replace(/(\d{3})(\d)/, '$1.$2');
+                value = value.replace(/(\d{3})(\d)/, '$1.$2');
+                value = value.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+                e.target.value = value;
+            }
+        });
+    });
+    
+    // Máscara para CNPJ
+    const cnpjField = document.querySelector('input[name="cnpj"]');
+    if (cnpjField) {
+        cnpjField.addEventListener('input', function(e) {
+            let value = e.target.value.replace(/\D/g, '');
+            if (value.length <= 14) {
+                value = value.replace(/(\d{2})(\d)/, '$1.$2');
+                value = value.replace(/(\d{3})(\d)/, '$1.$2');
+                value = value.replace(/(\d{3})(\d)/, '$1/$2');
+                value = value.replace(/(\d{4})(\d{1,2})$/, '$1-$2');
+                e.target.value = value;
+            }
+        });
+    }
+    
+    // Máscara para CEP
+    const cepField = document.querySelector('input[name="zipcode"]');
+    if (cepField) {
+        cepField.addEventListener('input', function(e) {
+            let value = e.target.value.replace(/\D/g, '');
+            if (value.length <= 8) {
+                value = value.replace(/(\d{5})(\d{1,3})$/, '$1-$2');
+                e.target.value = value;
+            }
+        });
+    }
+});
+</script>
+{% endblock %} 
