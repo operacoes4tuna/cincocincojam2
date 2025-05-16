@@ -1,10 +1,10 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.views.generic import ListView, CreateView, UpdateView, DetailView, View
+from django.views.generic import ListView, CreateView, UpdateView, DetailView, View, DeleteView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.urls import reverse_lazy, reverse
 from django.contrib import messages
 from django.utils.translation import gettext_lazy as _
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponseRedirect
 from django.db.models import Q
 
 from courses.views import ProfessorRequiredMixin
@@ -238,3 +238,31 @@ class ClientUpdateView(LoginRequiredMixin, ProfessorRequiredMixin, View):
             'client_form': client_form,
             'specific_form': specific_form
         })
+
+
+class ClientDeleteView(LoginRequiredMixin, ProfessorRequiredMixin, View):
+    """
+    Exclui um cliente (seja pessoa física ou jurídica)
+    """
+    def post(self, request, pk):
+        client = get_object_or_404(Client, pk=pk, professor=request.user)
+        
+        # Guardar o tipo para mensagem personalizada
+        is_company = client.client_type == Client.Type.COMPANY
+        
+        # Nome para mensagem
+        client_name = ""
+        if client.client_type == Client.Type.INDIVIDUAL and hasattr(client, 'individual'):
+            client_name = client.individual.full_name
+        elif client.client_type == Client.Type.COMPANY and hasattr(client, 'company'):
+            client_name = client.company.company_name
+        
+        # Excluir cliente
+        client.delete()
+        
+        if is_company:
+            messages.success(request, _(f'Cliente pessoa jurídica "{client_name}" excluído com sucesso!'))
+        else:
+            messages.success(request, _(f'Cliente pessoa física "{client_name}" excluído com sucesso!'))
+        
+        return redirect('clients:client_list')

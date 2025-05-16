@@ -53,6 +53,15 @@
             <a href="{% url 'clients:client_update' client.pk %}" class="btn btn-primary">
                 <i class="bi bi-pencil"></i> {% translate "Editar Cliente" %}
             </a>
+            {% if client.client_type == 'COMPANY' %}
+            <button type="button" class="btn btn-danger ms-2" data-bs-toggle="modal" data-bs-target="#deleteClientModal">
+                <i class="bi bi-trash"></i> {% translate "Excluir Empresa" %}
+            </button>
+            {% elif client.client_type == 'INDIVIDUAL' %}
+            <button type="button" class="btn btn-danger ms-2" data-bs-toggle="modal" data-bs-target="#deleteClientModal">
+                <i class="bi bi-trash"></i> {% translate "Excluir Pessoa" %}
+            </button>
+            {% endif %}
             <a href="{% url 'clients:client_list' %}" class="btn btn-outline-secondary ms-2">
                 <i class="bi bi-arrow-left"></i> {% translate "Voltar" %}
             </a>
@@ -209,4 +218,45 @@
         </div>
     </div>
 </div>
+
+<!-- Modal de confirmação de exclusão -->
+{% if client.client_type == 'COMPANY' or client.client_type == 'INDIVIDUAL' %}
+<div class="modal fade" id="deleteClientModal" tabindex="-1" aria-labelledby="deleteClientModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteClientModalLabel">{% translate "Confirmar Exclusão" %}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                {% if client.client_type == 'COMPANY' %}
+                <p>{% translate "Tem certeza que deseja excluir este cliente pessoa jurídica?" %}</p>
+                <p class="text-danger fw-bold">
+                    {% if client.company %}
+                        {{ client.company.company_name }} ({{ client.company.cnpj }})
+                    {% endif %}
+                </p>
+                {% else %}
+                <p>{% translate "Tem certeza que deseja excluir este cliente pessoa física?" %}</p>
+                <p class="text-danger fw-bold">
+                    {% if client.individual %}
+                        {{ client.individual.full_name }} ({{ client.individual.cpf }})
+                    {% endif %}
+                </p>
+                {% endif %}
+                <p class="text-danger">
+                    {% translate "Esta ação não pode ser desfeita e todos os dados relacionados a este cliente serão perdidos." %}
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% translate "Cancelar" %}</button>
+                <form method="post" action="{% url 'clients:client_delete' client.pk %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">{% translate "Sim, Excluir" %}</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
 {% endblock %} 

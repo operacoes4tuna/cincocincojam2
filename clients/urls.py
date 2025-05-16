@@ -11,4 +11,5 @@ urlpatterns = [
          name='company_client_registration'),
     path('<int:pk>/', views.ClientDetailView.as_view(), name='client_detail'),
     path('<int:pk>/editar/', views.ClientUpdateView.as_view(), name='client_update'),
+    path('<int:pk>/excluir/', views.ClientDeleteView.as_view(), name='client_delete'),
 ] 
