@@ -143,9 +143,6 @@
                                                                 <i class="fas fa-file-pdf"></i>
                                                             </a>
                                                         {% endif %}
-                                                        <a href="{% url 'invoices:invoice_detail' invoice_id=invoice.id %}" class="btn btn-sm btn-outline-info" title="{% translate 'Detalhes da NF' %}">
-                                                            <i class="fas fa-info-circle"></i>
-                                                        </a>
                                                     {% elif invoice.status == 'pending' or invoice.status == 'processing' %}
                                                         <span class="badge bg-warning ms-1 me-1">
                                                             <i class="fas fa-clock me-1"></i> NF Em processamento
@@ -249,6 +246,8 @@ document.addEventListener('DOMContentLoaded', function() {
     function checkInvoiceStatus(invoiceId) {
         // Mostrar indicador de carregamento
         const button = document.querySelector(`[data-invoice-id="${invoiceId}"]`);
+        const originalHtml = button ? button.innerHTML : '<i class="fas fa-sync"></i>';
+        
         if (button) {
             button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
             button.disabled = true;
@@ -259,18 +258,61 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(response => response.json())
             .then(data => {
                 if (!data.error) {
-                    // Update the UI with the new status
-                    updateInvoiceStatusUI(invoiceId, data.status, data.error_message);
+                    console.log("Dados da nota fiscal após verificação:", data);
                     
-                    // Show a success message
-                    showStatusMessage('success', 'Status da nota fiscal atualizado.');
+                    // Se a nota foi aprovada, atualizar a interface imediatamente
+                    if (data.status === 'approved') {
+                        // Obter o elemento TD pai
+                        const tdElement = button.closest('td');
+                        if (tdElement) {
+                            // Preservar o botão de visualização e o botão de edição
+                            const viewButton = tdElement.querySelector('a.btn-outline-primary');
+                            const editButton = tdElement.querySelector('a[href*="singlesale_update"]');
+                            
+                            // URL do PDF
+                            const pdfUrl = data.focus_pdf_url || `/invoices/view_pdf/${invoiceId}/`;
+                            
+                            // Criar conteúdo atualizado
+                            const btnGroup = document.createElement('div');
+                            btnGroup.className = 'btn-group';
+                            
+                            btnGroup.innerHTML = `
+                                ${viewButton ? viewButton.outerHTML : ''}
+                                <span class="badge bg-success ms-1 me-1">
+                                    <i class="fas fa-check-circle me-1"></i> NF Emitida
+                                </span>
+                                <a href="${pdfUrl}" target="_blank" class="btn btn-sm btn-outline-primary" title="Visualizar PDF">
+                                    <i class="fas fa-file-pdf"></i>
+                                </a>
+                                ${editButton ? editButton.outerHTML : ''}
+                            `;
+                            
+                            // Atualizar o conteúdo
+                            tdElement.innerHTML = '';
+                            tdElement.appendChild(btnGroup);
+                            
+                            showStatusMessage('success', 'Nota fiscal aprovada! O PDF está disponível para visualização.');
+                        }
+                    } else {
+                        // Se não foi aprovada, apenas restaurar o botão
+                        button.disabled = false;
+                        button.innerHTML = originalHtml;
+                        
+                        // Exibir mensagem de status atual
+                        let statusMsg = `Status atual: ${data.status}`;
+                        if (data.focus_status) {
+                            statusMsg += ` (${data.focus_status})`;
+                        }
+                        
+                        showStatusMessage('info', statusMsg);
+                    }
                 } else {
                     // Show an error message
                     showStatusMessage('danger', data.error || 'Erro ao verificar status da nota fiscal.');
                     
                     // Restaurar o botão
                     if (button) {
-                        button.innerHTML = '<i class="fas fa-sync"></i>';
+                        button.innerHTML = originalHtml;
                         button.disabled = false;
                     }
                 }
@@ -281,113 +323,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // Restaurar o botão
                 if (button) {
-                    button.innerHTML = '<i class="fas fa-sync"></i>';
+                    button.innerHTML = originalHtml;
                     button.disabled = false;
                 }
             });
-    }
-    
-    // Function to update the UI based on the invoice status
-    function updateInvoiceStatusUI(invoiceId, status, message) {
-        const invoiceStatusElement = document.querySelector(`[data-invoice-id="${invoiceId}"]`).closest('td');
-        if (!invoiceStatusElement) return;
-        
-        let statusHtml = '';
-        
-        switch (status) {
-            case 'approved':
-                // Buscar detalhes atualizados da nota fiscal
-                fetch(`/invoices/detail/${invoiceId}/json/?refresh=true`)
-                    .then(response => response.json())
-                    .then(invoiceData => {
-                        console.log('Detalhes da nota fiscal:', invoiceData);
-                        
-                        let pdfUrl = invoiceData.focus_pdf_url || `/invoices/view_pdf/${invoiceId}/`;
-                        
-                        statusHtml = `
-                            <span class="badge bg-success ms-1 me-1">
-                                <i class="fas fa-check-circle me-1"></i> NF Emitida
-                            </span>
-                            <a href="${pdfUrl}" target="_blank" class="btn btn-sm btn-outline-primary" title="Visualizar PDF">
-                                <i class="fas fa-file-pdf"></i>
-                            </a>
-                            <a href="/invoices/detail/${invoiceId}/" class="btn btn-sm btn-outline-info" title="Detalhes da NF">
-                                <i class="fas fa-info-circle"></i>
-                            </a>
-                        `;
-                        
-                        updateStatusHTML(invoiceStatusElement, statusHtml);
-                    })
-                    .catch(error => {
-                        console.error('Erro ao obter detalhes da nota:', error);
-                        statusHtml = `
-                            <span class="badge bg-success ms-1 me-1">
-                                <i class="fas fa-check-circle me-1"></i> NF Emitida
-                            </span>
-                            <a href="/invoices/view_pdf/${invoiceId}/" target="_blank" class="btn btn-sm btn-outline-primary" title="Visualizar PDF">
-                                <i class="fas fa-file-pdf"></i>
-                            </a>
-                        `;
-                        updateStatusHTML(invoiceStatusElement, statusHtml);
-                    });
-                break;
-            case 'processing':
-            case 'pending':
-                statusHtml = `
-                    <span class="badge bg-warning ms-1 me-1">
-                        <i class="fas fa-clock me-1"></i> NF Em processamento
-                    </span>
-                    <button class="btn btn-sm btn-outline-secondary check-status-btn" data-invoice-id="${invoiceId}">
-                        <i class="fas fa-sync"></i>
-                    </button>
-                `;
-                updateStatusHTML(invoiceStatusElement, statusHtml);
-                break;
-            case 'error':
-                statusHtml = `
-                    <span class="badge bg-danger ms-1 me-1">
-                        <i class="fas fa-exclamation-circle me-1"></i> Erro na NF
-                    </span>
-                    <button class="btn btn-sm btn-outline-secondary check-status-btn" data-invoice-id="${invoiceId}">
-                        <i class="fas fa-sync"></i>
-                    </button>
-                `;
-                updateStatusHTML(invoiceStatusElement, statusHtml);
-                break;
-            default:
-                statusHtml = `
-                    <span class="badge bg-secondary ms-1 me-1">
-                        <i class="fas fa-question-circle me-1"></i> Status desconhecido
-                    </span>
-                    <button class="btn btn-sm btn-outline-secondary check-status-btn" data-invoice-id="${invoiceId}">
-                        <i class="fas fa-sync"></i>
-                    </button>
-                `;
-                updateStatusHTML(invoiceStatusElement, statusHtml);
-        }
-    }
-    
-    // Helper function to update the status HTML
-    function updateStatusHTML(element, statusHtml) {
-        // Update the invoice status element
-        const viewButton = element.querySelector('a');
-        const updateButton = element.querySelector('a[href*="singlesale_update"]');
-        
-        let newContent = document.createElement('div');
-        newContent.className = 'btn-group';
-        newContent.innerHTML = viewButton.outerHTML + statusHtml + updateButton.outerHTML;
-        
-        element.innerHTML = '';
-        element.appendChild(newContent);
-        
-        // Add event listener to the new check status button
-        const newCheckButton = element.querySelector('.check-status-btn');
-        if (newCheckButton) {
-            newCheckButton.addEventListener('click', function(e) {
-                e.preventDefault();
-                checkInvoiceStatus(this.getAttribute('data-invoice-id'));
-            });
-        }
     }
     
     // Function to show status messages
@@ -434,14 +373,72 @@ document.addEventListener('DOMContentLoaded', function() {
         fetch(`/invoices/sync/${invoiceId}/`)
             .then(response => response.json())
             .then(data => {
-                button.disabled = false;
-                button.innerHTML = '<i class="fas fa-sync-alt"></i>';
-                
                 if (data.success) {
-                    // After successful sync, check the status to update UI
-                    checkInvoiceStatus(invoiceId);
                     showStatusMessage('success', 'Status da nota fiscal sincronizado com sucesso.');
+                    
+                    // Forçar uma atualização imediata da interface
+                    // Primeiro, verificar o status atual da nota
+                    fetch(`/invoices/detail/${invoiceId}/json/?refresh=true`)
+                        .then(response => response.json())
+                        .then(invoiceData => {
+                            console.log("Dados da nota fiscal após sincronização:", invoiceData);
+                            
+                            // Se a nota foi aprovada, atualizar a interface imediatamente
+                            if (invoiceData.status === 'approved') {
+                                // Obter o elemento TD pai
+                                const tdElement = button.closest('td');
+                                if (tdElement) {
+                                    // Preservar o botão de visualização e o botão de edição
+                                    const viewButton = tdElement.querySelector('a.btn-outline-primary');
+                                    const editButton = tdElement.querySelector('a[href*="singlesale_update"]');
+                                    
+                                    // URL do PDF
+                                    const pdfUrl = invoiceData.focus_pdf_url || `/invoices/view_pdf/${invoiceId}/`;
+                                    
+                                    // Criar conteúdo atualizado
+                                    const btnGroup = document.createElement('div');
+                                    btnGroup.className = 'btn-group';
+                                    
+                                    btnGroup.innerHTML = `
+                                        ${viewButton ? viewButton.outerHTML : ''}
+                                        <span class="badge bg-success ms-1 me-1">
+                                            <i class="fas fa-check-circle me-1"></i> NF Emitida
+                                        </span>
+                                        <a href="${pdfUrl}" target="_blank" class="btn btn-sm btn-outline-primary" title="Visualizar PDF">
+                                            <i class="fas fa-file-pdf"></i>
+                                        </a>
+                                        ${editButton ? editButton.outerHTML : ''}
+                                    `;
+                                    
+                                    // Atualizar o conteúdo
+                                    tdElement.innerHTML = '';
+                                    tdElement.appendChild(btnGroup);
+                                    
+                                    showStatusMessage('success', 'Nota fiscal aprovada! O PDF está disponível para visualização.');
+                                }
+                            } else {
+                                // Se não foi aprovada, apenas restaurar o botão
+                                button.disabled = false;
+                                button.innerHTML = '<i class="fas fa-sync-alt"></i>';
+                                
+                                // Exibir mensagem de status atual
+                                let statusMsg = `Status atual: ${invoiceData.status}`;
+                                if (invoiceData.focus_status) {
+                                    statusMsg += ` (${invoiceData.focus_status})`;
+                                }
+                                
+                                showStatusMessage('info', statusMsg);
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Erro ao obter detalhes após sincronização:', error);
+                            button.disabled = false;
+                            button.innerHTML = '<i class="fas fa-sync-alt"></i>';
+                            showStatusMessage('warning', 'Status sincronizado, mas não foi possível verificar o resultado.');
+                        });
                 } else {
+                    button.disabled = false;
+                    button.innerHTML = '<i class="fas fa-sync-alt"></i>';
                     showStatusMessage('danger', data.message || 'Erro ao sincronizar status da nota fiscal.');
                 }
             })

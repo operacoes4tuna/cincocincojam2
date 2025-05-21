@@ -144,7 +144,7 @@
                                             <span class="badge bg-danger">
                                                 <i class="fas fa-exclamation-circle me-1"></i> Erro
                                             </span>
-                                            <form action="{% url 'invoices:sync_invoice_status' invoice.id %}" method="post" class="sync-status-form d-inline">
+                                            <form action="{% url 'invoices:sync_status' invoice.id %}" method="post" class="sync-status-form d-inline">
                                                 {% csrf_token %}
                                                 <button type="submit" class="btn btn-sm btn-outline-primary ms-2">Sincronizar Status</button>
                                             </form>
