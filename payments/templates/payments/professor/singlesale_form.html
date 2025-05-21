@@ -320,8 +320,23 @@ document.addEventListener('DOMContentLoaded', function() {
             const newBtn = originalSubmitBtn.cloneNode(true);
             originalSubmitBtn.parentNode.replaceChild(newBtn, originalSubmitBtn);
             
-            // Adicionar evento de clique no novo botão (em vez de submit no formulário)
+            // Verificar se é um formulário de edição ou criação
+            const isEditForm = {% if object %}true{% else %}false{% endif %};
+            
+            // Adicionar evento de clique no novo botão
             newBtn.addEventListener('click', function(e) {
+                // Se for formulário de edição, deixar o envio normal do formulário acontecer
+                if (isEditForm) {
+                    // Remover o evento personalizado e restaurar o comportamento padrão do formulário
+                    form.removeEventListener('submit', function(e) { e.preventDefault(); });
+                    
+                    // Enviar o formulário normalmente
+                    form.submit();
+                    return true;
+                }
+                
+                // A partir daqui, só executa se for formulário de criação
+                
                 // Impedir a propagação e comportamento padrão
                 e.preventDefault();
                 e.stopPropagation();
@@ -423,8 +438,15 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Remover o evento de submit padrão do formulário
             form.addEventListener('submit', function(e) {
-                e.preventDefault();
-                return false;
+                const isEditForm = {% if object %}true{% else %}false{% endif %};
+                
+                // Bloquear submit apenas para formulários de criação
+                if (!isEditForm) {
+                    e.preventDefault();
+                    return false;
+                }
+                // Para formulários de edição, permitir o submit normal
+                return true;
             });
         } else {
             console.warn('Botão de envio não encontrado!');
