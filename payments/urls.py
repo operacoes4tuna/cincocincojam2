@@ -66,6 +66,8 @@ singlesale_patterns = [
     path('admin/sales/', views.SingleSaleAdminListView.as_view(), name='admin_singlesale_list'),
     path('transactions/', views.transaction_list, name='transactions'),
     path('transactions/emit-invoice/<int:transaction_id>/', views.emit_invoice_from_transactions, name='emit_invoice_from_transactions'),
+    # Nova URL para API de criação de venda
+    path('api/sales/create/', views.create_singlesale_api, name='create_singlesale_api'),
 ]
 
 urlpatterns = [

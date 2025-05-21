@@ -127,9 +127,40 @@
                                             <a href="{% url 'payments:singlesale_detail' pk=sale.id %}" class="btn btn-sm btn-outline-primary">
                                                 <i class="fas fa-eye"></i>
                                             </a>
-                                            <a href="{% url 'invoices:emit_sale' sale_id=sale.id %}" class="btn btn-sm btn-outline-success" title="{% translate 'Emitir NFe' %}">
-                                                <i class="fas fa-file-invoice"></i> Emitir NFe
-                                            </a>
+                                            
+                                            {% if sale.invoices.exists %}
+                                                {% with invoice=sale.invoices.first %}
+                                                    {% if invoice.status == 'approved' %}
+                                                        <span class="badge bg-success ms-1 me-1">
+                                                            <i class="fas fa-check-circle me-1"></i> NF Emitida
+                                                        </span>
+                                                        {% if invoice.focus_pdf_url %}
+                                                            <a href="{{ invoice.focus_pdf_url }}" target="_blank" class="btn btn-sm btn-outline-primary" title="{% translate 'Visualizar PDF' %}">
+                                                                <i class="fas fa-file-pdf"></i>
+                                                            </a>
+                                                        {% endif %}
+                                                    {% elif invoice.status == 'pending' or invoice.status == 'processing' %}
+                                                        <span class="badge bg-warning ms-1 me-1">
+                                                            <i class="fas fa-clock me-1"></i> NF Em processamento
+                                                        </span>
+                                                        <button class="btn btn-sm btn-outline-secondary check-status-btn" data-invoice-id="{{ invoice.id }}" title="{% translate 'Sincronizar Status' %}">
+                                                            <i class="fas fa-sync"></i>
+                                                        </button>
+                                                    {% elif invoice.status == 'error' %}
+                                                        <span class="badge bg-danger ms-1 me-1">
+                                                            <i class="fas fa-exclamation-circle me-1"></i> Erro na NF
+                                                        </span>
+                                                        <button class="btn btn-sm btn-outline-secondary check-status-btn" data-invoice-id="{{ invoice.id }}" title="{% translate 'Sincronizar Status' %}">
+                                                            <i class="fas fa-sync"></i>
+                                                        </button>
+                                                    {% endif %}
+                                                {% endwith %}
+                                            {% else %}
+                                                <a href="{% url 'invoices:emit_sale' sale_id=sale.id %}" class="btn btn-sm btn-outline-success" title="{% translate 'Emitir NFe' %}">
+                                                    <i class="fas fa-file-invoice"></i> Emitir NFe
+                                                </a>
+                                            {% endif %}
+                                            
                                             <a href="{% url 'payments:singlesale_update' pk=sale.id %}" class="btn btn-sm btn-outline-secondary">
                                                 <i class="fas fa-edit"></i>
                                             </a>
@@ -191,4 +222,134 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle click on check status buttons
+    document.querySelectorAll('.check-status-btn').forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            const invoiceId = this.getAttribute('data-invoice-id');
+            checkInvoiceStatus(invoiceId);
+        });
+    });
+    
+    // Function to check invoice status
+    function checkInvoiceStatus(invoiceId) {
+        fetch(`/invoices/check/${invoiceId}/json/`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Update the UI with the new status
+                    updateInvoiceStatusUI(invoiceId, data.status, data.message);
+                    
+                    // Show a success message
+                    showStatusMessage('success', 'Status da nota fiscal atualizado.');
+                } else {
+                    // Show an error message
+                    showStatusMessage('danger', data.message || 'Erro ao verificar status da nota fiscal.');
+                }
+            })
+            .catch(error => {
+                console.error('Error checking invoice status:', error);
+                showStatusMessage('danger', 'Erro ao verificar status da nota fiscal.');
+            });
+    }
+    
+    // Function to update the UI based on the invoice status
+    function updateInvoiceStatusUI(invoiceId, status, message) {
+        const invoiceStatusElement = document.querySelector(`[data-invoice-id="${invoiceId}"]`).closest('td');
+        if (!invoiceStatusElement) return;
+        
+        let statusHtml = '';
+        
+        switch (status) {
+            case 'approved':
+                statusHtml = `
+                    <span class="badge bg-success ms-1 me-1">
+                        <i class="fas fa-check-circle me-1"></i> NF Emitida
+                    </span>
+                    <a href="/invoices/pdf/${invoiceId}/" target="_blank" class="btn btn-sm btn-outline-primary" title="Visualizar PDF">
+                        <i class="fas fa-file-pdf"></i>
+                    </a>
+                `;
+                break;
+            case 'processing':
+            case 'pending':
+                statusHtml = `
+                    <span class="badge bg-warning ms-1 me-1">
+                        <i class="fas fa-clock me-1"></i> NF Em processamento
+                    </span>
+                    <button class="btn btn-sm btn-outline-secondary check-status-btn" data-invoice-id="${invoiceId}">
+                        <i class="fas fa-sync"></i>
+                    </button>
+                `;
+                break;
+            case 'error':
+                statusHtml = `
+                    <span class="badge bg-danger ms-1 me-1">
+                        <i class="fas fa-exclamation-circle me-1"></i> Erro na NF
+                    </span>
+                    <button class="btn btn-sm btn-outline-secondary check-status-btn" data-invoice-id="${invoiceId}">
+                        <i class="fas fa-sync"></i>
+                    </button>
+                `;
+                break;
+            default:
+                statusHtml = `
+                    <span class="badge bg-secondary ms-1 me-1">
+                        <i class="fas fa-question-circle me-1"></i> Status desconhecido
+                    </span>
+                    <button class="btn btn-sm btn-outline-secondary check-status-btn" data-invoice-id="${invoiceId}">
+                        <i class="fas fa-sync"></i>
+                    </button>
+                `;
+        }
+        
+        // Update the invoice status element
+        const viewButton = invoiceStatusElement.querySelector('a');
+        const updateButton = invoiceStatusElement.querySelector('a[href*="singlesale_update"]');
+        
+        let newContent = document.createElement('div');
+        newContent.className = 'btn-group';
+        newContent.innerHTML = viewButton.outerHTML + statusHtml + updateButton.outerHTML;
+        
+        invoiceStatusElement.innerHTML = '';
+        invoiceStatusElement.appendChild(newContent);
+        
+        // Add event listener to the new check status button
+        const newCheckButton = invoiceStatusElement.querySelector('.check-status-btn');
+        if (newCheckButton) {
+            newCheckButton.addEventListener('click', function(e) {
+                e.preventDefault();
+                checkInvoiceStatus(invoiceId);
+            });
+        }
+    }
+    
+    // Function to show status messages
+    function showStatusMessage(type, message) {
+        // Create a status message element
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `alert alert-${type} alert-dismissible fade show`;
+        messageDiv.role = 'alert';
+        
+        messageDiv.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        `;
+        
+        // Insert it at the top of the content
+        const container = document.querySelector('.container.py-4');
+        container.insertBefore(messageDiv, container.firstChild);
+        
+        // Auto-dismiss after 5 seconds
+        setTimeout(() => {
+            messageDiv.remove();
+        }, 5000);
+    }
+});
+</script>
 {% endblock %} 

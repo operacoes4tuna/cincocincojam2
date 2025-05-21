@@ -12,6 +12,7 @@ from django.utils import timezone
 from datetime import timedelta
 import uuid
 from django.http import JsonResponse
+from django.core.cache import cache
 
 from courses.views import ProfessorRequiredMixin, AdminRequiredMixin, StudentRequiredMixin
 from courses.models import Course, Enrollment
@@ -849,16 +850,82 @@ class SingleSaleCreateView(LoginRequiredMixin, ProfessorRequiredMixin, CreateVie
             
         return context
     
-    def form_valid(self, form):
-        # Define o vendedor como o usuário atual
-        form.instance.seller = self.request.user
-        
-        response = super().form_valid(form)
-        
-        # Adiciona mensagem de sucesso
-        messages.success(self.request, _('Venda avulsa criada com sucesso!'))
-        
-        return response
+    def post(self, request, *args, **kwargs):
+        """Sobrescrever o método post para capturar os dados diretamente"""
+        try:
+            # Obter dados do POST
+            form = self.get_form()
+            
+            # Validar o formulário
+            if form.is_valid():
+                # Log dos dados do formulário
+                print(f"Form data: {form.cleaned_data}")
+                
+                # Criar objeto manualmente para maior controle
+                sale = SingleSale()
+                
+                # Preencher campos básicos
+                sale.description = form.cleaned_data.get('description', '')
+                sale.amount = form.cleaned_data.get('amount', 0)
+                sale.status = form.cleaned_data.get('status', 'PENDING')
+                sale.seller = self.request.user
+                
+                # Campos do cliente
+                sale.customer_name = form.cleaned_data.get('customer_name', '')
+                sale.customer_email = form.cleaned_data.get('customer_email', '')
+                
+                # Tratar CPF/CNPJ - remover caracteres especiais
+                cpf = form.cleaned_data.get('customer_cpf', '')
+                if cpf:
+                    # Remover todos os caracteres especiais
+                    cpf = ''.join(c for c in cpf if c.isdigit())
+                    print(f"CPF/CNPJ limpo: {cpf}")
+                sale.customer_cpf = cpf
+                
+                # Endereço do cliente
+                sale.customer_address = form.cleaned_data.get('customer_address', '')
+                sale.customer_address_number = form.cleaned_data.get('customer_address_number', '')
+                sale.customer_address_complement = form.cleaned_data.get('customer_address_complement', '')
+                sale.customer_neighborhood = form.cleaned_data.get('customer_neighborhood', '')
+                sale.customer_city = form.cleaned_data.get('customer_city', '')
+                sale.customer_state = form.cleaned_data.get('customer_state', '')
+                sale.customer_zipcode = form.cleaned_data.get('customer_zipcode', '')
+                sale.customer_phone = form.cleaned_data.get('customer_phone', '')
+                
+                # Campos para nota fiscal
+                sale.product_code = form.cleaned_data.get('product_code', '')
+                sale.ncm_code = form.cleaned_data.get('ncm_code', '')
+                sale.cfop_code = form.cleaned_data.get('cfop_code', '')
+                sale.quantity = form.cleaned_data.get('quantity', 1)
+                sale.unit_value = form.cleaned_data.get('unit_value', sale.amount)
+                sale.invoice_type = form.cleaned_data.get('invoice_type', 'nfse')
+                sale.generate_invoice = form.cleaned_data.get('generate_invoice', False)
+                
+                # Salvar o objeto
+                print("Tentando salvar o objeto...")
+                sale.save()
+                print(f"Objeto salvo com ID: {sale.id}")
+                
+                # Mostrar mensagem de sucesso
+                messages.success(self.request, _('Venda avulsa criada com sucesso!'))
+                
+                # Redirecionar para a lista
+                return redirect(self.success_url)
+            else:
+                # Log de erros do formulário
+                print(f"Erros de validação: {form.errors}")
+                messages.error(self.request, _('Erro ao criar venda. Verifique os campos.'))
+                return self.form_invalid(form)
+                
+        except Exception as e:
+            # Log detalhado do erro
+            import traceback
+            print(f"Erro ao criar venda: {str(e)}")
+            print(traceback.format_exc())
+            
+            # Mostrar mensagem de erro para o usuário
+            messages.error(self.request, _(f'Erro ao processar: {str(e)}'))
+            return self.render_to_response(self.get_context_data(form=self.get_form()))
 
 
 class SingleSaleDetailView(LoginRequiredMixin, ProfessorRequiredMixin, DetailView):
@@ -1094,9 +1161,85 @@ class SingleSaleUpdateView(LoginRequiredMixin, ProfessorRequiredMixin, UpdateVie
     def get_success_url(self):
         return reverse_lazy('payments:singlesale_list')
     
-    def form_valid(self, form):
-        messages.success(self.request, _('Venda atualizada com sucesso!'))
-        return super().form_valid(form)
+    def post(self, request, *args, **kwargs):
+        """Sobrescrever o método post para capturar os dados diretamente"""
+        try:
+            # Obter o objeto existente
+            self.object = self.get_object()
+            
+            # Obter dados do POST
+            form = self.get_form()
+            
+            # Validar o formulário
+            if form.is_valid():
+                # Log dos dados do formulário
+                print(f"Update form data: {form.cleaned_data}")
+                
+                # Atualizar campos 
+                sale = self.object
+                
+                # Preencher campos básicos
+                sale.description = form.cleaned_data.get('description', '')
+                sale.amount = form.cleaned_data.get('amount', 0)
+                sale.status = form.cleaned_data.get('status', 'PENDING')
+                
+                # Campos do cliente
+                sale.customer_name = form.cleaned_data.get('customer_name', '')
+                sale.customer_email = form.cleaned_data.get('customer_email', '')
+                
+                # Tratar CPF/CNPJ - remover caracteres especiais
+                cpf = form.cleaned_data.get('customer_cpf', '')
+                if cpf:
+                    # Remover todos os caracteres especiais
+                    cpf = ''.join(c for c in cpf if c.isdigit())
+                    print(f"CPF/CNPJ limpo (update): {cpf}")
+                sale.customer_cpf = cpf
+                
+                # Endereço do cliente
+                sale.customer_address = form.cleaned_data.get('customer_address', '')
+                sale.customer_address_number = form.cleaned_data.get('customer_address_number', '')
+                sale.customer_address_complement = form.cleaned_data.get('customer_address_complement', '')
+                sale.customer_neighborhood = form.cleaned_data.get('customer_neighborhood', '')
+                sale.customer_city = form.cleaned_data.get('customer_city', '')
+                sale.customer_state = form.cleaned_data.get('customer_state', '')
+                sale.customer_zipcode = form.cleaned_data.get('customer_zipcode', '')
+                sale.customer_phone = form.cleaned_data.get('customer_phone', '')
+                
+                # Campos para nota fiscal
+                sale.product_code = form.cleaned_data.get('product_code', '')
+                sale.ncm_code = form.cleaned_data.get('ncm_code', '')
+                sale.cfop_code = form.cleaned_data.get('cfop_code', '')
+                sale.quantity = form.cleaned_data.get('quantity', 1)
+                sale.unit_value = form.cleaned_data.get('unit_value', sale.amount)
+                sale.invoice_type = form.cleaned_data.get('invoice_type', 'nfse')
+                sale.generate_invoice = form.cleaned_data.get('generate_invoice', False)
+                
+                # Salvar o objeto
+                print(f"Tentando atualizar o objeto ID: {sale.id}")
+                sale.save()
+                print(f"Objeto atualizado com sucesso")
+                
+                # Mostrar mensagem de sucesso
+                messages.success(self.request, _('Venda atualizada com sucesso!'))
+                
+                # Redirecionar para a lista
+                return redirect(self.get_success_url())
+            else:
+                # Log de erros do formulário
+                print(f"Erros de validação (update): {form.errors}")
+                messages.error(self.request, _('Erro ao atualizar venda. Verifique os campos.'))
+                return self.form_invalid(form)
+                
+        except Exception as e:
+            # Log detalhado do erro
+            import traceback
+            print(f"Erro ao atualizar venda: {str(e)}")
+            print(traceback.format_exc())
+            
+            # Mostrar mensagem de erro para o usuário
+            messages.error(self.request, _(f'Erro ao atualizar: {str(e)}'))
+            form = self.get_form()
+            return self.render_to_response(self.get_context_data(form=form))
 
 
 @login_required
@@ -1140,3 +1283,132 @@ def emit_invoice_from_transactions(request, transaction_id):
     
     # Redirecionar para a função de emissão de nota fiscal no app invoices
     return redirect('invoices:emit', transaction_id=transaction_id)
+
+
+@login_required
+def create_singlesale_api(request):
+    """
+    API para criar uma venda avulsa com validação simplificada.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Método não permitido'}, status=405)
+    
+    if not request.user.is_professor:
+        return JsonResponse({'error': 'Permissão negada'}, status=403)
+    
+    try:
+        # Obter os dados essenciais
+        data = request.POST
+        
+        # Logs detalhados
+        print(f"Request POST data: {dict(data)}")
+        
+        # Verificar ID de sessão para evitar processamento duplicado
+        session_id = data.get('session_id')
+        if session_id:
+            # Verificar se já existe uma venda com este session_id (usando cache ou banco de dados)
+            cache_key = f"singlesale_session_{session_id}"
+            
+            # Verificar se já processamos esta submissão
+            if cache.get(cache_key):
+                print(f"Submissão duplicada detectada com session_id: {session_id}")
+                return JsonResponse({
+                    'warning': 'Esta venda já foi processada',
+                    'success': True,
+                    'redirect_url': reverse('payments:singlesale_list')
+                })
+            
+            # Marcar esta submissão como processada por 10 minutos (tempo suficiente para evitar duplicações acidentais)
+            cache.set(cache_key, "processado", 60 * 10)
+        
+        # Campos essenciais
+        description = data.get('description', '')
+        amount = data.get('amount', 0)
+        customer_name = data.get('customer_name', '')
+        customer_email = data.get('customer_email', '')
+        customer_cpf = data.get('customer_cpf', '')
+        
+        # Validações básicas
+        if not description:
+            return JsonResponse({'error': 'Descrição é obrigatória'}, status=400)
+        
+        try:
+            amount = float(amount)
+            if amount <= 0:
+                return JsonResponse({'error': 'Valor deve ser maior que zero'}, status=400)
+        except ValueError:
+            return JsonResponse({'error': 'Valor inválido'}, status=400)
+        
+        if not customer_name:
+            return JsonResponse({'error': 'Nome do cliente é obrigatório'}, status=400)
+        
+        if not customer_email:
+            return JsonResponse({'error': 'Email do cliente é obrigatório'}, status=400)
+        
+        # Limpeza do CPF/CNPJ
+        if customer_cpf:
+            customer_cpf = ''.join(c for c in customer_cpf if c.isdigit())
+        
+        # Criar o objeto de venda
+        sale = SingleSale()
+        sale.description = description
+        sale.amount = amount
+        sale.status = 'PENDING'
+        sale.seller = request.user
+        
+        # Dados do cliente
+        sale.customer_name = customer_name
+        sale.customer_email = customer_email
+        sale.customer_cpf = customer_cpf
+        
+        # Endereço (opcional)
+        sale.customer_address = data.get('customer_address', '')
+        sale.customer_address_number = data.get('customer_address_number', '')
+        sale.customer_address_complement = data.get('customer_address_complement', '')
+        sale.customer_neighborhood = data.get('customer_neighborhood', '')
+        sale.customer_city = data.get('customer_city', '')
+        sale.customer_state = data.get('customer_state', '')
+        sale.customer_zipcode = data.get('customer_zipcode', '')
+        sale.customer_phone = data.get('customer_phone', '')
+        
+        # Dados para nota fiscal (opcional)
+        sale.product_code = data.get('product_code', '')
+        sale.ncm_code = data.get('ncm_code', '')
+        sale.cfop_code = data.get('cfop_code', '')
+        
+        try:
+            quantity = float(data.get('quantity', 1))
+            sale.quantity = quantity if quantity > 0 else 1
+        except ValueError:
+            sale.quantity = 1
+        
+        try:
+            unit_value = float(data.get('unit_value', amount))
+            sale.unit_value = unit_value if unit_value > 0 else amount
+        except ValueError:
+            sale.unit_value = amount
+        
+        sale.invoice_type = data.get('invoice_type', 'nfse')
+        sale.generate_invoice = data.get('generate_invoice') in ['true', 'True', '1', 'on', True]
+        
+        # Salvar o objeto
+        sale.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Venda criada com sucesso',
+            'sale_id': sale.id,
+            'redirect_url': reverse('payments:singlesale_list')
+        })
+    
+    except Exception as e:
+        # Log detalhado do erro
+        import traceback
+        print(f"Erro ao criar venda via API: {str(e)}")
+        print(traceback.format_exc())
+        
+        # Retornar erro
+        return JsonResponse({
+            'error': f'Erro interno: {str(e)}',
+            'details': traceback.format_exc()
+        }, status=500)

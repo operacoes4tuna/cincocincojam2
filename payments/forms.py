@@ -21,4 +21,12 @@ class SingleSaleForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Change the label for customer_cpf to include CNPJ
-        self.fields['customer_cpf'].label = _('CNPJ/CPF do Cliente') 
+        self.fields['customer_cpf'].label = _('CNPJ/CPF do Cliente')
+    
+    def clean_customer_cpf(self):
+        """Remove formatting characters from CPF/CNPJ"""
+        cpf = self.cleaned_data.get('customer_cpf')
+        if cpf:
+            # Remove dots, slashes, and hyphens
+            cpf = cpf.replace('.', '').replace('/', '').replace('-', '')
+        return cpf 

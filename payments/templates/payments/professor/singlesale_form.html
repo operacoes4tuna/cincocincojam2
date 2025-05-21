@@ -214,6 +214,17 @@ document.addEventListener('DOMContentLoaded', function() {
     const companySelect = document.getElementById('company-client-select');
     const individualSelect = document.getElementById('individual-client-select');
     
+    // Função global para limpar documentos (CPF/CNPJ)
+    function cleanDocumentValue(value) {
+        if (value) {
+            return value.replace(/[^\d]/g, ''); // Strip all non-digit characters
+        }
+        return value;
+    }
+    
+    // Gerar um ID único para cada sessão de envio
+    const sessionId = Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+    
     // Helper function to fill form fields
     function fillFormFields(selectedOption, isCompany) {
         // Define the highlight color
@@ -234,8 +245,8 @@ document.addEventListener('DOMContentLoaded', function() {
         setFieldValue('id_customer_name', selectedOption.getAttribute('data-name'));
         setFieldValue('id_customer_email', selectedOption.getAttribute('data-email'));
         setFieldValue('id_customer_cpf', isCompany ? 
-            selectedOption.getAttribute('data-cnpj') : 
-            selectedOption.getAttribute('data-cpf'));
+            cleanDocumentValue(selectedOption.getAttribute('data-cnpj')) : 
+            cleanDocumentValue(selectedOption.getAttribute('data-cpf')));
         setFieldValue('id_customer_address', selectedOption.getAttribute('data-address'));
         setFieldValue('id_customer_address_number', selectedOption.getAttribute('data-number'));
         setFieldValue('id_customer_address_complement', selectedOption.getAttribute('data-complement'));
@@ -293,6 +304,131 @@ document.addEventListener('DOMContentLoaded', function() {
                 fillFormFields(selectedOption, false);
             }
         });
+    }
+    
+    // Add form submission handler to clean CPF/CNPJ field
+    const form = document.querySelector('form');
+    if (form) {
+        console.log('Form encontrado, adicionando evento de submit');
+        
+        // Flag para controlar se o formulário já foi enviado
+        let isSubmitting = false;
+        
+        // Substituir o botão de envio original para evitar problemas de eventos duplicados
+        const originalSubmitBtn = form.querySelector('button[type="submit"]');
+        if (originalSubmitBtn) {
+            const newBtn = originalSubmitBtn.cloneNode(true);
+            originalSubmitBtn.parentNode.replaceChild(newBtn, originalSubmitBtn);
+            
+            // Adicionar evento de clique no novo botão (em vez de submit no formulário)
+            newBtn.addEventListener('click', function(e) {
+                // Impedir a propagação e comportamento padrão
+                e.preventDefault();
+                e.stopPropagation();
+                
+                // Verificar se já está em processo de envio
+                if (isSubmitting) {
+                    console.log('Formulário já está sendo enviado, ignorando clique duplicado');
+                    return false;
+                }
+                
+                // Marcar como em processo de envio IMEDIATAMENTE
+                isSubmitting = true;
+                
+                // Mostrar indicador de carregamento imediatamente para feedback visual
+                const submitBtn = newBtn;
+                const originalBtnText = submitBtn.innerHTML;
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Enviando...';
+                
+                try {
+                    console.log('Formulário sendo enviado via AJAX com ID de sessão: ' + sessionId);
+                    
+                    // Obter todos os dados do formulário
+                    const formData = new FormData(form);
+                    
+                    // Adicionar ID de sessão único para evitar processamento duplicado no backend
+                    formData.append('session_id', sessionId);
+                    
+                    // Get the CPF/CNPJ field and clean it
+                    const cpfField = document.getElementById('id_customer_cpf');
+                    if (cpfField && cpfField.value) {
+                        const originalValue = cpfField.value;
+                        const cleanedValue = cleanDocumentValue(cpfField.value);
+                        console.log(`CPF/CNPJ limpo: de [${originalValue}] para [${cleanedValue}]`);
+                        formData.set('customer_cpf', cleanedValue);
+                    } else {
+                        console.log('Campo CPF/CNPJ não encontrado ou vazio');
+                    }
+                    
+                    // Enviar dados via fetch para a API
+                    fetch('{% url "payments:create_singlesale_api" %}', {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                        }
+                    })
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        console.log('Resposta da API:', data);
+                        
+                        if (data.success) {
+                            // Mostrar mensagem de sucesso
+                            alert('Venda criada com sucesso!');
+                            
+                            // Redirecionar para a lista de vendas
+                            window.location.href = data.redirect_url;
+                        } else {
+                            // Mostrar erro
+                            alert('Erro: ' + (data.error || 'Erro desconhecido ao processar a venda.'));
+                            
+                            // Restaurar botão apenas em caso de erro
+                            submitBtn.disabled = false;
+                            submitBtn.innerHTML = originalBtnText;
+                            isSubmitting = false; // Resetar flag
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Erro ao enviar formulário:', error);
+                        
+                        // Restaurar botão
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = originalBtnText;
+                        isSubmitting = false; // Resetar flag
+                        
+                        // Mostrar erro
+                        alert('Erro ao processar: ' + error.message);
+                    });
+                    
+                } catch (error) {
+                    console.error('Erro no processamento do formulário:', error);
+                    
+                    // Restaurar botão
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalBtnText;
+                    isSubmitting = false; // Resetar flag
+                    
+                    alert('Erro inesperado: ' + error.message);
+                }
+                
+                // Impedir o envio tradicional do formulário
+                return false;
+            });
+            
+            // Remover o evento de submit padrão do formulário
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                return false;
+            });
+        } else {
+            console.warn('Botão de envio não encontrado!');
+        }
     }
 });
 </script>
