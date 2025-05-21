@@ -138,13 +138,22 @@
                                                             <a href="{{ invoice.focus_pdf_url }}" target="_blank" class="btn btn-sm btn-outline-primary" title="{% translate 'Visualizar PDF' %}">
                                                                 <i class="fas fa-file-pdf"></i>
                                                             </a>
+                                                        {% else %}
+                                                            <a href="{% url 'invoices:view_pdf' invoice_id=invoice.id %}" target="_blank" class="btn btn-sm btn-outline-primary" title="{% translate 'Visualizar PDF' %}">
+                                                                <i class="fas fa-file-pdf"></i>
+                                                            </a>
                                                         {% endif %}
+                                                        <a href="{% url 'invoices:invoice_detail' invoice_id=invoice.id %}" class="btn btn-sm btn-outline-info" title="{% translate 'Detalhes da NF' %}">
+                                                            <i class="fas fa-info-circle"></i>
+                                                        </a>
                                                     {% elif invoice.status == 'pending' or invoice.status == 'processing' %}
                                                         <span class="badge bg-warning ms-1 me-1">
                                                             <i class="fas fa-clock me-1"></i> NF Em processamento
                                                         </span>
-                                                        <button class="btn btn-sm btn-outline-secondary check-status-btn" data-invoice-id="{{ invoice.id }}" title="{% translate 'Sincronizar Status' %}">
-                                                            <i class="fas fa-sync"></i>
+                                                        <button class="btn btn-sm btn-outline-secondary sync-invoice-btn" 
+                                                                data-invoice-id="{{ invoice.id }}" 
+                                                                title="{% translate 'Sincronizar status' %}">
+                                                            <i class="fas fa-sync-alt"></i>
                                                         </button>
                                                     {% elif invoice.status == 'error' %}
                                                         <span class="badge bg-danger ms-1 me-1">
@@ -238,23 +247,43 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Function to check invoice status
     function checkInvoiceStatus(invoiceId) {
-        fetch(`/invoices/check/${invoiceId}/json/`)
+        // Mostrar indicador de carregamento
+        const button = document.querySelector(`[data-invoice-id="${invoiceId}"]`);
+        if (button) {
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            button.disabled = true;
+        }
+        
+        // Usar a URL com refresh=true para forçar a verificação na API
+        fetch(`/invoices/detail/${invoiceId}/json/?refresh=true`)
             .then(response => response.json())
             .then(data => {
-                if (data.success) {
+                if (!data.error) {
                     // Update the UI with the new status
-                    updateInvoiceStatusUI(invoiceId, data.status, data.message);
+                    updateInvoiceStatusUI(invoiceId, data.status, data.error_message);
                     
                     // Show a success message
                     showStatusMessage('success', 'Status da nota fiscal atualizado.');
                 } else {
                     // Show an error message
-                    showStatusMessage('danger', data.message || 'Erro ao verificar status da nota fiscal.');
+                    showStatusMessage('danger', data.error || 'Erro ao verificar status da nota fiscal.');
+                    
+                    // Restaurar o botão
+                    if (button) {
+                        button.innerHTML = '<i class="fas fa-sync"></i>';
+                        button.disabled = false;
+                    }
                 }
             })
             .catch(error => {
                 console.error('Error checking invoice status:', error);
                 showStatusMessage('danger', 'Erro ao verificar status da nota fiscal.');
+                
+                // Restaurar o botão
+                if (button) {
+                    button.innerHTML = '<i class="fas fa-sync"></i>';
+                    button.disabled = false;
+                }
             });
     }
     
@@ -267,14 +296,40 @@ document.addEventListener('DOMContentLoaded', function() {
         
         switch (status) {
             case 'approved':
-                statusHtml = `
-                    <span class="badge bg-success ms-1 me-1">
-                        <i class="fas fa-check-circle me-1"></i> NF Emitida
-                    </span>
-                    <a href="/invoices/pdf/${invoiceId}/" target="_blank" class="btn btn-sm btn-outline-primary" title="Visualizar PDF">
-                        <i class="fas fa-file-pdf"></i>
-                    </a>
-                `;
+                // Buscar detalhes atualizados da nota fiscal
+                fetch(`/invoices/detail/${invoiceId}/json/?refresh=true`)
+                    .then(response => response.json())
+                    .then(invoiceData => {
+                        console.log('Detalhes da nota fiscal:', invoiceData);
+                        
+                        let pdfUrl = invoiceData.focus_pdf_url || `/invoices/view_pdf/${invoiceId}/`;
+                        
+                        statusHtml = `
+                            <span class="badge bg-success ms-1 me-1">
+                                <i class="fas fa-check-circle me-1"></i> NF Emitida
+                            </span>
+                            <a href="${pdfUrl}" target="_blank" class="btn btn-sm btn-outline-primary" title="Visualizar PDF">
+                                <i class="fas fa-file-pdf"></i>
+                            </a>
+                            <a href="/invoices/detail/${invoiceId}/" class="btn btn-sm btn-outline-info" title="Detalhes da NF">
+                                <i class="fas fa-info-circle"></i>
+                            </a>
+                        `;
+                        
+                        updateStatusHTML(invoiceStatusElement, statusHtml);
+                    })
+                    .catch(error => {
+                        console.error('Erro ao obter detalhes da nota:', error);
+                        statusHtml = `
+                            <span class="badge bg-success ms-1 me-1">
+                                <i class="fas fa-check-circle me-1"></i> NF Emitida
+                            </span>
+                            <a href="/invoices/view_pdf/${invoiceId}/" target="_blank" class="btn btn-sm btn-outline-primary" title="Visualizar PDF">
+                                <i class="fas fa-file-pdf"></i>
+                            </a>
+                        `;
+                        updateStatusHTML(invoiceStatusElement, statusHtml);
+                    });
                 break;
             case 'processing':
             case 'pending':
@@ -286,6 +341,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <i class="fas fa-sync"></i>
                     </button>
                 `;
+                updateStatusHTML(invoiceStatusElement, statusHtml);
                 break;
             case 'error':
                 statusHtml = `
@@ -296,6 +352,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <i class="fas fa-sync"></i>
                     </button>
                 `;
+                updateStatusHTML(invoiceStatusElement, statusHtml);
                 break;
             default:
                 statusHtml = `
@@ -306,25 +363,29 @@ document.addEventListener('DOMContentLoaded', function() {
                         <i class="fas fa-sync"></i>
                     </button>
                 `;
+                updateStatusHTML(invoiceStatusElement, statusHtml);
         }
-        
+    }
+    
+    // Helper function to update the status HTML
+    function updateStatusHTML(element, statusHtml) {
         // Update the invoice status element
-        const viewButton = invoiceStatusElement.querySelector('a');
-        const updateButton = invoiceStatusElement.querySelector('a[href*="singlesale_update"]');
+        const viewButton = element.querySelector('a');
+        const updateButton = element.querySelector('a[href*="singlesale_update"]');
         
         let newContent = document.createElement('div');
         newContent.className = 'btn-group';
         newContent.innerHTML = viewButton.outerHTML + statusHtml + updateButton.outerHTML;
         
-        invoiceStatusElement.innerHTML = '';
-        invoiceStatusElement.appendChild(newContent);
+        element.innerHTML = '';
+        element.appendChild(newContent);
         
         // Add event listener to the new check status button
-        const newCheckButton = invoiceStatusElement.querySelector('.check-status-btn');
+        const newCheckButton = element.querySelector('.check-status-btn');
         if (newCheckButton) {
             newCheckButton.addEventListener('click', function(e) {
                 e.preventDefault();
-                checkInvoiceStatus(invoiceId);
+                checkInvoiceStatus(this.getAttribute('data-invoice-id'));
             });
         }
     }
@@ -349,6 +410,47 @@ document.addEventListener('DOMContentLoaded', function() {
         setTimeout(() => {
             messageDiv.remove();
         }, 5000);
+    }
+
+    // Listen for clicks on the sync invoice button
+    document.addEventListener('click', function(event) {
+        // Check if clicked element is a sync button or one of its children
+        const syncButton = event.target.closest('.sync-invoice-btn');
+        if (syncButton) {
+            event.preventDefault();
+            const invoiceId = syncButton.dataset.invoiceId;
+            
+            // Add loading state to button
+            syncButton.disabled = true;
+            syncButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            
+            // Call the sync API endpoint
+            syncInvoiceStatus(invoiceId, syncButton);
+        }
+    });
+    
+    // Function to sync invoice status
+    function syncInvoiceStatus(invoiceId, button) {
+        fetch(`/invoices/sync/${invoiceId}/`)
+            .then(response => response.json())
+            .then(data => {
+                button.disabled = false;
+                button.innerHTML = '<i class="fas fa-sync-alt"></i>';
+                
+                if (data.success) {
+                    // After successful sync, check the status to update UI
+                    checkInvoiceStatus(invoiceId);
+                    showStatusMessage('success', 'Status da nota fiscal sincronizado com sucesso.');
+                } else {
+                    showStatusMessage('danger', data.message || 'Erro ao sincronizar status da nota fiscal.');
+                }
+            })
+            .catch(error => {
+                console.error('Erro ao sincronizar:', error);
+                button.disabled = false;
+                button.innerHTML = '<i class="fas fa-sync-alt"></i>';
+                showStatusMessage('danger', 'Erro ao sincronizar status da nota fiscal. Tente novamente.');
+            });
     }
 });
 </script>

@@ -11,6 +11,8 @@ from .models import Invoice, CompanyConfig
 from datetime import datetime
 import uuid
 import time
+from django.db.models import F
+from django.db import transaction
 
 logger = logging.getLogger(__name__)
 
@@ -176,29 +178,53 @@ class NFEioService:
         """
         print(f"\nDEBUG - Iniciando emissão de nota fiscal ID: {invoice.id}")
         
-        # 1. Validar configuração do professor
-        professor = invoice.transaction.enrollment.course.professor
-        print(f"DEBUG - Professor: {professor.get_full_name()}")
-        
-        config_valid, config_message = self.validate_company_config(professor.company_config)
-        if not config_valid:
-            print(f"DEBUG - Erro na configuração: {config_message}")
-            invoice.status = 'error'
-            invoice.error_message = config_message
-            invoice.save()
-            return {"error": True, "message": config_message}
+        # Verificar se a invoice está vinculada a uma transaction ou singlesale
+        if invoice.transaction:
+            # 1. Validar configuração do professor
+            professor = invoice.transaction.enrollment.course.professor
+            print(f"DEBUG - Professor: {professor.get_full_name()}")
             
-        # 2. Validar dados do aluno
-        student = invoice.transaction.enrollment.student
-        print(f"DEBUG - Aluno: {student.get_full_name()}")
-        
-        student_valid, student_message = self.validate_student_data(student)
-        if not student_valid:
-            print(f"DEBUG - Erro nos dados do aluno: {student_message}")
+            config_valid, config_message = self.validate_company_config(professor.company_config)
+            if not config_valid:
+                print(f"DEBUG - Erro na configuração: {config_message}")
+                invoice.status = 'error'
+                invoice.error_message = config_message
+                invoice.save()
+                return {"error": True, "message": config_message}
+                
+            # 2. Validar dados do aluno
+            student = invoice.transaction.enrollment.student
+            print(f"DEBUG - Aluno: {student.get_full_name()}")
+            
+            student_valid, student_message = self.validate_student_data(student)
+            if not student_valid:
+                print(f"DEBUG - Erro nos dados do aluno: {student_message}")
+                invoice.status = 'error'
+                invoice.error_message = student_message
+                invoice.save()
+                return {"error": True, "message": student_message}
+        elif invoice.singlesale:
+            # 1. Validar configuração do professor para venda avulsa
+            professor = invoice.singlesale.seller
+            print(f"DEBUG - Professor (vendedor): {professor.get_full_name()}")
+            
+            config_valid, config_message = self.validate_company_config(professor.company_config)
+            if not config_valid:
+                print(f"DEBUG - Erro na configuração: {config_message}")
+                invoice.status = 'error'
+                invoice.error_message = config_message
+                invoice.save()
+                return {"error": True, "message": config_message}
+                
+            # 2. Para vendas avulsas, não há validação de student
+            print(f"DEBUG - Cliente: {invoice.singlesale.customer_name}")
+        else:
+            error_message = "A nota fiscal não está associada a uma transação ou venda avulsa"
+            print(f"DEBUG - Erro: {error_message}")
             invoice.status = 'error'
-            invoice.error_message = student_message
+            invoice.error_message = error_message
             invoice.save()
-            return {"error": True, "message": student_message}
+            return {"error": True, "message": error_message}
             
         # 3. Verificar conectividade
         if not self.check_connectivity():
@@ -256,57 +282,178 @@ class NFEioService:
         """
         print("\nDEBUG - Preparando dados da nota fiscal...")
         
-        transaction = invoice.transaction
-        student = transaction.enrollment.student
-        professor = transaction.enrollment.course.professor
-        company_config = professor.company_config
-        
-        print(f"DEBUG - Dados do professor:")
-        print(f"- Nome: {professor.get_full_name()}")
-        print(f"- CNPJ: {company_config.cnpj}")
-        print(f"- Código de serviço: {company_config.city_service_code}")
-        
-        # Limpar CPF e converter para número
-        cpf = getattr(student, 'cpf', '00000000000')
-        if cpf:
-            cpf = cpf.replace('.', '').replace('-', '')
-            print(f"DEBUG - CPF do aluno: {cpf}")
+        # Verificar se é uma invoice de transação ou venda avulsa
+        if invoice.transaction:
+            # PROCESSAMENTO PARA TRANSAÇÕES DE CURSO
+            transaction = invoice.transaction
+            student = transaction.enrollment.student
+            professor = transaction.enrollment.course.professor
+            company_config = professor.company_config
+            
+            print(f"DEBUG - Dados do professor:")
+            print(f"- Nome: {professor.get_full_name()}")
+            print(f"- CNPJ: {company_config.cnpj}")
+            print(f"- Código de serviço: {company_config.city_service_code}")
+            
+            # Limpar CPF e converter para número
+            cpf = getattr(student, 'cpf', '00000000000')
+            if cpf:
+                cpf = cpf.replace('.', '').replace('-', '')
+                print(f"DEBUG - CPF do aluno: {cpf}")
+            else:
+                cpf = '00000000000'
+                print("DEBUG - CPF não informado, usando padrão")
+                
+            # Determinar tipo de pessoa
+            borrower_type = "LegalEntity" if len(cpf) > 11 else "NaturalPerson"
+            print(f"DEBUG - Tipo de pessoa: {borrower_type}")
+            
+            # Descrição do serviço
+            service_description = f"Aula de {transaction.enrollment.course.title}"
+            if hasattr(transaction, 'customized_description') and transaction.customized_description:
+                service_description = transaction.customized_description
+            print(f"DEBUG - Descrição do serviço: {service_description}")
+                
+            # Formatar valor do serviço
+            services_amount = float(transaction.amount)
+            if services_amount <= 0:
+                services_amount = 0.01  # Valor mínimo para evitar erro
+                print("DEBUG - Valor do serviço ajustado para mínimo")
+            print(f"DEBUG - Valor do serviço: {services_amount}")
+                
+            # Formatar CEP
+            zipcode = getattr(student, 'zipcode', '00000000')
+            if zipcode:
+                zipcode = zipcode.replace('-', '')
+                print(f"DEBUG - CEP do aluno: {zipcode}")
+            else:
+                zipcode = '00000000'
+                print("DEBUG - CEP não informado, usando padrão")
+                
+            # Obter estado e cidade
+            state = getattr(student, 'state', 'SP') or 'SP'
+            city = getattr(student, 'city', 'São Paulo') or 'São Paulo'
+            print(f"DEBUG - Localização: {city}/{state}")
+            
+            # Dados do destinatário
+            borrower_name = f"{student.first_name} {student.last_name}".strip()
+            borrower_email = student.email
+            reference = f"TRANSACTION_{transaction.id}"
+            additional_information = f"Aula ministrada por {professor.get_full_name().strip() or professor.email}. Plataforma: 555JAM"
+            
+            # Preparar dados do endereço
+            address = {
+                "country": "BRA",
+                "state": state.upper(),
+                "city": {
+                    "code": self._get_city_code(state),
+                    "name": city
+                },
+                "district": getattr(student, 'neighborhood', 'Centro') or 'Centro',
+                "street": getattr(student, 'address_line', 'Endereço não informado') or 'Endereço não informado',
+                "number": getattr(student, 'address_number', 'S/N') or 'S/N',
+                "postalCode": zipcode,
+                "additionalInformation": getattr(student, 'address_complement', '') or ''
+            }
+            
+        elif invoice.singlesale:
+            # PROCESSAMENTO PARA VENDAS AVULSAS
+            sale = invoice.singlesale
+            professor = sale.seller
+            company_config = professor.company_config
+            
+            print(f"DEBUG - Dados do vendedor:")
+            print(f"- Nome: {professor.get_full_name()}")
+            print(f"- CNPJ: {company_config.cnpj}")
+            print(f"- Código de serviço: {company_config.city_service_code}")
+            
+            # Limpar CPF e converter para número
+            cpf = sale.customer_cpf or '00000000000'
+            if cpf:
+                cpf = cpf.replace('.', '').replace('-', '')
+                print(f"DEBUG - CPF do cliente: {cpf}")
+            else:
+                cpf = '00000000000'
+                print("DEBUG - CPF não informado, usando padrão")
+                
+            # Determinar tipo de pessoa
+            borrower_type = "LegalEntity" if len(cpf) > 11 else "NaturalPerson"
+            print(f"DEBUG - Tipo de pessoa: {borrower_type}")
+            
+            # Descrição do serviço
+            service_description = sale.description or "Venda avulsa"
+            print(f"DEBUG - Descrição do serviço: {service_description}")
+                
+            # Formatar valor do serviço
+            services_amount = float(sale.amount)
+            if services_amount <= 0:
+                services_amount = 0.01  # Valor mínimo para evitar erro
+                print("DEBUG - Valor do serviço ajustado para mínimo")
+            print(f"DEBUG - Valor do serviço: {services_amount}")
+            
+            # Dados para venda avulsa (usando padrões para endereço)
+            borrower_name = sale.customer_name
+            borrower_email = sale.customer_email
+            reference = f"SALE_{sale.id}"
+            additional_information = f"Venda realizada por {professor.get_full_name().strip() or professor.email}. Plataforma: 555JAM"
+            
+            # Endereço padrão para venda avulsa
+            address = {
+                "country": "BRA",
+                "state": "SP",
+                "city": {
+                    "code": "3550308",  # São Paulo
+                    "name": "São Paulo"
+                },
+                "district": "Centro",
+                "street": "Endereço não informado",
+                "number": "S/N",
+                "postalCode": "00000000",
+                "additionalInformation": ""
+            }
         else:
-            cpf = '00000000000'
-            print("DEBUG - CPF não informado, usando padrão")
-            
-        # Determinar tipo de pessoa
-        borrower_type = "LegalEntity" if len(cpf) > 11 else "NaturalPerson"
-        print(f"DEBUG - Tipo de pessoa: {borrower_type}")
+            raise ValueError("Invoice não está associada a uma transação ou venda avulsa")
+
+        # Formatação comum para ambos os tipos de invoice
+        # Formatar o código de serviço (remover pontos e garantir 4 dígitos)
+        service_code = company_config.city_service_code
+        if not service_code:
+            print("DEBUG - ERRO: Código de serviço não configurado!")
+            raise ValueError("Código de serviço não configurado para o professor")
         
-        # Descrição do serviço
-        service_description = f"Aula de {transaction.enrollment.course.title}"
-        if hasattr(transaction, 'customized_description') and transaction.customized_description:
-            service_description = transaction.customized_description
-        print(f"DEBUG - Descrição do serviço: {service_description}")
-            
-        # Formatar valor do serviço
-        services_amount = float(transaction.amount)
-        if services_amount <= 0:
-            services_amount = 0.01  # Valor mínimo para evitar erro
-            print("DEBUG - Valor do serviço ajustado para mínimo")
-        print(f"DEBUG - Valor do serviço: {services_amount}")
-            
-        # Formatar CEP
-        zipcode = getattr(student, 'zipcode', '00000000')
-        if zipcode:
-            zipcode = zipcode.replace('-', '')
-            print(f"DEBUG - CEP do aluno: {zipcode}")
-        else:
-            zipcode = '00000000'
-            print("DEBUG - CEP não informado, usando padrão")
-            
-        # Obter estado e cidade
-        state = getattr(student, 'state', 'SP') or 'SP'
-        city = getattr(student, 'city', 'São Paulo') or 'São Paulo'
-        print(f"DEBUG - Localização: {city}/{state}")
+        service_code = service_code.replace('.', '')
+        if len(service_code) < 4:
+            service_code = service_code.zfill(4)
+        print(f"DEBUG - Código de serviço formatado: {service_code}")
         
-        # Mapear código da cidade baseado no estado
+        # Montar payload final
+        payload = {
+            "borrower": {
+                "type": borrower_type,
+                "name": borrower_name,
+                "email": borrower_email,
+                "federalTaxNumber": int(cpf),  # Converter para número inteiro
+                "address": address
+            },
+            "cityServiceCode": service_code,  # Usar cityServiceCode em vez de serviceCode
+            "description": service_description,
+            "servicesAmount": str(services_amount),
+            "environment": "Production" if self.environment.lower() == "production" else "Testing",
+            "reference": reference,
+            "additionalInformation": additional_information,
+            "rpsSerialNumber": str(invoice.rps_serie),
+            "rpsNumber": str(invoice.rps_numero)
+        }
+        
+        print("\nDEBUG - Payload final:")
+        print(json.dumps(payload, indent=2, ensure_ascii=False))
+        
+        return payload
+        
+    def _get_city_code(self, state):
+        """
+        Retorna o código da cidade baseado no estado
+        """
         city_codes = {
             'SP': '3550308',  # São Paulo
             'RJ': '3304557',  # Rio de Janeiro
@@ -321,69 +468,7 @@ class NFEioService:
         }
         
         # Usar código da cidade do estado ou São Paulo como fallback
-        city_code = city_codes.get(state.upper(), '3550308')
-        print(f"DEBUG - Código da cidade: {city_code}")
-        
-        # Formatar o código de serviço (remover pontos e garantir 4 dígitos)
-        service_code = company_config.city_service_code
-        if not service_code:
-            print("DEBUG - ERRO: Código de serviço não configurado!")
-            raise ValueError("Código de serviço não configurado para o professor")
-        
-        service_code = service_code.replace('.', '')
-        if len(service_code) < 4:
-            service_code = service_code.zfill(4)
-        print(f"DEBUG - Código de serviço formatado: {service_code}")
-            
-        # Preparar dados do endereço
-        address = {
-            "country": "BRA",
-            "state": state.upper(),
-            "city": {
-                "code": city_code,
-                "name": city
-            },
-            "district": getattr(student, 'neighborhood', 'Centro') or 'Centro',
-            "street": getattr(student, 'address_line', 'Endereço não informado') or 'Endereço não informado',
-            "number": getattr(student, 'address_number', 'S/N') or 'S/N',
-            "postalCode": zipcode,
-            "additionalInformation": getattr(student, 'address_complement', '') or ''
-        }
-        print("DEBUG - Endereço formatado:")
-        print(json.dumps(address, indent=2, ensure_ascii=False))
-            
-        # Preparar dados para informações adicionais
-        professor_name = professor.get_full_name().strip()
-        if not professor_name:  # Verificar se o nome está vazio
-            # Fallback para o nome de usuário ou email se o nome completo não estiver disponível
-            professor_name = professor.username if hasattr(professor, 'username') else professor.email
-            
-        # Log para debug
-        print(f"DEBUG - Nome do professor para additionalInformation: {professor_name}")
-            
-        # Montar payload final
-        payload = {
-            "borrower": {
-                "type": borrower_type,
-                "name": f"{student.first_name} {student.last_name}".strip(),
-                "email": student.email,
-                "federalTaxNumber": int(cpf),  # Converter para número inteiro
-                "address": address
-            },
-            "cityServiceCode": service_code,  # Usar cityServiceCode em vez de serviceCode
-            "description": service_description,
-            "servicesAmount": str(services_amount),
-            "environment": "Production" if self.environment.lower() == "production" else "Testing",
-            "reference": f"TRANSACTION_{transaction.id}",
-            "additionalInformation": f"Aula ministrada por {professor_name}. Plataforma: 555JAM",
-            "rpsSerialNumber": str(invoice.rps_serie),
-            "rpsNumber": str(invoice.rps_numero)
-        }
-        
-        print("\nDEBUG - Payload final:")
-        print(json.dumps(payload, indent=2, ensure_ascii=False))
-        
-        return payload
+        return city_codes.get(state.upper(), '3550308')
 
     def _update_invoice_with_response(self, invoice, response):
         """
@@ -629,40 +714,51 @@ class NFEioService:
 
     def _generate_rps_for_invoice(self, invoice, professor):
         """
-        Gera um número de RPS para a nota fiscal e atualiza o contador no CompanyConfig.
-        
-        Args:
-            invoice: Objeto Invoice do Django
-            professor: Objeto User (professor) associado à nota fiscal
+        Gera número de RPS para a invoice
         """
-        print(f"DEBUG - Gerando número RPS para invoice {invoice.id}")
+        print(f"\nDEBUG - Gerando número RPS para invoice {invoice.id}...")
         
-        # Obter a configuração da empresa do professor
+        # Verificar se já existe RPS
+        if invoice.rps_numero and invoice.rps_serie:
+            print(f"DEBUG - Invoice já possui RPS: Série {invoice.rps_serie}, Número {invoice.rps_numero}")
+            return
+        
         try:
-            company_config = CompanyConfig.objects.get(user=professor)
+            # Obter configuração do professor
+            company_config = professor.company_config
             
-            # Atribuir valores de RPS à nota fiscal
-            invoice.rps_serie = company_config.rps_serie
-            invoice.rps_numero = company_config.rps_numero_atual
+            # Definir série RPS
+            rps_serie = company_config.rps_serie
+            
+            # Obter próximo número RPS
+            with transaction.atomic():
+                # Recarregar com lock de tabela para evitar condição de corrida
+                company_config = CompanyConfig.objects.select_for_update().get(id=company_config.id)
+                
+                # Obter próximo número
+                rps_numero = company_config.rps_numero_atual
+                
+                # Incrementar número para próxima nota
+                company_config.rps_numero_atual = F('rps_numero_atual') + 1
+                company_config.save()
+                
+                # Recarregar para confirmar novos valores
+                company_config.refresh_from_db()
+                
+                print(f"DEBUG - Número RPS atualizado: {rps_numero} -> {company_config.rps_numero_atual}")
+            
+            # Atualizar invoice com RPS
+            invoice.rps_serie = rps_serie
+            invoice.rps_numero = rps_numero
             invoice.rps_lote = company_config.rps_lote
             invoice.save()
             
-            # Incrementar o contador de RPS na configuração da empresa
-            company_config.rps_numero_atual += 1
-            company_config.save()
+            print(f"DEBUG - RPS gerado com sucesso: Série {rps_serie}, Número {rps_numero}, Lote {company_config.rps_lote}")
             
-            print(f"DEBUG - RPS gerado: Série {invoice.rps_serie}, Número {invoice.rps_numero}")
-            print(f"DEBUG - Próximo número RPS será: {company_config.rps_numero_atual}")
-            
-        except CompanyConfig.DoesNotExist:
-            print(f"DEBUG - ERRO: Configuração da empresa não encontrada para o professor {professor.id}")
-            # Usar valores padrão para evitar falha na emissão
-            invoice.rps_serie = '1'
-            invoice.rps_numero = 1
-            invoice.rps_lote = 1
-            invoice.save()
-            print(f"DEBUG - RPS padrão gerado: Série 1, Número 1")
-    
+        except Exception as e:
+            print(f"DEBUG - Erro ao gerar RPS: {str(e)}")
+            raise e
+
     def cancel_invoice(self, invoice, cancel_reason):
         """
         Cancela uma nota fiscal emitida.

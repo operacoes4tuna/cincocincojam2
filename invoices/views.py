@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.http import JsonResponse, HttpResponseRedirect
+from django.http import JsonResponse, HttpResponseRedirect, Http404
 from django.conf import settings
 from django.utils import timezone
 from django.urls import reverse
@@ -494,19 +494,41 @@ def view_pdf(request, invoice_id):
         invoice = get_object_or_404(Invoice, id=invoice_id)
         
         # Verificar permissão
-        if not (request.user == invoice.transaction.enrollment.course.professor or 
-                request.user == invoice.transaction.enrollment.student or
-                request.user.is_superuser):
-            messages.error(request, _('Você não tem permissão para visualizar esta nota fiscal.'))
-            return redirect('payments:transactions')
+        if invoice.transaction:
+            # Para transações de cursos
+            if not (request.user == invoice.transaction.enrollment.course.professor or 
+                    request.user == invoice.transaction.enrollment.student or
+                    request.user.is_superuser):
+                messages.error(request, _('Você não tem permissão para visualizar esta nota fiscal.'))
+                return redirect('payments:transactions')
+            # Professor da transação
+            professor = invoice.transaction.enrollment.course.professor
+        elif invoice.singlesale:
+            # Para vendas avulsas
+            if not (request.user == invoice.singlesale.seller or
+                    request.user.is_superuser):
+                messages.error(request, _('Você não tem permissão para visualizar esta nota fiscal.'))
+                return redirect('payments:singlesale_list')
+            # Vendedor da venda avulsa
+            professor = invoice.singlesale.seller
+        else:
+            messages.error(request, _('Nota fiscal inválida.'))
+            return redirect('dashboard')
         
         # Verificar se o campo external_id está preenchido
         if not invoice.external_id:
             messages.error(request, _('Não foi possível gerar o PDF. A nota fiscal ainda não possui um ID externo.'))
-            return redirect('payments:transactions')
+            if invoice.transaction:
+                return redirect('payments:transactions')
+            else:
+                return redirect('payments:singlesale_list')
         
+        # Se tiver a URL do PDF diretamente, usar ela
+        if invoice.focus_pdf_url:
+            return HttpResponseRedirect(invoice.focus_pdf_url)
+            
         # Obter a configuração da empresa
-        company_config = get_object_or_404(CompanyConfig, user=invoice.transaction.enrollment.course.professor)
+        company_config = get_object_or_404(CompanyConfig, user=professor)
         
         # Construir a URL para o PDF usando o endpoint da API
         service = NFEioService()
@@ -518,7 +540,7 @@ def view_pdf(request, invoice_id):
     except Exception as e:
         logger.error(f"Erro ao obter PDF da nota fiscal {invoice_id}: {str(e)}")
         messages.error(request, _('Erro ao obter o PDF da nota fiscal.'))
-        return redirect('payments:transactions')
+        return redirect('dashboard')
 
 @login_required
 def download_pdf(request, invoice_id):
@@ -535,14 +557,26 @@ def download_pdf(request, invoice_id):
         invoice = get_object_or_404(Invoice, external_id=invoice_id)
         
         # Verificar permissão
-        if not (request.user == invoice.transaction.enrollment.course.professor or 
-                request.user == invoice.transaction.enrollment.student or
-                request.user.is_superuser):
-            messages.error(request, _('Você não tem permissão para visualizar esta nota fiscal.'))
-            return redirect('payments:transactions')
-        
-        # Obter a configuração da empresa
-        company_config = get_object_or_404(CompanyConfig, user=invoice.transaction.enrollment.course.professor)
+        if invoice.transaction:
+            # Para transações de cursos
+            if not (request.user == invoice.transaction.enrollment.course.professor or 
+                    request.user == invoice.transaction.enrollment.student or
+                    request.user.is_superuser):
+                messages.error(request, _('Você não tem permissão para visualizar esta nota fiscal.'))
+                return redirect('payments:transactions')
+            # Professor da transação
+            professor = invoice.transaction.enrollment.course.professor
+        elif invoice.singlesale:
+            # Para vendas avulsas
+            if not (request.user == invoice.singlesale.seller or
+                    request.user.is_superuser):
+                messages.error(request, _('Você não tem permissão para visualizar esta nota fiscal.'))
+                return redirect('payments:singlesale_list')
+            # Vendedor da venda avulsa
+            professor = invoice.singlesale.seller
+        else:
+            messages.error(request, _('Nota fiscal inválida.'))
+            return redirect('dashboard')
         
         # Inicializar o serviço
         service = NFEioService()
@@ -558,7 +592,7 @@ def download_pdf(request, invoice_id):
         if response.status_code != 200:
             logger.error(f"Erro ao obter PDF da API: {response.status_code} {response.text}")
             messages.error(request, _('Erro ao obter o PDF da nota fiscal. Código de erro: {}').format(response.status_code))
-            return redirect('payments:transactions')
+            return redirect('dashboard')
         
         # Retornar o conteúdo do PDF com os cabeçalhos adequados
         from django.http import HttpResponse
@@ -569,7 +603,7 @@ def download_pdf(request, invoice_id):
     except Exception as e:
         logger.error(f"Erro ao fazer download do PDF: {str(e)}")
         messages.error(request, _('Erro ao obter o PDF da nota fiscal.'))
-        return redirect('payments:transactions')
+        return redirect('dashboard')
 
 @login_required
 @professor_required
@@ -664,13 +698,24 @@ def retry_waiting_invoices(request):
 def sync_invoice_status(request, invoice_id):
     """
     Sincroniza o status da nota fiscal com a API NFE.io.
+    Funciona tanto para notas fiscais de transações quanto de vendas avulsas.
     """
     try:
-        invoice = get_object_or_404(Invoice, id=invoice_id, transaction__enrollment__course__professor=request.user)
-        
-        # Verificar se a nota está com status de erro
-        if invoice.status != 'error':
-            return JsonResponse({'success': False, 'message': _('A nota fiscal não está em estado de erro.')})
+        # Tentar obter a invoice de duas formas: transação ou venda avulsa
+        try:
+            # Primeiro tenta encontrar via transação
+            invoice = get_object_or_404(
+                Invoice, 
+                id=invoice_id, 
+                transaction__enrollment__course__professor=request.user
+            )
+        except (Invoice.DoesNotExist, Http404):
+            # Se não encontrou, tenta via venda avulsa
+            invoice = get_object_or_404(
+                Invoice, 
+                id=invoice_id, 
+                singlesale__seller=request.user
+            )
         
         # Inicializar o serviço NFE.io
         service = NFEioService()
@@ -791,3 +836,77 @@ def emit_singlesale_invoice(request, sale_id):
     
     logger.info(f"Concluindo processo de emissão para venda avulsa {sale_id}")
     return redirect('payments:singlesale_list')
+
+@login_required
+def invoice_detail_json(request, invoice_id):
+    """
+    Retorna os detalhes de uma nota fiscal em formato JSON.
+    Acessível tanto para professores quanto para administradores.
+    """
+    try:
+        # Verificar se o usuário é admin ou professor
+        is_admin = hasattr(request.user, 'is_admin') and request.user.is_admin
+        is_professor = hasattr(request.user, 'is_professor') and request.user.is_professor
+        
+        if not (is_admin or is_professor):
+            return JsonResponse({'error': 'Acesso negado'}, status=403)
+        
+        # Filtrar pela nota fiscal
+        if is_admin:
+            # Administradores podem ver qualquer nota fiscal
+            invoice = get_object_or_404(Invoice, id=invoice_id)
+        else:
+            # Professores podem ver apenas suas próprias notas fiscais
+            try:
+                # Tentar obter via transação
+                invoice = get_object_or_404(
+                    Invoice,
+                    id=invoice_id,
+                    transaction__enrollment__course__professor=request.user
+                )
+            except (Invoice.DoesNotExist, Http404):
+                # Se não encontrou, tentar via venda avulsa
+                invoice = get_object_or_404(
+                    Invoice,
+                    id=invoice_id,
+                    singlesale__seller=request.user
+                )
+        
+        # Retornar dados básicos da nota fiscal
+        data = {
+            'id': invoice.id,
+            'status': invoice.status,
+            'external_id': invoice.external_id,
+            'focus_status': invoice.focus_status,
+            'focus_pdf_url': invoice.focus_pdf_url,
+            'focus_xml_url': invoice.focus_xml_url,
+            'created_at': invoice.created_at.isoformat() if invoice.created_at else None,
+            'emitted_at': invoice.emitted_at.isoformat() if invoice.emitted_at else None,
+            'customer_name': invoice.customer_name,
+            'amount': str(invoice.amount) if invoice.amount else None,
+            'description': invoice.description,
+            'error_message': invoice.error_message
+        }
+        
+        # Verificar o status novamente na API se necessário
+        if 'refresh' in request.GET and request.GET['refresh'] == 'true':
+            try:
+                service = NFEioService()
+                status_result = service.check_invoice_status(invoice)
+                data['refresh_status'] = status_result
+                
+                # Atualizar os dados com os valores mais recentes
+                data['status'] = invoice.status
+                data['focus_status'] = invoice.focus_status
+                data['focus_pdf_url'] = invoice.focus_pdf_url
+                data['focus_xml_url'] = invoice.focus_xml_url
+                data['error_message'] = invoice.error_message
+            except Exception as e:
+                data['refresh_error'] = str(e)
+        
+        return JsonResponse(data)
+        
+    except Exception as e:
+        logger.error(f"Erro ao retornar detalhes da nota fiscal em JSON: {str(e)}")
+        logger.error(traceback.format_exc())
+        return JsonResponse({'error': str(e)}, status=500)

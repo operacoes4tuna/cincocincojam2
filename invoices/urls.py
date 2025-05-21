@@ -15,24 +15,17 @@ urlpatterns = [
     path('check-status/<int:invoice_id>/json/', views.check_invoice_status, {'format': 'json'}, name='check_status_json'),
     path('cancel/<int:invoice_id>/', views.cancel_invoice, name='cancel'),
     path('delete/<int:invoice_id>/', views.delete_invoice, name='delete'),
-    path('transaction/<int:transaction_id>/status/', views.transaction_invoice_status, name='transaction_invoice_status'),
-    
-    # URL para visualização de detalhes da nota fiscal
-    path('detail/<int:invoice_id>/', views.invoice_detail, name='invoice_detail'),
-    
-    # URLs para visualizar o PDF da nota fiscal
-    path('pdf/<int:invoice_id>/', views.view_pdf, name='view_pdf'),
-    path('download-pdf/<str:invoice_id>/', views.download_pdf, name='download_pdf'),
-    
-    # URL para teste de aprovação manual (apenas para ambiente de desenvolvimento)
-    path('approve-manually/<int:invoice_id>/', views.approve_invoice_manually, name='approve_manually'),
-    
-    # URLs para o modo de teste
+    path('transaction/<int:transaction_id>/status/', views.transaction_invoice_status, name='transaction_status'),
+    path('sync/<int:invoice_id>/', views.sync_invoice_status, name='sync_status'),
+    path('retry-waiting/', views.retry_waiting_invoices, name='retry_waiting'),
     path('test-mode/', views.test_mode, name='test_mode'),
     
-    # Ações em lote
-    path('retry-waiting/', views.retry_waiting_invoices, name='retry_waiting_invoices'),
+    # URLs para visualização de notas fiscais
+    path('detail/<int:invoice_id>/', views.invoice_detail, name='invoice_detail'),
+    path('detail/<int:invoice_id>/json/', views.invoice_detail_json, name='invoice_detail_json'),
+    path('view_pdf/<int:invoice_id>/', views.view_pdf, name='view_pdf'),
+    path('pdf/<str:invoice_id>/', views.download_pdf, name='download_pdf'),
     
-    # URL para sincronizar o status da nota fiscal
-    path('sync-invoice-status/<int:invoice_id>/', views.sync_invoice_status, name='sync_invoice_status'),
+    # URLs administrativas
+    path('admin/approve/<int:invoice_id>/', views.approve_invoice_manually, name='admin_approve'),
 ]
