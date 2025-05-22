@@ -206,9 +206,9 @@ class StudentDashboardView(LoginRequiredMixin, StudentRequiredMixin, ListView):
         return context
 
 
-class CourseListView(LoginRequiredMixin, ListView):
+class CourseListView(LoginRequiredMixin, StudentRequiredMixin, ListView):
     """
-    Lista todos os cursos publicados disponíveis para visualização por alunos e professores.
+    Exibe o catálogo de cursos disponíveis para o aluno.
     """
     model = Course
     template_name = 'courses/student/course_list.html'
@@ -309,9 +309,43 @@ class CourseDetailView(LoginRequiredMixin, DetailView):
         context['is_professor'] = self.request.user.is_professor
         context['is_admin'] = self.request.user.is_admin
 
-        # Para alunos, verifica matrícula ATIVA
+        # Para alunos, verifica matrícula ATIVA e acesso via turma
         if self.request.user.is_authenticated and self.request.user.is_student:
-            # Verificar se existe alguma matrícula (independente do status) para mostrar status correto
+            # Verificar se tem acesso via turma
+            has_class_group_access = ClassGroup.objects.filter(
+                students=self.request.user,
+                courses=course
+            ).exists()
+            
+            if has_class_group_access:
+                is_enrolled = True
+                context['has_class_group_access'] = True
+                context['class_groups'] = ClassGroup.objects.filter(
+                    students=self.request.user,
+                    courses=course
+                )
+                
+                # Buscamos ou criamos uma matrícula para análise de progresso
+                class_group = ClassGroup.objects.filter(
+                    students=self.request.user,
+                    courses=course
+                ).first()
+                
+                enrollment, created = Enrollment.objects.get_or_create(
+                    student=self.request.user,
+                    course=course,
+                    defaults={
+                        'status': Enrollment.Status.ACTIVE,
+                        'class_group': class_group
+                    }
+                )
+                
+                # Se a matrícula existia mas não estava ativa, ativamos
+                if not created and enrollment.status != Enrollment.Status.ACTIVE:
+                    enrollment.status = Enrollment.Status.ACTIVE
+                    enrollment.save()
+                
+            # Verificar também se existe alguma matrícula direta
             try:
                 any_enrollment = Enrollment.objects.get(
                     student=self.request.user,
@@ -325,22 +359,23 @@ class CourseDetailView(LoginRequiredMixin, DetailView):
                 if any_enrollment.status == Enrollment.Status.ACTIVE:
                     is_enrolled = True
                     enrollment = any_enrollment
-                    
-                    # Se o aluno está matriculado ativamente, adiciona informações sobre progresso
-                    context['enrollment'] = enrollment
-                    context['progress_width'] = f"{enrollment.progress}%"
-                    
-                    # Busca as aulas que o aluno já completou
-                    completed_lessons = LessonProgress.objects.filter(
-                        enrollment=enrollment,
-                        is_completed=True
-                    ).values_list('lesson_id', flat=True)
-                    
-                    context['completed_lessons'] = completed_lessons
             except Enrollment.DoesNotExist:
-                context['enrollment_exists'] = False
+                if not has_class_group_access:
+                    context['enrollment_exists'] = False
+            
+            # Se o aluno está matriculado ou tem acesso via turma
+            if is_enrolled and enrollment:
+                # Adiciona informações sobre progresso
+                context['enrollment'] = enrollment
+                context['progress_width'] = f"{enrollment.progress}%"
                 
-        # Para professores, verifica se é autor do curso
+                # Busca as aulas que o aluno já completou
+                completed_lessons = LessonProgress.objects.filter(
+                    enrollment=enrollment,
+                    is_completed=True
+                ).values_list('lesson_id', flat=True)
+                
+                context['completed_lessons'] = completed_lessons
         elif self.request.user.is_authenticated and self.request.user.is_professor:
             is_course_author = (course.professor == self.request.user)
             context['is_course_author'] = is_course_author
@@ -391,37 +426,49 @@ class CourseEnrollView(LoginRequiredMixin, View):
     def process_enrollment(self, request, *args, **kwargs):
         # Log para depuração
         print(f"\n[DEBUG] process_enrollment iniciado para: {request.user.email}")
-        print(f"[DEBUG] Tipo de usuário: {request.user.user_type}, is_student: {request.user.is_student}")
-        print(f"[DEBUG] Curso ID: {kwargs.get('pk')}")
+
+        # Obtém o curso
+        course = get_object_or_404(Course, pk=kwargs['pk'], status=Course.Status.PUBLISHED)
+        print(f"[DEBUG] Curso: {course.id} - {course.title}")
+
+        # Verifica se é um curso pago
+        is_paid_course = hasattr(course, 'payment_details') and course.payment_details.price > 0
+        print(f"[DEBUG] Curso pago? {is_paid_course}")
+
+        # Verifica se o curso está restrito a turmas
+        is_class_restricted = hasattr(course, 'is_class_restricted') and course.is_class_restricted
+        print(f"[DEBUG] Curso restrito a turmas? {is_class_restricted}")
+
+        # Verifica se foi especificada uma turma
+        class_group_id = request.GET.get('class_group_id')
+        class_group = None
         
-        # Usamos kwargs que foram passados para o método, não self.kwargs
-        course = get_object_or_404(
-            Course,
-            pk=kwargs.get('pk'),
-            status=Course.Status.PUBLISHED
-        )
-        
-        # Salva o ID do curso para uso no get_success_url
-        self.course_id = course.id
-        
-        # Verifica se o usuário é um aluno
-        if not request.user.is_student:
-            messages.error(request, 'Apenas alunos podem se matricular em cursos.')
-            print(f"[DEBUG] ERRO: Usuário não é um aluno")
-            return redirect('courses:student:course_detail', pk=course.id)
-        
-        # Verifica se o curso é pago (tem preço maior que zero)
-        is_paid_course = course.price and course.price > 0
-        print(f"[DEBUG] Curso é pago: {is_paid_course}, Preço: {course.price}")
-        
+        if class_group_id:
+            try:
+                class_group = ClassGroup.objects.get(id=class_group_id, students=request.user)
+                print(f"[DEBUG] Turma especificada: {class_group.id} - {class_group.name}")
+            except ClassGroup.DoesNotExist:
+                messages.error(request, 'A turma especificada não existe ou você não tem acesso a ela.')
+                return redirect('courses:student:dashboard')
+                
         # Verifica se o aluno já está matriculado
         try:
             print(f"[DEBUG] Tentando matricular {self.request.user.email} no curso {course.id} - {course.title}")
-            enrollment, created = Enrollment.objects.get_or_create(
-                student=self.request.user,
-                course=course,
-                defaults={'status': Enrollment.Status.PENDING if is_paid_course else Enrollment.Status.ACTIVE}
-            )
+            
+            # Se temos uma turma, vincular a matrícula a ela
+            if class_group:
+                enrollment, created = Enrollment.objects.get_or_create(
+                    student=self.request.user,
+                    course=course,
+                    class_group=class_group,
+                    defaults={'status': Enrollment.Status.PENDING if is_paid_course else Enrollment.Status.ACTIVE}
+                )
+            else:
+                enrollment, created = Enrollment.objects.get_or_create(
+                    student=self.request.user,
+                    course=course,
+                    defaults={'status': Enrollment.Status.PENDING if is_paid_course else Enrollment.Status.ACTIVE}
+                )
             
             print(f"[DEBUG] Matrícula criada: {created}, Status: {enrollment.status}")
             
@@ -515,33 +562,65 @@ class CourseLearnView(LoginRequiredMixin, DetailView):
         
         # Se não for professor/autor, verifica se está matriculado e com status ACTIVE
         if not (is_professor and is_course_author):
-            try:
-                enrollment = Enrollment.objects.get(
+            # Primeiro verificamos se o usuário tem acesso via turma
+            has_class_group_access = ClassGroup.objects.filter(
+                students=request.user,
+                courses=course
+            ).exists()
+            
+            # Se tem acesso via turma, criamos ou atualizamos a matrícula automaticamente
+            if has_class_group_access:
+                class_group = ClassGroup.objects.filter(
+                    students=request.user,
+                    courses=course
+                ).first()
+                
+                # Verifica se já existe matrícula ou cria uma nova
+                enrollment, created = Enrollment.objects.get_or_create(
                     student=request.user,
-                    course=course
+                    course=course,
+                    defaults={
+                        'status': Enrollment.Status.ACTIVE,
+                        'class_group': class_group
+                    }
                 )
                 
-                print(f"[DEBUG] Status da matrícula: {enrollment.status}")
-                
-                # Verificar se a matrícula está ativa
-                if enrollment.status != Enrollment.Status.ACTIVE:
-                    if enrollment.status == Enrollment.Status.PENDING:
-                        messages.warning(request, 'Sua matrícula está pendente de pagamento. Por favor, conclua o pagamento para acessar o curso.')
-                        print(f"[DEBUG] Matrícula pendente, redirecionando para o detalhe do curso")
-                        return redirect('payments:payment_options', course_id=course.id)
-                    elif enrollment.status == Enrollment.Status.CANCELLED:
-                        messages.error(request, 'Sua matrícula neste curso foi cancelada.')
-                        print(f"[DEBUG] Matrícula cancelada, redirecionando para o detalhe do curso")
-                        return redirect('courses:student:course_detail', pk=course.id)
-                    else:
-                        messages.error(request, 'Sua matrícula neste curso não está ativa.')
-                        print(f"[DEBUG] Matrícula não está ativa, redirecionando para o detalhe do curso")
-                        return redirect('courses:student:course_detail', pk=course.id)
-                
-            except Enrollment.DoesNotExist:
-                messages.error(request, 'Você não está matriculado neste curso.')
-                print(f"[DEBUG] Usuário não está matriculado, redirecionando para o detalhe do curso")
-                return redirect('courses:student:course_detail', pk=course.id)
+                # Se a matrícula existia mas estava cancelada ou pendente, ativa
+                if not created and enrollment.status != Enrollment.Status.ACTIVE:
+                    enrollment.status = Enrollment.Status.ACTIVE
+                    enrollment.save()
+                    
+                # Segue para a visualização do curso
+                pass
+            else:
+                # Se não tem acesso via turma, verificamos matrícula normal
+                try:
+                    enrollment = Enrollment.objects.get(
+                        student=request.user,
+                        course=course
+                    )
+                    
+                    print(f"[DEBUG] Status da matrícula: {enrollment.status}")
+                    
+                    # Verificar se a matrícula está ativa
+                    if enrollment.status != Enrollment.Status.ACTIVE:
+                        if enrollment.status == Enrollment.Status.PENDING:
+                            messages.warning(request, 'Sua matrícula está pendente de pagamento. Por favor, conclua o pagamento para acessar o curso.')
+                            print(f"[DEBUG] Matrícula pendente, redirecionando para o detalhe do curso")
+                            return redirect('payments:payment_options', course_id=course.id)
+                        elif enrollment.status == Enrollment.Status.CANCELLED:
+                            messages.error(request, 'Sua matrícula neste curso foi cancelada.')
+                            print(f"[DEBUG] Matrícula cancelada, redirecionando para o detalhe do curso")
+                            return redirect('courses:student:course_detail', pk=course.id)
+                        else:
+                            messages.error(request, 'Sua matrícula neste curso não está ativa.')
+                            print(f"[DEBUG] Matrícula não está ativa, redirecionando para o detalhe do curso")
+                            return redirect('courses:student:course_detail', pk=course.id)
+                    
+                except Enrollment.DoesNotExist:
+                    messages.error(request, 'Você não está matriculado neste curso nem tem acesso via turma.')
+                    print(f"[DEBUG] Usuário não está matriculado, redirecionando para o detalhe do curso")
+                    return redirect('courses:student:course_detail', pk=course.id)
         
         return super().dispatch(request, *args, **kwargs)
     
@@ -739,3 +818,65 @@ class EnrollmentCancelView(LoginRequiredMixin, EnrollmentRequiredMixin, View):
         messages.success(request, 'Sua matrícula foi cancelada.')
         
         return HttpResponseRedirect(reverse('courses:student:dashboard'))
+
+
+# Class Group Views
+
+class ClassGroupDetailView(LoginRequiredMixin, StudentRequiredMixin, DetailView):
+    """
+    Exibe os detalhes de uma turma para o aluno, incluindo cursos disponíveis.
+    """
+    model = ClassGroup
+    template_name = 'courses/student/class_group_detail.html'
+    context_object_name = 'class_group'
+    
+    def get_queryset(self):
+        # Filtra apenas turmas em que o aluno está matriculado
+        return ClassGroup.objects.filter(students=self.request.user)
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        
+        # Adiciona a lista de alunos da turma
+        context['students'] = self.object.students.all().order_by('first_name', 'last_name')
+        
+        # Obtém todas as matrículas existentes do usuário para estes cursos
+        user_enrollments = Enrollment.objects.filter(
+            student=self.request.user,
+            course__in=self.object.courses.all()
+        )
+        
+        # Cria um dicionário de matrículas indexado pelo ID do curso
+        enrollment_dict = {}
+        for enrollment in user_enrollments:
+            enrollment_dict[enrollment.course.id] = enrollment
+        
+        # Para cada curso que não tem matrícula, cria uma automaticamente
+        for course in self.object.courses.all():
+            if course.id not in enrollment_dict:
+                # Cria matrícula automaticamente
+                enrollment = Enrollment.objects.create(
+                    student=self.request.user,
+                    course=course,
+                    class_group=self.object,
+                    status=Enrollment.Status.ACTIVE
+                )
+                
+                # Cria registros de progresso para todas as aulas
+                lessons = Lesson.objects.filter(
+                    course=course,
+                    status=Lesson.Status.PUBLISHED
+                )
+                
+                for lesson in lessons:
+                    LessonProgress.objects.get_or_create(
+                        enrollment=enrollment,
+                        lesson=lesson
+                    )
+                
+                # Adiciona a nova matrícula ao dicionário
+                enrollment_dict[course.id] = enrollment
+        
+        context['user_enrollments'] = enrollment_dict
+        
+        return context

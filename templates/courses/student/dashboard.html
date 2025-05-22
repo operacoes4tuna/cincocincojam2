@@ -6,9 +6,14 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2>Dashboard do Aluno</h2>
     <div>
-        <a href="{% url 'courses:student:course_list' %}" class="btn btn-primary">
+        <a href="{% url 'courses:student:course_list' %}" class="btn btn-outline-primary me-2">
             <i class="fas fa-search"></i> Explorar Cursos
         </a>
+        {% if class_groups %}
+        <a href="#my-classes" class="btn btn-primary">
+            <i class="fas fa-users"></i> Minhas Turmas
+        </a>
+        {% endif %}
     </div>
 </div>
 
@@ -81,14 +86,13 @@
     <div class="col-md-4">
         <div class="card shadow mb-4">
             <div class="card-body text-center">
-                <div class="display-4 text-primary mb-2">{{ total_enrollments }}</div>
-                <h4>Cursos Matriculados</h4>
+                <div class="display-4 text-primary mb-2">{{ class_groups|length }}</div>
+                <h4>Minhas Turmas</h4>
                 <div class="small text-muted">
-                    <span class="badge bg-success">{{ completed_courses }} Concluídos</span>
-                    <span class="badge bg-primary">{{ total_enrollments|add:"-"|add:completed_courses }} Em andamento</span>
+                    <span class="badge bg-info">{{ class_groups|length }} turma(s)</span>
                 </div>
                 <hr>
-                <a href="#enrolled-courses" class="btn btn-sm btn-outline-primary">Ver Todos</a>
+                <a href="#my-classes" class="btn btn-sm btn-outline-primary">Ver Turmas</a>
             </div>
         </div>
     </div>
@@ -106,7 +110,7 @@
                 {% endif %}
                 <h4>Progresso Geral</h4>
                 <div class="small text-muted">
-                    <span class="badge bg-info">Média de todos os cursos</span>
+                    <span class="badge bg-info">Média em todos os cursos</span>
                 </div>
                 <hr>
                 <div class="progress">
@@ -140,112 +144,96 @@
     </div>
 </div>
 
-<!-- Cursos matriculados -->
-<div class="card shadow mb-4" id="enrolled-courses">
-    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-        <h5 class="mb-0">Meus Cursos</h5>
-    </div>
-    <div class="card-body">
-        {% if enrollments %}
-            <div class="row">
-                {% for enrollment in enrollments %}
-                    <div class="col-md-6 col-lg-4 mb-4">
-                        <div class="card h-100 shadow-sm">
-                            {% if enrollment.course.image %}
-                                <img src="{{ enrollment.course.image.url }}" class="card-img-top" alt="{{ enrollment.course.title }}">
-                            {% else %}
-                                <div class="card-img-top bg-light text-center pt-5 pb-5">
-                                    <i class="fas fa-book fa-3x text-muted"></i>
-                                </div>
-                            {% endif %}
-                            <div class="card-body">
-                                <h5 class="card-title">{{ enrollment.course.title }}</h5>
-                                <p class="card-text small text-muted">{{ enrollment.course.short_description|truncatechars:100 }}</p>
-                                
-                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <span class="badge bg-primary">Matriculado em {{ enrollment.enrolled_at|date:"d/m/Y" }}</span>
-                                    {% if enrollment.is_completed %}
-                                        <span class="badge bg-success">Concluído</span>
-                                    {% endif %}
-                                </div>
-                                
-                                <div class="progress mb-3">
-                                    <div class="progress-bar {% if enrollment.progress < 100 %}bg-primary{% else %}bg-success{% endif %}" 
-                                         role="progressbar" style="width: {{ enrollment.progress }}%" 
-                                         aria-valuenow="{{ enrollment.progress }}" aria-valuemin="0" aria-valuemax="100">
-                                        {{ enrollment.progress }}%
+<!-- Atividade recente + Minhas Turmas side by side -->
+<div class="row">
+    <!-- Minhas Turmas -->
+    <div class="col-md-6">
+        <div class="card shadow" id="my-classes">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Minhas Turmas</h5>
+            </div>
+            <div class="card-body">
+                {% if class_groups %}
+                    <div class="row">
+                        {% for class_group in class_groups %}
+                            <div class="col-md-12 mb-4">
+                                <div class="card h-100 shadow-sm">
+                                    <div class="card-header bg-light">
+                                        <h5 class="card-title mb-0">{{ class_group.name }}</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        {% if class_group.description %}
+                                            <p class="card-text small">{{ class_group.description|truncatechars:100 }}</p>
+                                        {% else %}
+                                            <p class="card-text small text-muted">Sem descrição disponível</p>
+                                        {% endif %}
+                                        
+                                        <div class="mb-3">
+                                            <span class="badge bg-info">
+                                                <i class="fas fa-user-tie me-1"></i> Prof. {{ class_group.professor.get_full_name|default:class_group.professor.email }}
+                                            </span>
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <span class="badge bg-secondary">{{ class_group.courses.count }} curso(s)</span>
+                                            <span class="badge bg-primary">{{ class_group.students.count }} aluno(s)</span>
+                                        </div>
+                                        
+                                        <div class="d-grid">
+                                            <a href="{% url 'courses:student:class_group_detail' class_group.id %}" class="btn btn-primary">
+                                                <i class="fas fa-graduation-cap"></i> Ver Turma
+                                            </a>
+                                        </div>
+                                    </div>
+                                    <div class="card-footer bg-white text-center">
+                                        <small class="text-muted">Criada em {{ class_group.created_at|date:"d/m/Y" }}</small>
                                     </div>
                                 </div>
-                                
-                                <div class="d-grid">
-                                    <a href="{% url 'courses:student:course_learn' enrollment.course.id %}" class="btn btn-primary">
-                                        {% if enrollment.progress == 0 %}
-                                            <i class="fas fa-play-circle"></i> Iniciar Curso
-                                        {% elif enrollment.progress == 100 %}
-                                            <i class="fas fa-redo"></i> Revisar Curso
-                                        {% else %}
-                                            <i class="fas fa-play-circle"></i> Continuar Curso
-                                        {% endif %}
-                                    </a>
-                                </div>
                             </div>
-                            <div class="card-footer bg-white d-flex justify-content-between">
-                                <small class="text-muted">
-                                    Professor: {{ enrollment.course.professor.get_full_name|default:enrollment.course.professor.email }}
-                                </small>
-                                <form action="{% url 'courses:student:enrollment_cancel' enrollment.course.id %}" method="post" 
-                                      onsubmit="return confirm('Tem certeza que deseja cancelar sua matrícula neste curso?');">
-                                    {% csrf_token %}
-                                    <button type="submit" class="btn btn-sm btn-outline-danger">Cancelar</button>
-                                </form>
-                            </div>
-                        </div>
+                        {% endfor %}
                     </div>
-                {% endfor %}
+                {% else %}
+                    <div class="alert alert-info text-center">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Você não está em nenhuma turma no momento.
+                    </div>
+                {% endif %}
             </div>
-        {% else %}
-            <div class="alert alert-info text-center">
-                <i class="fas fa-info-circle me-2"></i>
-                Você ainda não está matriculado em nenhum curso.
-                <div class="mt-3">
-                    <a href="{% url 'courses:student:course_list' %}" class="btn btn-primary">
-                        <i class="fas fa-search"></i> Explorar Cursos
-                    </a>
-                </div>
-            </div>
-        {% endif %}
+        </div>
     </div>
-</div>
-
-<!-- Atividade recente -->
-<div class="card shadow" id="recent-activity">
-    <div class="card-header bg-primary text-white">
-        <h5 class="mb-0">Atividade Recente</h5>
-    </div>
-    <div class="card-body">
-        {% if recent_lessons %}
-            <div class="list-group">
-                {% for progress in recent_lessons %}
-                    <a href="{% url 'courses:student:course_learn' progress.enrollment.course.id %}?lesson_id={{ progress.lesson.id }}" class="list-group-item list-group-item-action">
-                        <div class="d-flex w-100 justify-content-between">
-                            <h5 class="mb-1">{{ progress.lesson.title }}</h5>
-                            <small>{{ progress.last_accessed_at|timesince }} atrás</small>
-                        </div>
-                        <p class="mb-1">{{ progress.enrollment.course.title }}</p>
-                        {% if progress.is_completed %}
-                            <small class="text-success"><i class="fas fa-check-circle"></i> Aula concluída</small>
-                        {% else %}
-                            <small class="text-info"><i class="fas fa-play-circle"></i> Em andamento</small>
-                        {% endif %}
-                    </a>
-                {% endfor %}
+    
+    <!-- Atividade recente -->
+    <div class="col-md-6">
+        <div class="card shadow" id="recent-activity">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Atividade Recente</h5>
             </div>
-        {% else %}
-            <div class="alert alert-info text-center">
-                <i class="fas fa-info-circle me-2"></i>
-                Nenhuma atividade recente encontrada.
+            <div class="card-body">
+                {% if recent_lessons %}
+                    <div class="list-group">
+                        {% for progress in recent_lessons %}
+                            <a href="{% url 'courses:student:course_learn' progress.enrollment.course.id %}?lesson_id={{ progress.lesson.id }}" class="list-group-item list-group-item-action">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h5 class="mb-1">{{ progress.lesson.title }}</h5>
+                                    <small>{{ progress.last_accessed_at|timesince }} atrás</small>
+                                </div>
+                                <p class="mb-1">{{ progress.enrollment.course.title }}</p>
+                                {% if progress.is_completed %}
+                                    <small class="text-success"><i class="fas fa-check-circle"></i> Aula concluída</small>
+                                {% else %}
+                                    <small class="text-info"><i class="fas fa-play-circle"></i> Em andamento</small>
+                                {% endif %}
+                            </a>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="alert alert-info text-center">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Nenhuma atividade recente encontrada.
+                    </div>
+                {% endif %}
             </div>
-        {% endif %}
+        </div>
     </div>
 </div>
 {% endblock %}

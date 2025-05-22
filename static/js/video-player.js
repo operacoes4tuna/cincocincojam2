@@ -20,6 +20,7 @@ class VideoProgressTracker {
      * @param {Boolean} config.autoMarkComplete Se deve marcar a aula como concluída automaticamente
      * @param {Number} config.completionThreshold Porcentagem para considerar aula concluída (padrão: 90%)
      * @param {Boolean} config.debug Habilita logs de depuração
+     * @param {Boolean} config.isHtml5Video Se é um vídeo HTML5 nativo
      */
     constructor(config) {
         // Configurações
@@ -30,6 +31,7 @@ class VideoProgressTracker {
         this.autoMarkComplete = config.autoMarkComplete || false;
         this.completionThreshold = config.completionThreshold || 90;
         this.debug = config.debug || false;
+        this.isHtml5Video = config.isHtml5Video || false;
 
         // Estado interno
         this.player = null;
@@ -56,8 +58,13 @@ class VideoProgressTracker {
     init() {
         this.log('Inicializando rastreador de progresso de vídeo');
         
-        // Detectar tipo de vídeo
-        if (this.isYouTubeVideo()) {
+        // Se for explicitamente marcado como vídeo HTML5
+        if (this.isHtml5Video) {
+            this.log('Vídeo HTML5 detectado (configuração explícita), inicializando eventos');
+            this.initHTML5VideoEvents();
+        }
+        // Detectar tipo de vídeo baseado no elemento
+        else if (this.isYouTubeVideo()) {
             this.log('YouTube detectado, inicializando API');
             this.initYouTubeAPI();
         } else {
@@ -220,41 +227,83 @@ class VideoProgressTracker {
      * Inicializa eventos para vídeo HTML5 padrão
      */
     initHTML5VideoEvents() {
-        if (!this.videoElement || this.videoElement.tagName !== 'VIDEO') {
-            this.log('Elemento de vídeo HTML5 não encontrado', 'warn');
+        if (!this.videoElement) {
+            this.log('Elemento de vídeo não encontrado', 'error');
             return;
         }
         
+        if (this.videoElement.tagName !== 'VIDEO') {
+            this.log('Elemento não é um vídeo HTML5', 'warn');
+            return;
+        }
+        
+        this.log('Inicializando eventos para vídeo HTML5');
+        this.isPlayerReady = true;
+        
+        // Marcamos como pronto imediatamente se já tiver metadados carregados
+        if (this.videoElement.readyState >= 1) {
+            this.duration = this.videoElement.duration;
+            this.log('Vídeo já tem metadados carregados, duração:', this.duration);
+        }
+        
         this.videoElement.addEventListener('play', () => {
+            this.log('Vídeo HTML5: play');
             this.isPlaying = true;
             this.startSegment();
         });
         
         this.videoElement.addEventListener('pause', () => {
+            this.log('Vídeo HTML5: pause');
             this.isPlaying = false;
             this.endSegment();
             this.saveProgress();
         });
         
         this.videoElement.addEventListener('ended', () => {
+            this.log('Vídeo HTML5: ended');
             this.isPlaying = false;
             this.endSegment();
             this.currentTime = this.duration;
             this.saveProgress();
+            
+            // Se o vídeo terminou, podemos marcar a aula como concluída
+            if (this.autoMarkComplete) {
+                const watchedPercentage = this.getWatchedPercentage();
+                if (watchedPercentage >= this.completionThreshold) {
+                    this.markLessonAsCompleted(watchedPercentage);
+                }
+            }
         });
         
         this.videoElement.addEventListener('timeupdate', () => {
             this.updateCurrentTime();
+            
+            // Verificar se atingiu o threshold para completar
+            if (this.autoMarkComplete && !this.isComplete) {
+                const watchedPercentage = this.getWatchedPercentage();
+                if (watchedPercentage >= this.completionThreshold) {
+                    this.markLessonAsCompleted(watchedPercentage);
+                }
+            }
         });
         
         this.videoElement.addEventListener('loadedmetadata', () => {
+            this.log('Vídeo HTML5: loadedmetadata');
             this.duration = this.videoElement.duration;
+            this.log('Duração do vídeo:', this.duration);
+            
             this.loadSavedProgress().then(() => {
-                if (this.currentTime > 0) {
+                if (this.currentTime > 0 && this.currentTime < this.duration - 10) {
+                    this.log('Retomando de:', this.currentTime);
                     this.videoElement.currentTime = this.currentTime;
                 }
             });
         });
+        
+        // Atualizar duração assim que possível
+        if (this.videoElement.readyState >= 1) {
+            this.duration = this.videoElement.duration;
+        }
     }
 
     /**
@@ -473,6 +522,28 @@ class VideoProgressTracker {
         }
         
         return null;
+    }
+
+    /**
+     * Marca a aula como concluída e dispara um evento
+     */
+    markLessonAsCompleted(percentage) {
+        if (this.isComplete) return;
+        
+        this.log(`Marcando aula ${this.lessonId} como concluída (${percentage}%)`);
+        this.isComplete = true;
+        
+        // Dispara evento de aula concluída
+        const event = new CustomEvent('lessonCompleted', {
+            detail: {
+                lessonId: this.lessonId,
+                percentage: percentage
+            }
+        });
+        document.dispatchEvent(event);
+        
+        // Tenta enviar para o backend também
+        this.saveProgress();
     }
 
     /**

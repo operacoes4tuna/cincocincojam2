@@ -92,20 +92,70 @@
                                 </div>
                             {% endif %}
                             
-                            <div class="ratio ratio-16x9 mb-2">
-                                {% if private_video_url %}
-                                    <!-- Player para vídeos privados -->
-                                    <iframe id="custom-video-{{ current_lesson.id }}" 
-                                            src="{{ private_video_url }}" 
-                                            title="{{ current_lesson.title }}" 
-                                            frameborder="0"
-                                            allowfullscreen></iframe>
-                                {% elif "youtube.com" in current_lesson.video_url or "youtu.be" in current_lesson.video_url %}
-                                    {% if youtube_video_id %}
-                                        <iframe id="youtube-video-{{ current_lesson.id }}" 
-                                                src="https://www.youtube.com/embed/{{ youtube_video_id }}?rel=0&enablejsapi=1" 
+                            <!-- Para vídeos HTML5 usamos uma proporção mais flexível -->
+                            {% if private_video_url and "s3.amazonaws.com" in private_video_url %}
+                                <div class="video-wrapper mb-2">
+                                    <video id="custom-video-{{ current_lesson.id }}"
+                                          controls
+                                          playsinline
+                                          autoplay
+                                          class="video-js"
+                                          style="background-color: #000;">
+                                        <source src="{{ private_video_url }}" type="video/mp4">
+                                        Seu navegador não suporta a tag de vídeo.
+                                    </video>
+                                </div>
+                            {% elif "s3.amazonaws.com" in current_lesson.video_url %}
+                                <div class="video-wrapper mb-2">
+                                    <video id="custom-video-{{ current_lesson.id }}"
+                                          controls
+                                          playsinline
+                                          autoplay
+                                          class="video-js"
+                                          style="background-color: #000;">
+                                        <source src="{{ current_lesson.video_url }}" type="video/mp4">
+                                        Seu navegador não suporta a tag de vídeo.
+                                    </video>
+                                </div>
+                            {% elif "play.giancorrea.55jam.com.br" in current_lesson.video_url or "55jam.com.br" in current_lesson.video_url %}
+                                <div class="video-wrapper mb-2">
+                                    <video id="custom-video-{{ current_lesson.id }}"
+                                          controls
+                                          playsinline
+                                          autoplay
+                                          class="video-js"
+                                          style="background-color: #000;">
+                                        <source src="{{ current_lesson.video_url }}" type="video/mp4">
+                                        Seu navegador não suporta a tag de vídeo.
+                                    </video>
+                                </div>
+                            {% else %}
+                                <!-- Para iframes usamos a classe ratio -->
+                                <div class="ratio" style="--bs-aspect-ratio: 56.25%;">
+                                    {% if private_video_url %}
+                                        <!-- Player para vídeos privados -->
+                                        <iframe id="custom-video-{{ current_lesson.id }}" 
+                                                src="{{ private_video_url }}" 
                                                 title="{{ current_lesson.title }}" 
+                                                style="width:100%; height:100%; position:absolute; top:0; left:0; border:0; object-fit:fill;"
+                                                frameborder="0"
+                                                allow="autoplay; fullscreen"
                                                 allowfullscreen></iframe>
+                                    {% elif "youtube.com" in current_lesson.video_url or "youtu.be" in current_lesson.video_url %}
+                                        {% if youtube_video_id %}
+                                            <iframe id="youtube-video-{{ current_lesson.id }}" 
+                                                    src="https://www.youtube.com/embed/{{ youtube_video_id }}?rel=0&enablejsapi=1" 
+                                                    title="{{ current_lesson.title }}" 
+                                                    style="width:100%; height:100%; position:absolute; top:0; left:0; border:0;"
+                                                    frameborder="0"
+                                                    allowfullscreen></iframe>
+                                        {% else %}
+                                            <div class="d-flex justify-content-center align-items-center bg-light">
+                                                <a href="{{ current_lesson.video_url }}" target="_blank" class="btn btn-primary">
+                                                    <i class="fas fa-external-link-alt me-2"></i> Abrir Vídeo
+                                                </a>
+                                            </div>
+                                        {% endif %}
                                     {% else %}
                                         <div class="d-flex justify-content-center align-items-center bg-light">
                                             <a href="{{ current_lesson.video_url }}" target="_blank" class="btn btn-primary">
@@ -113,21 +163,8 @@
                                             </a>
                                         </div>
                                     {% endif %}
-                                {% elif "play.giancorrea.55jam.com.br" in current_lesson.video_url %}
-                                    <!-- Player para vídeos privados do 55Jam via URL -->
-                                    <iframe id="custom-video-{{ current_lesson.id }}" 
-                                            src="{{ current_lesson.video_url }}" 
-                                            title="{{ current_lesson.title }}" 
-                                            frameborder="0"
-                                            allowfullscreen></iframe>
-                                {% else %}
-                                    <div class="d-flex justify-content-center align-items-center bg-light">
-                                        <a href="{{ current_lesson.video_url }}" target="_blank" class="btn btn-primary">
-                                            <i class="fas fa-external-link-alt me-2"></i> Abrir Vídeo
-                                        </a>
-                                    </div>
-                                {% endif %}
-                            </div>
+                                </div>
+                            {% endif %}
                             
                             <div class="progress-container">
                                 <div id="video-progress-bar-{{ current_lesson.id }}" 
@@ -230,8 +267,34 @@
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         {% if current_lesson and current_lesson.video_url %}
-            {% if private_video_url %}
-                // Inicializar para vídeos privados
+            // Verificar primeiro os casos de vídeo HTML5 direto (MP4)
+            {% if private_video_url and "s3.amazonaws.com" in private_video_url %}
+                // Inicializar para vídeos HTML5 diretos
+                const videoTracker = new VideoProgressTracker({
+                    videoElementId: 'custom-video-{{ current_lesson.id }}',
+                    progressBarId: 'video-progress-bar-{{ current_lesson.id }}',
+                    lessonId: {{ current_lesson.id }},
+                    csrfToken: '{{ csrf_token }}',
+                    autoMarkComplete: true,
+                    completionThreshold: 90,
+                    debug: true,
+                    isHtml5Video: true
+                });
+            {% elif "s3.amazonaws.com" in current_lesson.video_url or "play.giancorrea.55jam.com.br" in current_lesson.video_url or "55jam.com.br" in current_lesson.video_url %}
+                // Inicializar para vídeos HTML5 diretos (incluindo 55Jam)
+                const videoTracker = new VideoProgressTracker({
+                    videoElementId: 'custom-video-{{ current_lesson.id }}',
+                    progressBarId: 'video-progress-bar-{{ current_lesson.id }}',
+                    lessonId: {{ current_lesson.id }},
+                    csrfToken: '{{ csrf_token }}',
+                    autoMarkComplete: true,
+                    completionThreshold: 90,
+                    debug: true,
+                    isHtml5Video: true
+                });
+            // Depois lidar com outros casos
+            {% elif private_video_url %}
+                // Inicializar para vídeos privados via iframe
                 const videoTracker = new VideoProgressTracker({
                     videoElementId: 'custom-video-{{ current_lesson.id }}',
                     progressBarId: 'video-progress-bar-{{ current_lesson.id }}',
@@ -245,17 +308,6 @@
                 // Inicializar o rastreador de progresso do vídeo do YouTube
                 const videoTracker = new VideoProgressTracker({
                     videoElementId: 'youtube-video-{{ current_lesson.id }}',
-                    progressBarId: 'video-progress-bar-{{ current_lesson.id }}',
-                    lessonId: {{ current_lesson.id }},
-                    csrfToken: '{{ csrf_token }}',
-                    autoMarkComplete: true,
-                    completionThreshold: 90,
-                    debug: true
-                });
-            {% elif "play.giancorrea.55jam.com.br" in current_lesson.video_url %}
-                // Inicializar para vídeos privados do 55Jam via URL
-                const videoTracker = new VideoProgressTracker({
-                    videoElementId: 'custom-video-{{ current_lesson.id }}',
                     progressBarId: 'video-progress-bar-{{ current_lesson.id }}',
                     lessonId: {{ current_lesson.id }},
                     csrfToken: '{{ csrf_token }}',

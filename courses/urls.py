@@ -16,6 +16,7 @@ student_patterns = [
     path('course/<int:pk>/cancel/', student_views.EnrollmentCancelView.as_view(), name='enrollment_cancel'),
     path('course/<int:course_id>/lesson/<int:lesson_id>/complete/', 
          student_views.LessonCompleteView.as_view(), name='lesson_complete'),
+    path('class-group/<int:pk>/', student_views.ClassGroupDetailView.as_view(), name='class_group_detail'),
 ]
 
 urlpatterns = [

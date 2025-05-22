@@ -6,6 +6,55 @@
   margin-bottom: 1.5rem;
 }
 
+/* Garantir que o iframe ocupe 100% da div ratio */
+.ratio iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  object-fit: contain; /* Manter proporção mas preencher o máximo possível */
+}
+
+/* Estilos específicos para vídeos do 55Jam */
+iframe[src*="play.giancorrea.55jam.com.br"], 
+video[src*="play.giancorrea.55jam.com.br"],
+video[src*="55jam.com.br"] {
+  object-fit: fill !important; /* Forçar preenchimento total para vídeos 55Jam */
+}
+
+/* Estilos para elementos de vídeo HTML5 */
+.ratio video {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  object-fit: contain; /* Ajuste para manter proporção em geral */
+  background-color: #000; /* Fundo preto para lidar com barras laterais */
+}
+
+/* Classe personalizada para controlar melhor o tamanho do vídeo */
+.video-wrapper {
+  position: relative;
+  width: 100%;
+  height: 0;
+  padding-bottom: 56.25%; /* Proporção 16:9 */
+  overflow: hidden;
+  background-color: #000;
+}
+
+.video-wrapper video {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain; /* Default para maioria dos vídeos */
+}
+
 /* Barra de progresso principal */
 .progress-container {
   height: 10px;

@@ -1,0 +1,168 @@
+{% extends 'base.html' %}
+{% load course_tags %}
+
+{% block title %}{{ class_group.name }} - Turma - CincoCincoJAM 2.0{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'courses:student:dashboard' %}">Dashboard</a></li>
+            <li class="breadcrumb-item active">{{ class_group.name }}</li>
+        </ol>
+    </nav>
+    <div>
+        <a href="{% url 'courses:student:dashboard' %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left me-1"></i> Voltar
+        </a>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">{{ class_group.name }}</h4>
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between mb-3">
+                    <span class="badge bg-info">
+                        <i class="fas fa-user-tie me-1"></i> Professor: {{ class_group.professor.get_full_name|default:class_group.professor.email }}
+                    </span>
+                    <span class="badge bg-primary">
+                        <i class="fas fa-users me-1"></i> {{ class_group.students.count }} aluno(s)
+                    </span>
+                </div>
+
+                <h5><i class="fas fa-info-circle me-2"></i> Sobre a Turma</h5>
+                {% if class_group.description %}
+                    <p>{{ class_group.description|linebreaks }}</p>
+                {% else %}
+                    <p class="text-muted">Nenhuma descrição disponível para esta turma.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Informações</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-calendar-alt me-2"></i> Data de criação</span>
+                        <span class="badge bg-light text-dark">{{ class_group.created_at|date:"d/m/Y" }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-book me-2"></i> Cursos disponíveis</span>
+                        <span class="badge bg-primary rounded-pill">{{ class_group.courses.count }}</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow mb-4">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0">Cursos Disponíveis na Turma</h5>
+    </div>
+    <div class="card-body">
+        {% if class_group.courses.all %}
+            <div class="row">
+                {% for course in class_group.courses.all %}
+                    <div class="col-md-6 col-lg-4 mb-4">
+                        <div class="card h-100 shadow-sm">
+                            {% if course.image %}
+                                <img src="{{ course.image.url }}" class="card-img-top" alt="{{ course.title }}">
+                            {% else %}
+                                <div class="card-img-top bg-light text-center pt-5 pb-5">
+                                    <i class="fas fa-book fa-3x text-muted"></i>
+                                </div>
+                            {% endif %}
+                            <div class="card-body">
+                                <h5 class="card-title">{{ course.title }}</h5>
+                                <p class="card-text small text-muted">{{ course.short_description|truncatechars:100 }}</p>
+                                
+                                {% with enrollment=user_enrollments|get_item:course.id %}
+                                    <div class="progress mb-3">
+                                        <div class="progress-bar {% if enrollment.progress < 100 %}bg-primary{% else %}bg-success{% endif %}" 
+                                            role="progressbar" style="width: {{ enrollment.progress }}%" 
+                                            aria-valuenow="{{ enrollment.progress }}" aria-valuemin="0" aria-valuemax="100">
+                                            {{ enrollment.progress }}%
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="d-grid">
+                                        <a href="{% url 'courses:student:course_learn' course.id %}" class="btn btn-primary">
+                                            {% if enrollment.progress == 0 %}
+                                                <i class="fas fa-play-circle"></i> Iniciar Curso
+                                            {% elif enrollment.progress == 100 %}
+                                                <i class="fas fa-redo"></i> Revisar Curso
+                                            {% else %}
+                                                <i class="fas fa-play-circle"></i> Continuar Curso
+                                            {% endif %}
+                                        </a>
+                                    </div>
+                                {% endwith %}
+                            </div>
+                            <div class="card-footer bg-white text-center">
+                                <small class="text-muted">
+                                    {{ course.lessons.count }} aula(s) | Duração: {{ course.total_duration }}
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="alert alert-info text-center">
+                <i class="fas fa-info-circle me-2"></i>
+                Nenhum curso disponível para esta turma no momento.
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Colegas de Turma (opcional) -->
+{% comment %}
+<div class="card shadow">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0">Colegas de Turma</h5>
+    </div>
+    <div class="card-body">
+        {% if students %}
+            <div class="row">
+                {% for student in students %}
+                    {% if student != user %}
+                        <div class="col-md-6 col-lg-3 mb-3">
+                            <div class="card h-100 shadow-sm">
+                                <div class="card-body text-center">
+                                    <div class="mb-3">
+                                        {% if student.profile_picture %}
+                                            <img src="{{ student.profile_picture.url }}" alt="{{ student.get_full_name }}" class="rounded-circle img-fluid" style="width: 80px; height: 80px; object-fit: cover;">
+                                        {% else %}
+                                            <div class="bg-light rounded-circle d-inline-flex justify-content-center align-items-center" style="width: 80px; height: 80px;">
+                                                <i class="fas fa-user fa-2x text-muted"></i>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                    <h6 class="card-title">{{ student.get_full_name|default:student.email }}</h6>
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="alert alert-info text-center">
+                <i class="fas fa-info-circle me-2"></i>
+                Nenhum outro aluno matriculado nesta turma.
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endcomment %}
+{% endblock %} 

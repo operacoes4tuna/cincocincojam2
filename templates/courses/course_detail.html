@@ -180,10 +180,12 @@
                             <div class="col-md-5 text-end">
                                 <div class="btn-group">
                                     {% if lesson.video_url %}
+                                    {% comment %}
                                     <a href="{{ lesson.video_url }}" target="_blank"
                                         class="btn btn-sm btn-outline-primary" title="Ver Vídeo">
                                         <i class="fas fa-play"></i> Ver Vídeo
                                     </a>
+                                    {% endcomment %}
                                     {% endif %}
                                     <a href="{% url 'courses:lesson_update' lesson.id %}" class="btn btn-sm btn-warning"
                                         title="Editar">
