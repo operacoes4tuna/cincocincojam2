@@ -76,8 +76,8 @@
                                 <label for="id_private_video_url" class="form-label">URL do vídeo privado</label>
                                 <input type="url" name="private_video_url" id="id_private_video_url"
                                     class="form-control"
-                                    placeholder="https://www.youtube.com/watch?v=ID_DO_VIDEO_PRIVADO">
-                                <small class="form-text text-muted">URL opcional para vídeo com acesso restrito.</small>
+                                    placeholder="https://play.giancorrea.55jam.com.br/embed/XX/HASH">
+                                <small class="form-text text-muted">URL opcional para vídeo com acesso restrito (ex: 55JAM).</small>
                             </div>
                         </div>
                     </div>
@@ -240,14 +240,27 @@
             return match ? match[1] : null;
         }
 
-        // Configurar a pré-visualização do YouTube se houver URL inicial
-        function setupYouTubePreview() {
+        // Verifica se é um vídeo do 55JAM
+        function is55JamUrl(url) {
+            return url && url.includes('play.giancorrea.55jam.com.br/embed');
+        }
+
+        // Configurar a pré-visualização do vídeo se houver URL inicial
+        function setupVideoPreview() {
             if (videoUrlInput && youtubePreview) {
                 const url = videoUrlInput.value;
                 const youtubeId = extractYouTubeId(url);
+                const is55Jam = is55JamUrl(url);
 
                 if (youtubeId) {
                     youtubePreview.src = `https://www.youtube.com/embed/${youtubeId}`;
+                    if (videoPlaceholder) {
+                        videoPlaceholder.style.display = 'none';
+                    }
+                    youtubePreview.parentElement.style.display = 'block';
+                } else if (is55Jam) {
+                    // Para vídeos do 55JAM, usar a URL diretamente
+                    youtubePreview.src = url;
                     if (videoPlaceholder) {
                         videoPlaceholder.style.display = 'none';
                     }
@@ -264,16 +277,20 @@
 
         // Atualizar pré-visualização quando a URL mudar
         if (videoUrlInput) {
-            videoUrlInput.addEventListener('input', setupYouTubePreview);
+            videoUrlInput.addEventListener('input', setupVideoPreview);
             // Configuração inicial
-            setupYouTubePreview();
+            setupVideoPreview();
         }
 
         // Configuração inicial para URL existente
         if (youtubePreview && "{{ form.instance.video_url }}") {
             const youtubeId = extractYouTubeId("{{ form.instance.video_url }}");
+            const is55Jam = is55JamUrl("{{ form.instance.video_url }}");
+            
             if (youtubeId) {
                 youtubePreview.src = `https://www.youtube.com/embed/${youtubeId}`;
+            } else if (is55Jam) {
+                youtubePreview.src = "{{ form.instance.video_url }}";
             }
         }
     });
