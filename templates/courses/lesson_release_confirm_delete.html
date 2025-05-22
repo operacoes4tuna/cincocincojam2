@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{% trans "Excluir Liberação de Aula" %}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h1>{% trans "Excluir Liberação de Aula" %}</h1>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">{{ object.lesson.title }}</h5>
+                    <p class="card-text">
+                        {% trans "Você tem certeza que deseja excluir esta liberação de aula?" %}
+                    </p>
+                    
+                    <div class="alert alert-info">
+                        <h6>{% trans "Detalhes:" %}</h6>
+                        <ul>
+                            <li><strong>{% trans "Turma:" %}</strong> {{ object.class_group.name }}</li>
+                            <li><strong>{% trans "Aula:" %}</strong> {{ object.lesson.title }}</li>
+                            <li><strong>{% trans "Curso:" %}</strong> {{ object.lesson.course.title }}</li>
+                            <li><strong>{% trans "Data de Liberação:" %}</strong> {{ object.release_date|date:"d/m/Y H:i" }}</li>
+                            <li><strong>{% trans "Status:" %}</strong> 
+                                {% if object.is_released %}
+                                    <span class="badge bg-success">{% trans "Liberada" %}</span>
+                                {% else %}
+                                    <span class="badge bg-warning text-dark">{% trans "Pendente" %}</span>
+                                {% endif %}
+                            </li>
+                        </ul>
+                    </div>
+
+                    <p class="card-text text-danger">
+                        <strong>{% trans "Atenção:" %}</strong> {% trans "Essa ação não pode ser desfeita. Os alunos perderão o acesso à aula caso já esteja liberada." %}
+                    </p>
+
+                    <form method="post" class="mt-3">
+                        {% csrf_token %}
+                        <div class="d-flex justify-content-end">
+                            <a href="{% url 'courses:class_group_detail' object.class_group.id %}" class="btn btn-secondary me-2">
+                                <i class="fas fa-times"></i> {% trans "Cancelar" %}
+                            </a>
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-trash"></i> {% trans "Confirmar Exclusão" %}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

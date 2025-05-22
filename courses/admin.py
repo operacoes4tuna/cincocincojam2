@@ -6,7 +6,69 @@ from django.shortcuts import redirect, render
 from django.template.response import TemplateResponse
 from django.urls import path
 
-from .models import Course, Lesson, Enrollment
+from .models import Course, Lesson, Enrollment, ClassGroup, LessonRelease
+
+
+@admin.register(ClassGroup)
+class ClassGroupAdmin(admin.ModelAdmin):
+    """
+    Configuração da interface de administração para o modelo ClassGroup.
+    """
+    list_display = ['name', 'professor', 'get_students_count', 'get_courses_count', 'created_at']
+    list_filter = ['created_at', 'professor']
+    search_fields = ['name', 'description', 'professor__email', 'professor__first_name']
+    filter_horizontal = ['students', 'courses']
+    readonly_fields = ['created_at', 'updated_at']
+    
+    fieldsets = (
+        (None, {
+            'fields': ('professor', 'name', 'description'),
+        }),
+        (_('Associações'), {
+            'fields': ('students', 'courses'),
+        }),
+        (_('Metadados'), {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',),
+        }),
+    )
+    
+    def get_students_count(self, obj):
+        """Retorna o número de alunos na turma."""
+        return obj.students.count()
+    get_students_count.short_description = _('Alunos')
+    
+    def get_courses_count(self, obj):
+        """Retorna o número de cursos na turma."""
+        return obj.courses.count()
+    get_courses_count.short_description = _('Cursos')
+
+
+@admin.register(LessonRelease)
+class LessonReleaseAdmin(admin.ModelAdmin):
+    """
+    Configuração da interface de administração para o modelo LessonRelease.
+    """
+    list_display = ['lesson', 'class_group', 'release_date', 'is_released']
+    list_filter = ['is_released', 'class_group', 'release_date']
+    search_fields = ['lesson__title', 'class_group__name']
+    readonly_fields = []
+    autocomplete_fields = ['class_group', 'lesson']
+    date_hierarchy = 'release_date'
+    
+    fieldsets = (
+        (None, {
+            'fields': ('class_group', 'lesson', 'release_date', 'is_released'),
+        }),
+    )
+    
+    actions = ['mark_as_released']
+    
+    def mark_as_released(self, request, queryset):
+        """Marca as liberações selecionadas como liberadas."""
+        updated = queryset.update(is_released=True)
+        messages.success(request, _(f'{updated} liberações marcadas como liberadas com sucesso.'))
+    mark_as_released.short_description = _('Marcar como liberadas')
 
 
 class LessonInline(admin.TabularInline):
@@ -89,11 +151,11 @@ class EnrollmentAdmin(admin.ModelAdmin):
     Configuração da interface de administração para o modelo Enrollment.
     Permite matricular alunos em cursos diretamente.
     """
-    list_display = ('id', 'student_email', 'course_title', 'status', 'progress', 'enrolled_at')
-    list_filter = (EnrollmentStatusFilter, 'enrolled_at', 'course')
-    search_fields = ('student__email', 'student__first_name', 'course__title')
+    list_display = ('id', 'student_email', 'course_title', 'class_group', 'status', 'progress', 'enrolled_at')
+    list_filter = (EnrollmentStatusFilter, 'class_group', 'enrolled_at', 'course')
+    search_fields = ('student__email', 'student__first_name', 'course__title', 'class_group__name')
     readonly_fields = ('enrolled_at', 'completed_at', 'progress')
-    raw_id_fields = ('student', 'course')
+    raw_id_fields = ('student', 'course', 'class_group')
     actions = ['activate_enrollment', 'cancel_enrollment']
     
     def get_urls(self):
@@ -162,15 +224,24 @@ class EnrollmentAdmin(admin.ModelAdmin):
         if request.method == 'POST':
             student_id = request.POST.get('student')
             course_id = request.POST.get('course')
+            class_group_id = request.POST.get('class_group')
             status = request.POST.get('status', Enrollment.Status.ACTIVE)
             
             if student_id and course_id:
                 try:
                     student = User.objects.get(id=student_id)
                     course = Course.objects.get(id=course_id)
+                    class_group = None
+                    
+                    if class_group_id:
+                        class_group = ClassGroup.objects.get(id=class_group_id)
                     
                     # Verifica se já existe matrícula
-                    existing = Enrollment.objects.filter(student=student, course=course).first()
+                    existing = Enrollment.objects.filter(
+                        student=student, 
+                        course=course,
+                        class_group=class_group
+                    ).first()
                     
                     if existing:
                         # Atualiza status se já existir
@@ -185,26 +256,34 @@ class EnrollmentAdmin(admin.ModelAdmin):
                         enrollment = Enrollment.objects.create(
                             student=student,
                             course=course,
+                            class_group=class_group,
                             status=status
                         )
+                        
+                        # Adiciona o aluno à turma, se especificada
+                        if class_group:
+                            class_group.students.add(student)
+                            
                         messages.success(
                             request, 
                             _(f'Aluno {student.email} matriculado no curso "{course.title}" com sucesso!')
                         )
                         
                     return redirect('admin:courses_enrollment_changelist')
-                except (User.DoesNotExist, Course.DoesNotExist) as e:
+                except (User.DoesNotExist, Course.DoesNotExist, ClassGroup.DoesNotExist) as e:
                     messages.error(request, _(f'Erro ao criar matrícula: {str(e)}'))
             else:
                 messages.error(request, _('Selecione um aluno e um curso para criar a matrícula.'))
         
-        # Lista de estudantes e cursos
+        # Lista de estudantes, cursos e turmas
         students = User.objects.filter(user_type='STUDENT').order_by('email')
         courses = Course.objects.filter(status=Course.Status.PUBLISHED).order_by('title')
+        class_groups = ClassGroup.objects.all().order_by('name')
         
         context.update({
             'students': students,
             'courses': courses,
+            'class_groups': class_groups,
             'status_choices': Enrollment.Status.choices,
         })
         

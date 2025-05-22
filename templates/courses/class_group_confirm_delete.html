@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{% trans "Excluir Turma" %} - {{ object.name }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h1>{% trans "Excluir Turma" %}</h1>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">{{ object.name }}</h5>
+                    <p class="card-text">
+                        {% trans "Você tem certeza que deseja excluir esta turma?" %}
+                    </p>
+                    <p class="card-text text-danger">
+                        <strong>{% trans "Atenção:" %}</strong> {% trans "Essa ação não pode ser desfeita. Os alunos perderão acesso aos cursos associados a esta turma." %}
+                    </p>
+                    
+                    <div class="alert alert-warning">
+                        <h6>{% trans "Esta turma contém:" %}</h6>
+                        <ul>
+                            <li>{{ object.get_students_count }} {% trans "alunos matriculados" %}</li>
+                            <li>{{ object.get_courses_count }} {% trans "cursos associados" %}</li>
+                        </ul>
+                    </div>
+
+                    <form method="post" class="mt-3">
+                        {% csrf_token %}
+                        <div class="d-flex justify-content-end">
+                            <a href="{% url 'courses:class_group_detail' object.id %}" class="btn btn-secondary me-2">
+                                <i class="fas fa-times"></i> {% trans "Cancelar" %}
+                            </a>
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-trash"></i> {% trans "Confirmar Exclusão" %}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

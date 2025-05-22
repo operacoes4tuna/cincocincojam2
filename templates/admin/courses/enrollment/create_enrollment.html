@@ -73,53 +73,67 @@
 
 {% block content %}
 <div id="content-main">
-    <h1>{% trans 'Matricular aluno em curso' %}</h1>
-    
-    <div class="alert alert-info">
-        {% trans 'Esta função permite matricular um aluno diretamente em um curso, sem necessidade de pagamento.' %}
-    </div>
-    
-    <div class="enrollments-form">
+    <div class="app-courses module">
+        <h2>{% trans 'Matricular aluno em curso' %}</h2>
+        <div class="description">
+            <p>{% trans 'Selecione um aluno, um curso e opcionalmente uma turma para criar uma nova matrícula.' %}</p>
+        </div>
+        
         <form method="post">
             {% csrf_token %}
             
-            <div class="form-row">
-                <div class="field-box">
-                    <label for="id_student">{% trans 'Aluno:' %}</label>
-                    <select name="student" id="id_student" required>
-                        <option value="">---------</option>
-                        {% for student in students %}
-                            <option value="{{ student.id }}">{{ student.email }} ({{ student.first_name }} {{ student.last_name }})</option>
-                        {% endfor %}
-                    </select>
+            <fieldset class="module aligned">
+                <div class="form-row">
+                    <div class="field-box">
+                        <label for="id_student">{% trans 'Aluno:' %}</label>
+                        <select name="student" id="id_student" required>
+                            <option value="">---------</option>
+                            {% for student in students %}
+                                <option value="{{ student.id }}">{{ student.email }} ({{ student.get_full_name }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
                 </div>
-            </div>
-            
-            <div class="form-row">
-                <div class="field-box">
-                    <label for="id_course">{% trans 'Curso:' %}</label>
-                    <select name="course" id="id_course" required>
-                        <option value="">---------</option>
-                        {% for course in courses %}
-                            <option value="{{ course.id }}">{{ course.title }} (R$ {{ course.price }})</option>
-                        {% endfor %}
-                    </select>
+                
+                <div class="form-row">
+                    <div class="field-box">
+                        <label for="id_course">{% trans 'Curso:' %}</label>
+                        <select name="course" id="id_course" required>
+                            <option value="">---------</option>
+                            {% for course in courses %}
+                                <option value="{{ course.id }}">{{ course.title }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
                 </div>
-            </div>
-            
-            <div class="form-row">
-                <div class="field-box">
-                    <label for="id_status">{% trans 'Status da matrícula:' %}</label>
-                    <select name="status" id="id_status">
-                        {% for status_value, status_label in status_choices %}
-                            <option value="{{ status_value }}" {% if status_value == 'ACTIVE' %}selected{% endif %}>{{ status_label }}</option>
-                        {% endfor %}
-                    </select>
+                
+                <div class="form-row">
+                    <div class="field-box">
+                        <label for="id_class_group">{% trans 'Turma (opcional):' %}</label>
+                        <select name="class_group" id="id_class_group">
+                            <option value="">---------</option>
+                            {% for class_group in class_groups %}
+                                <option value="{{ class_group.id }}">{{ class_group.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
                 </div>
-            </div>
+                
+                <div class="form-row">
+                    <div class="field-box">
+                        <label for="id_status">{% trans 'Status:' %}</label>
+                        <select name="status" id="id_status">
+                            {% for status_value, status_label in status_choices %}
+                                <option value="{{ status_value }}" {% if status_value == 'ACTIVE' %}selected{% endif %}>{{ status_label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </fieldset>
             
             <div class="submit-row">
-                <input type="submit" value="{% trans 'Matricular' %}" class="default">
+                <input type="submit" class="default" value="{% trans 'Matricular' %}">
+                <a href="{% url 'admin:courses_enrollment_changelist' %}" class="button cancel-link">{% trans 'Cancelar' %}</a>
             </div>
         </form>
     </div>

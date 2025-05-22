@@ -49,4 +49,22 @@ urlpatterns = [
     path('api/video-progress/update/', api.update_video_progress, name='api_update_video_progress'),
     path('api/video-progress/<int:lesson_id>/', api.get_video_progress, name='api_get_video_progress'),
     path('api/course-progress/<int:course_id>/', api.get_course_video_progress, name='api_course_progress'),
+    
+    # Rotas para turmas (Class Groups)
+    path('class-groups/', views.ClassGroupListView.as_view(), name='class_group_list'),
+    path('class-groups/create/', views.ClassGroupCreateView.as_view(), name='class_group_create'),
+    path('class-groups/<int:pk>/', views.ClassGroupDetailView.as_view(), name='class_group_detail'),
+    path('class-groups/<int:pk>/update/', views.ClassGroupUpdateView.as_view(), name='class_group_update'),
+    path('class-groups/<int:pk>/delete/', views.ClassGroupDeleteView.as_view(), name='class_group_delete'),
+    
+    # Rotas para liberação de aulas (Lesson Releases)
+    path('class-groups/<int:class_group_id>/lesson-release/create/', 
+         views.LessonReleaseCreateView.as_view(), 
+         name='lesson_release_create'),
+    path('lesson-release/<int:pk>/update/', 
+         views.LessonReleaseUpdateView.as_view(), 
+         name='lesson_release_update'),
+    path('lesson-release/<int:pk>/delete/', 
+         views.LessonReleaseDeleteView.as_view(), 
+         name='lesson_release_delete'),
 ]

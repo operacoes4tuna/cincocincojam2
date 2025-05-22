@@ -4,6 +4,50 @@ from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
 from django.utils.text import slugify
 
+class ClassGroup(models.Model):
+    """
+    Modelo para representar uma turma que agrupa alunos, professor e cursos.
+    """
+    name = models.CharField(_('nome'), max_length=200)
+    description = models.TextField(_('descrição'), blank=True)
+    professor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='class_groups',
+        verbose_name=_('professor'),
+        limit_choices_to={'user_type': 'PROFESSOR'}
+    )
+    students = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        related_name='enrolled_classes',
+        verbose_name=_('alunos'),
+        blank=True
+    )
+    courses = models.ManyToManyField(
+        'Course',
+        related_name='class_groups',
+        verbose_name=_('cursos'),
+        blank=True
+    )
+    created_at = models.DateTimeField(_('data de criação'), auto_now_add=True)
+    updated_at = models.DateTimeField(_('última atualização'), auto_now=True)
+    
+    class Meta:
+        verbose_name = _('turma')
+        verbose_name_plural = _('turmas')
+        ordering = ['-created_at']
+        
+    def __str__(self):
+        return self.name
+    
+    def get_students_count(self):
+        """Retorna o número de alunos na turma."""
+        return self.students.count()
+        
+    def get_courses_count(self):
+        """Retorna o número de cursos na turma."""
+        return self.courses.count()
+
 class Course(models.Model):
     """
     Modelo para representar um curso oferecido por um professor.
@@ -169,6 +213,41 @@ class Lesson(models.Model):
         super().save(*args, **kwargs)
 
 
+class LessonRelease(models.Model):
+    """
+    Modelo para controlar a liberação de aulas por turma.
+    """
+    class_group = models.ForeignKey(
+        ClassGroup,
+        on_delete=models.CASCADE,
+        related_name='lesson_releases',
+        verbose_name=_('turma')
+    )
+    lesson = models.ForeignKey(
+        Lesson,
+        on_delete=models.CASCADE,
+        related_name='releases',
+        verbose_name=_('aula')
+    )
+    release_date = models.DateTimeField(_('data de liberação'))
+    is_released = models.BooleanField(_('liberada'), default=False)
+    
+    class Meta:
+        verbose_name = _('liberação de aula')
+        verbose_name_plural = _('liberações de aulas')
+        unique_together = ['class_group', 'lesson']
+        ordering = ['release_date']
+        
+    def __str__(self):
+        return f"{self.lesson.title} - {self.class_group.name}"
+    
+    def save(self, *args, **kwargs):
+        # Verificar se a data de liberação já passou
+        if self.release_date <= timezone.now():
+            self.is_released = True
+        super().save(*args, **kwargs)
+
+
 class Enrollment(models.Model):
     """
     Modelo para representar a matrícula de um aluno em um curso.
@@ -192,6 +271,14 @@ class Enrollment(models.Model):
         related_name='enrollments',
         verbose_name=_('curso')
     )
+    class_group = models.ForeignKey(
+        ClassGroup,
+        on_delete=models.CASCADE,
+        related_name='enrollments',
+        verbose_name=_('turma'),
+        null=True,
+        blank=True
+    )
     
     # Campos de controle
     status = models.CharField(
@@ -207,11 +294,13 @@ class Enrollment(models.Model):
     class Meta:
         verbose_name = _('matrícula')
         verbose_name_plural = _('matrículas')
-        # Garante que um aluno só possa se matricular uma vez em cada curso
-        unique_together = ['student', 'course']
+        # Garante que um aluno só possa se matricular uma vez em cada curso por turma
+        unique_together = ['student', 'course', 'class_group']
         ordering = ['-enrolled_at']
         
     def __str__(self):
+        if self.class_group:
+            return f"{self.student.email} - {self.course.title} - {self.class_group.name}"
         return f"{self.student.email} - {self.course.title}"
         
     def save(self, *args, **kwargs):

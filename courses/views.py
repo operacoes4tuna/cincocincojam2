@@ -10,7 +10,7 @@ from datetime import timedelta
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 
-from .models import Course, Lesson, Enrollment
+from .models import Course, Lesson, Enrollment, ClassGroup, LessonRelease
 from .forms import CourseForm, LessonForm, CoursePublishForm
 
 User = get_user_model()
@@ -85,6 +85,28 @@ class ProfessorCourseMixin(UserPassesTestMixin):
                 pass
             
         return True  # Para CreateView, que não tem curso ainda
+
+
+class ProfessorClassGroupMixin(UserPassesTestMixin):
+    """
+    Mixin para verificar se a turma pertence ao professor logado ou se o usuário é administrador.
+    """
+    def test_func(self):
+        # Se é administrador, tem acesso a tudo
+        if self.request.user.is_authenticated and self.request.user.is_admin:
+            return True
+            
+        # Se não é professor autenticado, não tem acesso
+        if not self.request.user.is_authenticated or not self.request.user.is_professor:
+            return False
+            
+        # Verificar contexto - para ClassGroupViews
+        class_group_id = self.kwargs.get('class_group_id') or self.kwargs.get('pk')
+        if class_group_id:
+            class_group = get_object_or_404(ClassGroup, pk=class_group_id)
+            return class_group.professor == self.request.user
+            
+        return True  # Para CreateView, que não tem turma ainda
 
 
 class DashboardView(LoginRequiredMixin, ProfessorOrAdminRequiredMixin, ListView):
@@ -399,3 +421,176 @@ def api_professor_courses(request):
         return JsonResponse({'courses': courses_data})
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+
+
+# VIEWS PARA TURMAS (CLASS GROUPS)
+
+class ClassGroupListView(LoginRequiredMixin, ProfessorOrAdminRequiredMixin, ListView):
+    """
+    Lista todas as turmas. Para professores, filtra apenas suas turmas.
+    Para administradores, mostra todas as turmas.
+    """
+    model = ClassGroup
+    template_name = 'courses/class_group_list.html'
+    context_object_name = 'class_groups'
+    
+    def get_queryset(self):
+        # Se o usuário é um administrador, mostra todas as turmas
+        if self.request.user.is_admin:
+            return ClassGroup.objects.all().order_by('-created_at')
+            
+        # Se é um professor, filtra apenas as turmas dele
+        return ClassGroup.objects.filter(professor=self.request.user).order_by('-created_at')
+
+
+class ClassGroupDetailView(LoginRequiredMixin, ProfessorClassGroupMixin, DetailView):
+    """
+    Exibe os detalhes de uma turma específica, incluindo alunos, cursos e liberações de aulas.
+    """
+    model = ClassGroup
+    template_name = 'courses/class_group_detail.html'
+    context_object_name = 'class_group'
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        
+        # Adiciona dados sobre os alunos da turma
+        context['students'] = self.object.students.all()
+        context['students_count'] = self.object.students.count()
+        
+        # Adiciona dados sobre os cursos da turma
+        context['courses'] = self.object.courses.all()
+        context['courses_count'] = self.object.courses.count()
+        
+        # Adiciona dados sobre as liberações de aulas da turma
+        context['lesson_releases'] = LessonRelease.objects.filter(
+            class_group=self.object
+        ).select_related('lesson').order_by('release_date')
+        
+        # Adiciona dados sobre matrículas ativas nesta turma
+        context['active_enrollments'] = Enrollment.objects.filter(
+            class_group=self.object,
+            status=Enrollment.Status.ACTIVE
+        ).select_related('student', 'course')
+        
+        return context
+
+
+class ClassGroupCreateView(LoginRequiredMixin, ProfessorOrAdminRequiredMixin, CreateView):
+    """
+    Cria uma nova turma.
+    """
+    model = ClassGroup
+    template_name = 'courses/class_group_form.html'
+    fields = ['name', 'description', 'students', 'courses']
+    success_url = reverse_lazy('courses:class_group_list')
+    
+    def form_valid(self, form):
+        # Define o professor como o usuário atual
+        form.instance.professor = self.request.user
+        messages.success(self.request, 'Turma criada com sucesso!')
+        return super().form_valid(form)
+
+
+class ClassGroupUpdateView(LoginRequiredMixin, ProfessorClassGroupMixin, UpdateView):
+    """
+    Atualiza uma turma existente.
+    """
+    model = ClassGroup
+    template_name = 'courses/class_group_form.html'
+    fields = ['name', 'description', 'students', 'courses']
+    
+    def get_success_url(self):
+        return reverse('courses:class_group_detail', kwargs={'pk': self.object.pk})
+    
+    def form_valid(self, form):
+        messages.success(self.request, 'Turma atualizada com sucesso!')
+        return super().form_valid(form)
+
+
+class ClassGroupDeleteView(LoginRequiredMixin, ProfessorClassGroupMixin, DeleteView):
+    """
+    Exclui uma turma.
+    """
+    model = ClassGroup
+    template_name = 'courses/class_group_confirm_delete.html'
+    success_url = reverse_lazy('courses:class_group_list')
+    
+    def delete(self, request, *args, **kwargs):
+        messages.success(request, 'Turma excluída com sucesso!')
+        return super().delete(request, *args, **kwargs)
+
+
+# VIEWS PARA LIBERAÇÃO DE AULAS (LESSON RELEASES)
+
+class LessonReleaseCreateView(LoginRequiredMixin, ProfessorClassGroupMixin, CreateView):
+    """
+    Cria uma nova liberação de aula para uma turma específica.
+    """
+    model = LessonRelease
+    template_name = 'courses/lesson_release_form.html'
+    fields = ['lesson', 'release_date', 'is_released']
+    
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        class_group = get_object_or_404(ClassGroup, pk=self.kwargs['class_group_id'])
+        
+        # Filtrar apenas aulas dos cursos da turma
+        form.fields['lesson'].queryset = Lesson.objects.filter(
+            course__class_groups=class_group
+        ).select_related('course')
+        
+        return form
+    
+    def form_valid(self, form):
+        # Define a turma para a liberação de aula
+        form.instance.class_group = get_object_or_404(ClassGroup, pk=self.kwargs['class_group_id'])
+        messages.success(self.request, 'Liberação de aula criada com sucesso!')
+        return super().form_valid(form)
+    
+    def get_success_url(self):
+        return reverse('courses:class_group_detail', kwargs={'pk': self.kwargs['class_group_id']})
+
+
+class LessonReleaseUpdateView(LoginRequiredMixin, ProfessorClassGroupMixin, UpdateView):
+    """
+    Atualiza uma liberação de aula existente.
+    """
+    model = LessonRelease
+    template_name = 'courses/lesson_release_form.html'
+    fields = ['lesson', 'release_date', 'is_released']
+    
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        lesson_release = self.get_object()
+        
+        # Filtrar apenas aulas dos cursos da turma
+        form.fields['lesson'].queryset = Lesson.objects.filter(
+            course__class_groups=lesson_release.class_group
+        ).select_related('course')
+        
+        return form
+    
+    def form_valid(self, form):
+        messages.success(self.request, 'Liberação de aula atualizada com sucesso!')
+        return super().form_valid(form)
+    
+    def get_success_url(self):
+        return reverse('courses:class_group_detail', kwargs={'pk': self.object.class_group.pk})
+
+
+class LessonReleaseDeleteView(LoginRequiredMixin, ProfessorClassGroupMixin, DeleteView):
+    """
+    Exclui uma liberação de aula.
+    """
+    model = LessonRelease
+    template_name = 'courses/lesson_release_confirm_delete.html'
+    
+    def get_success_url(self):
+        return reverse('courses:class_group_detail', kwargs={'pk': self.object.class_group.pk})
+    
+    def delete(self, request, *args, **kwargs):
+        lesson_release = self.get_object()
+        class_group_id = lesson_release.class_group.pk
+        messages.success(request, 'Liberação de aula excluída com sucesso!')
+        return super().delete(request, *args, **kwargs)

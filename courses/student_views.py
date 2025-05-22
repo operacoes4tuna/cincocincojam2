@@ -7,7 +7,7 @@ from django.db.models import Q, Count, Case, When, IntegerField
 from django.http import HttpResponseRedirect, JsonResponse
 from django.utils import timezone
 
-from .models import Course, Lesson, Enrollment, LessonProgress
+from .models import Course, Lesson, Enrollment, LessonProgress, ClassGroup, LessonRelease
 from .forms import CourseEnrollForm, CourseSearchForm
 from core.models import User
 from scheduler.models import EventParticipant
@@ -26,7 +26,8 @@ class StudentRequiredMixin(UserPassesTestMixin):
 
 class EnrollmentRequiredMixin(UserPassesTestMixin):
     """
-    Mixin para verificar se o aluno está matriculado no curso.
+    Mixin para verificar se o aluno está matriculado no curso e se tem acesso à aula
+    de acordo com as liberações de sua turma.
     """
     def test_func(self):
         if not self.request.user.is_authenticated or not self.request.user.is_student:
@@ -35,18 +36,42 @@ class EnrollmentRequiredMixin(UserPassesTestMixin):
             
         # Obter o curso da URL
         course_id = self.kwargs.get('course_id') or self.kwargs.get('pk')
-        if course_id:
-            course = get_object_or_404(Course, pk=course_id)
-            has_active_enrollment = Enrollment.objects.filter(
-                student=self.request.user, 
-                course=course,
-                status=Enrollment.Status.ACTIVE
-            ).exists()
-            print(f"[DEBUG] EnrollmentRequiredMixin: Verificando acesso ao curso {course_id} - Matricula ativa: {has_active_enrollment}")
-            return has_active_enrollment
+        if not course_id:
+            print(f"[DEBUG] EnrollmentRequiredMixin: Curso não encontrado na URL")
+            return False
             
-        print(f"[DEBUG] EnrollmentRequiredMixin: Curso não encontrado na URL")
-        return False
+        course = get_object_or_404(Course, pk=course_id)
+        
+        # Verificar se existe uma matrícula ativa
+        enrollment = Enrollment.objects.filter(
+            student=self.request.user, 
+            course=course,
+            status=Enrollment.Status.ACTIVE
+        ).first()
+        
+        if not enrollment:
+            print(f"[DEBUG] EnrollmentRequiredMixin: Nenhuma matrícula ativa encontrada para o curso {course_id}")
+            return False
+            
+        # Se estiver acessando uma aula específica, verificar liberação por turma
+        lesson_id = self.kwargs.get('lesson_id')
+        if lesson_id and enrollment.class_group:
+            lesson = get_object_or_404(Lesson, pk=lesson_id)
+            
+            # Verificar se a aula está liberada para a turma do aluno
+            lesson_released = LessonRelease.objects.filter(
+                class_group=enrollment.class_group,
+                lesson=lesson,
+                is_released=True
+            ).exists()
+            
+            if not lesson_released:
+                print(f"[DEBUG] EnrollmentRequiredMixin: Aula {lesson_id} não liberada para a turma {enrollment.class_group.id}")
+                return False
+                
+        # Se não houver turma ou se a verificação de liberação passou, permitir acesso
+        print(f"[DEBUG] EnrollmentRequiredMixin: Acesso permitido ao curso {course_id}")
+        return True
     
     def handle_no_permission(self):
         # Obter o curso da URL
@@ -55,7 +80,7 @@ class EnrollmentRequiredMixin(UserPassesTestMixin):
         if course_id and self.request.user.is_authenticated and self.request.user.is_student:
             course = get_object_or_404(Course, pk=course_id)
             
-            # Verificar se o aluno está matriculado mas com status PENDING
+            # Verificar se o aluno está matriculado mas com status diferente de ACTIVE
             try:
                 enrollment = Enrollment.objects.get(
                     student=self.request.user,
@@ -72,6 +97,16 @@ class EnrollmentRequiredMixin(UserPassesTestMixin):
                 elif enrollment.status == Enrollment.Status.CANCELLED:
                     messages.warning(self.request, 'Sua matrícula neste curso foi cancelada. Por favor, matricule-se novamente.')
                     print(f"[DEBUG] EnrollmentRequiredMixin: Matrícula cancelada para o curso {course_id}")
+                # Verificar se o acesso foi negado por causa de aula não liberada
+                elif enrollment.class_group:
+                    lesson_id = self.kwargs.get('lesson_id')
+                    if lesson_id:
+                        messages.warning(
+                            self.request, 
+                            'Esta aula ainda não foi liberada para sua turma. Entre em contato com seu professor.'
+                        )
+                        # Redirecionar para a página do curso
+                        return redirect('courses:student_course_learn', pk=course_id)
             
             except Enrollment.DoesNotExist:
                 print(f"[DEBUG] EnrollmentRequiredMixin: Matrícula não encontrada para o curso {course_id}")
@@ -93,7 +128,7 @@ class StudentDashboardView(LoginRequiredMixin, StudentRequiredMixin, ListView):
         return Enrollment.objects.filter(
             student=self.request.user,
             status=Enrollment.Status.ACTIVE
-        ).select_related('course').order_by('-enrolled_at')
+        ).select_related('course', 'class_group').order_by('-enrolled_at')
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -122,7 +157,7 @@ class StudentDashboardView(LoginRequiredMixin, StudentRequiredMixin, ListView):
         # Cursos recentemente acessados
         context['recent_lessons'] = LessonProgress.objects.filter(
             enrollment__student=self.request.user
-        ).select_related('lesson', 'enrollment', 'enrollment__course'
+        ).select_related('lesson', 'enrollment', 'enrollment__course', 'enrollment__class_group'
         ).order_by('-last_accessed_at')[:5]
         
         # Verificar se há cobranças pendentes
@@ -133,7 +168,7 @@ class StudentDashboardView(LoginRequiredMixin, StudentRequiredMixin, ListView):
             pending_transactions = PaymentTransaction.objects.filter(
                 enrollment__student=self.request.user,
                 status=PaymentTransaction.Status.PENDING
-            ).select_related('enrollment', 'enrollment__course').order_by('-created_at')
+            ).select_related('enrollment', 'enrollment__course', 'enrollment__class_group').order_by('-created_at')
             
             context['pending_transactions'] = pending_transactions
             context['has_pending_payment'] = pending_transactions.exists()
@@ -162,6 +197,11 @@ class StudentDashboardView(LoginRequiredMixin, StudentRequiredMixin, ListView):
             # Se o módulo scheduler não estiver disponível ou ocorrer outro erro
             print(f"Erro ao buscar convites pendentes: {e}")
             context['pending_invitations_count'] = 0
+
+        # Buscar turmas do aluno
+        context['class_groups'] = ClassGroup.objects.filter(
+            students=self.request.user
+        ).select_related('professor').prefetch_related('courses')
             
         return context
 

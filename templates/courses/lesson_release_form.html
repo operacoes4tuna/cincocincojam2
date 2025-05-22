@@ -1,0 +1,101 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load widget_tweaks %}
+
+{% block title %}
+    {% if object %}
+        {% trans "Editar Liberação de Aula" %}
+    {% else %}
+        {% trans "Nova Liberação de Aula" %}
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h1>
+                {% if object %}
+                    {% trans "Editar Liberação de Aula" %}
+                {% else %}
+                    {% trans "Nova Liberação de Aula" %}
+                {% endif %}
+            </h1>
+            {% if not object %}
+                <p class="text-muted">{% trans "Turma:" %} {{ view.kwargs.class_group.name|default:"" }}</p>
+            {% else %}
+                <p class="text-muted">{% trans "Turma:" %} {{ object.class_group.name }}</p>
+            {% endif %}
+        </div>
+        <div class="col-md-4 text-end">
+            {% if object %}
+                <a href="{% url 'courses:class_group_detail' object.class_group.id %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> {% trans "Voltar" %}
+                </a>
+            {% else %}
+                <a href="{% url 'courses:class_group_detail' view.kwargs.class_group_id %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> {% trans "Voltar" %}
+                </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.lesson.id_for_label }}" class="form-label">{% trans "Aula" %}*</label>
+                            {{ form.lesson|add_class:"form-select" }}
+                            <div class="form-text">{% trans "Selecione a aula que será liberada para a turma." %}</div>
+                            {% if form.lesson.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.lesson.errors }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.release_date.id_for_label }}" class="form-label">{% trans "Data de Liberação" %}*</label>
+                            {{ form.release_date|add_class:"form-control" }}
+                            <div class="form-text">{% trans "Data e hora em que a aula será liberada automaticamente." %}</div>
+                            {% if form.release_date.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.release_date.errors }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-3 form-check">
+                            {{ form.is_released|add_class:"form-check-input" }}
+                            <label for="{{ form.is_released.id_for_label }}" class="form-check-label">
+                                {% trans "Liberar imediatamente" %}
+                            </label>
+                            <div class="form-text">{% trans "Marque esta opção para liberar a aula imediatamente, independente da data." %}</div>
+                            {% if form.is_released.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.is_released.errors }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <button type="submit" class="btn btn-primary">
+                                {% if object %}
+                                    <i class="fas fa-save"></i> {% trans "Atualizar Liberação" %}
+                                {% else %}
+                                    <i class="fas fa-plus"></i> {% trans "Criar Liberação" %}
+                                {% endif %}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 
