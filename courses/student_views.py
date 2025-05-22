@@ -81,6 +81,20 @@ class EnrollmentRequiredMixin(UserPassesTestMixin):
         return super().handle_no_permission()
 
 
+class VideosView(LoginRequiredMixin, View):
+    """
+    Exibe uma página com vídeos em destaque para os alunos e professores.
+    """
+    template_name = 'courses/student/videos.html'
+    
+    def get(self, request, *args, **kwargs):
+        context = {
+            'is_professor': request.user.is_professor,
+            'is_student': request.user.is_student,
+        }
+        return render(request, self.template_name, context)
+
+
 class StudentDashboardView(LoginRequiredMixin, StudentRequiredMixin, ListView):
     """
     Dashboard do aluno mostrando seus cursos matriculados e progresso.

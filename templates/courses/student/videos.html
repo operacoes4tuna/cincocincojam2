@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+
+{% block title %}Vídeos - CincoCincoJAM 2.0{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Vídeos</h2>
+    <div>
+        {% if is_student %}
+        <a href="{% url 'courses:student:dashboard' %}" class="btn btn-secondary">
+            <i class="fas fa-tachometer-alt"></i> Meu Dashboard
+        </a>
+        {% elif is_professor %}
+        <a href="{% url 'courses:dashboard' %}" class="btn btn-secondary">
+            <i class="fas fa-tachometer-alt"></i> Meu Dashboard
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Lista de Vídeos -->
+<div class="row">
+    <div class="col-lg-8 mb-4">
+        <!-- Vídeo 1 -->
+        <div class="card shadow mb-4 video-feature-card">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Como estudar escalas musicais com ScaleClock</h6>
+            </div>
+            <div class="card-body">
+                <div class="ratio ratio-16x9 mb-3">
+                    <iframe
+                        src="https://play.giancorrea.55jam.com.br/embed/16/2063287770:2da7ee8c06b59a8d726dbba9d34bc563043bab3732af6610bb98990adb30a5be:*/"
+                        frameborder="0" allowfullscreen></iframe>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Vídeo 2 -->
+        <div class="card shadow mb-4 video-feature-card">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Guitarra</h6>
+            </div>
+            <div class="card-body">
+                <div class="ratio ratio-16x9 mb-3">
+                    <iframe
+                        src="https://play.giancorrea.55jam.com.br/embed/13/2063288504:a01250950e66313a9b8ea6e4f0544274ac664a100ab43b2605041824f5b68fb5:*/"
+                        frameborder="0" allowfullscreen></iframe>
+                </div>
+
+            </div>
+
+            <!-- Vídeo 3 -->
+            <div class="card shadow mb-4 video-feature-card">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Edu Neves e João Bouhid</h6>
+                </div>
+                <div class="card-body">
+                    <div class="ratio ratio-16x9 mb-3">
+                        <iframe
+                            src="https://play.giancorrea.55jam.com.br/embed/14/2063296805:e5a32a4ea077a057411b4ba94e71e5e646bc25b3b72b4fdedbcb072235764d8b:*/"
+                            frameborder="0" allowfullscreen></iframe>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- Espaço para mais vídeos que serão adicionados futuramente -->
+        <div class="col-lg-4">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Próximos Vídeos</h6>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info text-center">
+                        <i class="fas fa-film me-2"></i>
+                        Novos vídeos serão adicionados em breve.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Espaço para mais vídeos no futuro (em formato de grade) -->
+    <div class="row" id="videos-grid">
+        <!-- Aqui serão adicionados mais vídeos -->
+    </div>
+
+    {% endblock %}
