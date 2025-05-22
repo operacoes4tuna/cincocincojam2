@@ -160,6 +160,11 @@ class Lesson(models.Model):
     title = models.CharField(_('título'), max_length=200)
     description = models.TextField(_('descrição'), blank=True)
     video_url = models.URLField(_('URL do vídeo'), blank=True)
+    private_video_url = models.URLField(
+        _('URL do vídeo privado'), 
+        blank=True, 
+        help_text=_('URL para vídeos do play.giancorrea.55jam.com.br')
+    )
     youtube_id = models.CharField(_('ID do YouTube'), max_length=30, blank=True)
     order = models.PositiveIntegerField(_('ordem'), default=0)
     

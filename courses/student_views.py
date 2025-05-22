@@ -632,23 +632,28 @@ class CourseLearnView(LoginRequiredMixin, DetailView):
                 import re
                 from urllib.parse import urlparse, parse_qs
                 
-                # Pattern para URLs completas do YouTube
-                youtube_regex = r'(https?://)?(www\.)?(youtube|youtu|youtube-nocookie)\.(com|be)/(watch\?v=|embed/|v/|.+\?v=)?([^&=%\?]{11})'
-                
-                youtube_match = re.match(youtube_regex, current_lesson.video_url)
-                if youtube_match:
-                    youtube_video_id = youtube_match.group(6)
+                # Verifica se temos uma URL de vídeo privado configurada
+                if current_lesson.private_video_url:
+                    # O vídeo privado tem prioridade sobre o YouTube
+                    context['private_video_url'] = current_lesson.private_video_url
                 else:
-                    # Se não der match, tenta com urlparse para URLs do tipo youtu.be
-                    parsed_url = urlparse(current_lesson.video_url)
-                    if 'youtu.be' in parsed_url.netloc:
-                        youtube_video_id = parsed_url.path.lstrip('/')
+                    # Pattern para URLs completas do YouTube
+                    youtube_regex = r'(https?://)?(www\.)?(youtube|youtu|youtube-nocookie)\.(com|be)/(watch\?v=|embed/|v/|.+\?v=)?([^&=%\?]{11})'
                     
-                    # Para URLs do formato youtube.com/watch?v=ID
-                    elif 'youtube.com' in parsed_url.netloc:
-                        query = parse_qs(parsed_url.query)
-                        if 'v' in query:
-                            youtube_video_id = query['v'][0]
+                    youtube_match = re.match(youtube_regex, current_lesson.video_url)
+                    if youtube_match:
+                        youtube_video_id = youtube_match.group(6)
+                    else:
+                        # Se não der match, tenta com urlparse para URLs do tipo youtu.be
+                        parsed_url = urlparse(current_lesson.video_url)
+                        if 'youtu.be' in parsed_url.netloc:
+                            youtube_video_id = parsed_url.path.lstrip('/')
+                        
+                        # Para URLs do formato youtube.com/watch?v=ID
+                        elif 'youtube.com' in parsed_url.netloc:
+                            query = parse_qs(parsed_url.query)
+                            if 'v' in query:
+                                youtube_video_id = query['v'][0]
             
             context['youtube_video_id'] = youtube_video_id
             

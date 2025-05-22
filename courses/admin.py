@@ -123,7 +123,7 @@ class LessonAdmin(admin.ModelAdmin):
             'fields': ('course', 'title', 'description', 'order')
         }),
         (_('Vídeo'), {
-            'fields': ('video_url', 'youtube_id')
+            'fields': ('video_url', 'private_video_url', 'youtube_id')
         }),
         (_('Status e Controle'), {
             'fields': ('status', 'created_at', 'updated_at')

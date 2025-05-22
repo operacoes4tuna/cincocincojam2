@@ -93,7 +93,14 @@
                             {% endif %}
                             
                             <div class="ratio ratio-16x9 mb-2">
-                                {% if "youtube.com" in current_lesson.video_url or "youtu.be" in current_lesson.video_url %}
+                                {% if private_video_url %}
+                                    <!-- Player para vídeos privados -->
+                                    <iframe id="custom-video-{{ current_lesson.id }}" 
+                                            src="{{ private_video_url }}" 
+                                            title="{{ current_lesson.title }}" 
+                                            frameborder="0"
+                                            allowfullscreen></iframe>
+                                {% elif "youtube.com" in current_lesson.video_url or "youtu.be" in current_lesson.video_url %}
                                     {% if youtube_video_id %}
                                         <iframe id="youtube-video-{{ current_lesson.id }}" 
                                                 src="https://www.youtube.com/embed/{{ youtube_video_id }}?rel=0&enablejsapi=1" 
@@ -106,6 +113,13 @@
                                             </a>
                                         </div>
                                     {% endif %}
+                                {% elif "play.giancorrea.55jam.com.br" in current_lesson.video_url %}
+                                    <!-- Player para vídeos privados do 55Jam via URL -->
+                                    <iframe id="custom-video-{{ current_lesson.id }}" 
+                                            src="{{ current_lesson.video_url }}" 
+                                            title="{{ current_lesson.title }}" 
+                                            frameborder="0"
+                                            allowfullscreen></iframe>
                                 {% else %}
                                     <div class="d-flex justify-content-center align-items-center bg-light">
                                         <a href="{{ current_lesson.video_url }}" target="_blank" class="btn btn-primary">
@@ -215,17 +229,41 @@
 <script src="{% static 'js/video-player.js' %}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        {% if current_lesson and current_lesson.video_url and youtube_video_id %}
-        // Inicializar o rastreador de progresso do vídeo
-        const videoTracker = new VideoProgressTracker({
-            videoElementId: 'youtube-video-{{ current_lesson.id }}',
-            progressBarId: 'video-progress-bar-{{ current_lesson.id }}',
-            lessonId: {{ current_lesson.id }},
-            csrfToken: '{{ csrf_token }}',
-            autoMarkComplete: true,
-            completionThreshold: 90,
-            debug: true
-        });
+        {% if current_lesson and current_lesson.video_url %}
+            {% if private_video_url %}
+                // Inicializar para vídeos privados
+                const videoTracker = new VideoProgressTracker({
+                    videoElementId: 'custom-video-{{ current_lesson.id }}',
+                    progressBarId: 'video-progress-bar-{{ current_lesson.id }}',
+                    lessonId: {{ current_lesson.id }},
+                    csrfToken: '{{ csrf_token }}',
+                    autoMarkComplete: true,
+                    completionThreshold: 90,
+                    debug: true
+                });
+            {% elif youtube_video_id %}
+                // Inicializar o rastreador de progresso do vídeo do YouTube
+                const videoTracker = new VideoProgressTracker({
+                    videoElementId: 'youtube-video-{{ current_lesson.id }}',
+                    progressBarId: 'video-progress-bar-{{ current_lesson.id }}',
+                    lessonId: {{ current_lesson.id }},
+                    csrfToken: '{{ csrf_token }}',
+                    autoMarkComplete: true,
+                    completionThreshold: 90,
+                    debug: true
+                });
+            {% elif "play.giancorrea.55jam.com.br" in current_lesson.video_url %}
+                // Inicializar para vídeos privados do 55Jam via URL
+                const videoTracker = new VideoProgressTracker({
+                    videoElementId: 'custom-video-{{ current_lesson.id }}',
+                    progressBarId: 'video-progress-bar-{{ current_lesson.id }}',
+                    lessonId: {{ current_lesson.id }},
+                    csrfToken: '{{ csrf_token }}',
+                    autoMarkComplete: true,
+                    completionThreshold: 90,
+                    debug: true
+                });
+            {% endif %}
         
         // Evento para marcar a aula como concluída automaticamente
         document.addEventListener('lessonCompleted', function(e) {

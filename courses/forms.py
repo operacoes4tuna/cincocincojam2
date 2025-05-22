@@ -39,11 +39,12 @@ class LessonForm(forms.ModelForm):
     """
     class Meta:
         model = Lesson
-        fields = ['title', 'description', 'video_url', 'order', 'status']
+        fields = ['title', 'description', 'video_url', 'private_video_url', 'order', 'status']
         widgets = {
             'description': forms.Textarea(attrs={'rows': 4}),
             'order': forms.NumberInput(attrs={'min': '0', 'step': '1'}),
             'video_url': forms.URLInput(attrs={'placeholder': 'https://www.youtube.com/watch?v=ID_DO_VIDEO'}),
+            'private_video_url': forms.URLInput(attrs={'placeholder': 'https://play.giancorrea.55jam.com.br/embed/14/HASH'}),
         }
         
     def __init__(self, *args, **kwargs):
