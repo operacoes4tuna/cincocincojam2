@@ -37,118 +37,148 @@
     </div>
 </div>
 
+<!-- Seção de Vídeo em Destaque -->
+<div class="card shadow mb-4 video-feature-card">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">Vídeo em Destaque</h6>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-lg-8 col-md-10 mx-auto">
+                <div class="ratio ratio-16x9 mb-3">
+                    <iframe
+                        src="https://play.giancorrea.55jam.com.br/embed/16/2063287770:2da7ee8c06b59a8d726dbba9d34bc563043bab3732af6610bb98990adb30a5be:*/"
+                        frameborder="0" allowfullscreen></iframe>
+                </div>
+                <p class="text-muted text-center">Confira nosso conteúdo especial para aprimorar seus conhecimentos.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Lista de cursos -->
 <div class="row">
     {% if courses %}
-        {% for course in courses %}
-            <div class="col-md-6 col-lg-4 mb-4">
-                <div class="card h-100 shadow-sm">
-                    {% if course.image %}
-                        <img src="{{ course.image.url }}" class="card-img-top" alt="{{ course.title }}" style="height: 180px; object-fit: cover;">
-                    {% else %}
-                        <div class="card-img-top bg-light text-center pt-5 pb-5" style="height: 180px;">
-                            <i class="fas fa-book fa-3x text-muted"></i>
-                        </div>
+    {% for course in courses %}
+    <div class="col-md-6 col-lg-4 mb-4">
+        <div class="card h-100 shadow-sm">
+            {% if course.image %}
+            <img src="{{ course.image.url }}" class="card-img-top" alt="{{ course.title }}"
+                style="height: 180px; object-fit: cover;">
+            {% else %}
+            <div class="card-img-top bg-light text-center pt-5 pb-5" style="height: 180px;">
+                <i class="fas fa-book fa-3x text-muted"></i>
+            </div>
+            {% endif %}
+            <div class="card-body">
+                <h5 class="card-title">{{ course.title }}</h5>
+                <div class="d-flex justify-content-between mb-2">
+                    <span class="badge bg-primary">{{ course.lessons_count }} aulas</span>
+                    {% if is_student and course.is_enrolled %}
+                    <span class="badge bg-success">Matriculado</span>
+                    {% elif is_professor and course.is_own_course %}
+                    <span class="badge bg-info">Meu Curso</span>
                     {% endif %}
-                    <div class="card-body">
-                        <h5 class="card-title">{{ course.title }}</h5>
-                        <div class="d-flex justify-content-between mb-2">
-                            <span class="badge bg-primary">{{ course.lessons_count }} aulas</span>
-                            {% if is_student and course.is_enrolled %}
-                                <span class="badge bg-success">Matriculado</span>
-                            {% elif is_professor and course.is_own_course %}
-                                <span class="badge bg-info">Meu Curso</span>
-                            {% endif %}
-                        </div>
-                        <p class="card-text">{{ course.short_description|default:course.description|truncatechars:100 }}</p>
-                        <p class="card-text"><strong>Professor:</strong> {{ course.professor.get_full_name|default:course.professor.email }}</p>
-                        <div class="d-flex justify-content-between align-items-center">
-                            <span class="h5 text-primary mb-0">R$ {{ course.price }}</span>
-                            <small class="text-muted">Publicado em {{ course.created_at|date:"d/m/Y" }}</small>
-                        </div>
-                    </div>
-                    <div class="card-footer bg-white">
-                        <div class="d-grid">
-                            <a href="{% url 'courses:student:course_detail' course.id %}" class="btn btn-primary">
-                                <i class="fas fa-info-circle"></i> Ver Detalhes
-                            </a>
-                        </div>
-                    </div>
+                </div>
+                <p class="card-text">{{ course.short_description|default:course.description|truncatechars:100 }}</p>
+                <p class="card-text"><strong>Professor:</strong> {{
+                    course.professor.get_full_name|default:course.professor.email }}</p>
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="h5 text-primary mb-0">R$ {{ course.price }}</span>
+                    <small class="text-muted">Publicado em {{ course.created_at|date:"d/m/Y" }}</small>
                 </div>
             </div>
-        {% endfor %}
-    {% else %}
-        <div class="col-12">
-            <div class="alert alert-info text-center">
-                <i class="fas fa-info-circle me-2"></i>
-                Nenhum curso encontrado com os critérios de busca.
+            <div class="card-footer bg-white">
+                <div class="d-grid">
+                    <a href="{% url 'courses:student:course_detail' course.id %}" class="btn btn-primary">
+                        <i class="fas fa-info-circle"></i> Ver Detalhes
+                    </a>
+                </div>
             </div>
         </div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="col-12">
+        <div class="alert alert-info text-center">
+            <i class="fas fa-info-circle me-2"></i>
+            Nenhum curso encontrado com os critérios de busca.
+        </div>
+    </div>
     {% endif %}
 </div>
 
 <!-- Paginação -->
 {% if is_paginated %}
-    <nav aria-label="Paginação de cursos" class="mt-4">
-        <ul class="pagination justify-content-center">
-            {% if page_obj.has_previous %}
-                <li class="page-item">
-                    <a class="page-link" href="?page=1{% if search_form.query.value %}&query={{ search_form.query.value }}{% endif %}{% if search_form.order_by.value %}&order_by={{ search_form.order_by.value }}{% endif %}" aria-label="Primeira">
-                        <span aria-hidden="true">&laquo;&laquo;</span>
-                    </a>
-                </li>
-                <li class="page-item">
-                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_form.query.value %}&query={{ search_form.query.value }}{% endif %}{% if search_form.order_by.value %}&order_by={{ search_form.order_by.value }}{% endif %}" aria-label="Anterior">
-                        <span aria-hidden="true">&laquo;</span>
-                    </a>
-                </li>
-            {% else %}
-                <li class="page-item disabled">
-                    <a class="page-link" href="#" aria-label="Primeira">
-                        <span aria-hidden="true">&laquo;&laquo;</span>
-                    </a>
-                </li>
-                <li class="page-item disabled">
-                    <a class="page-link" href="#" aria-label="Anterior">
-                        <span aria-hidden="true">&laquo;</span>
-                    </a>
-                </li>
+<nav aria-label="Paginação de cursos" class="mt-4">
+    <ul class="pagination justify-content-center">
+        {% if page_obj.has_previous %}
+        <li class="page-item">
+            <a class="page-link"
+                href="?page=1{% if search_form.query.value %}&query={{ search_form.query.value }}{% endif %}{% if search_form.order_by.value %}&order_by={{ search_form.order_by.value }}{% endif %}"
+                aria-label="Primeira">
+                <span aria-hidden="true">&laquo;&laquo;</span>
+            </a>
+        </li>
+        <li class="page-item">
+            <a class="page-link"
+                href="?page={{ page_obj.previous_page_number }}{% if search_form.query.value %}&query={{ search_form.query.value }}{% endif %}{% if search_form.order_by.value %}&order_by={{ search_form.order_by.value }}{% endif %}"
+                aria-label="Anterior">
+                <span aria-hidden="true">&laquo;</span>
+            </a>
+        </li>
+        {% else %}
+        <li class="page-item disabled">
+            <a class="page-link" href="#" aria-label="Primeira">
+                <span aria-hidden="true">&laquo;&laquo;</span>
+            </a>
+        </li>
+        <li class="page-item disabled">
+            <a class="page-link" href="#" aria-label="Anterior">
+                <span aria-hidden="true">&laquo;</span>
+            </a>
+        </li>
+        {% endif %}
+
+        {% for num in page_obj.paginator.page_range %}
+        {% if page_obj.number == num %}
+        <li class="page-item active"><a class="page-link" href="#">{{ num }}</a></li>
+        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %} <li class="page-item">
+            <a class="page-link"
+                href="?page={{ num }}{% if search_form.query.value %}&query={{ search_form.query.value }}{% endif %}{% if search_form.order_by.value %}&order_by={{ search_form.order_by.value }}{% endif %}">{{
+                num }}</a>
+            </li>
             {% endif %}
-            
-            {% for num in page_obj.paginator.page_range %}
-                {% if page_obj.number == num %}
-                    <li class="page-item active"><a class="page-link" href="#">{{ num }}</a></li>
-                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
-                    <li class="page-item">
-                        <a class="page-link" href="?page={{ num }}{% if search_form.query.value %}&query={{ search_form.query.value }}{% endif %}{% if search_form.order_by.value %}&order_by={{ search_form.order_by.value }}{% endif %}">{{ num }}</a>
-                    </li>
-                {% endif %}
             {% endfor %}
-            
+
             {% if page_obj.has_next %}
-                <li class="page-item">
-                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_form.query.value %}&query={{ search_form.query.value }}{% endif %}{% if search_form.order_by.value %}&order_by={{ search_form.order_by.value }}{% endif %}" aria-label="Próxima">
-                        <span aria-hidden="true">&raquo;</span>
-                    </a>
-                </li>
-                <li class="page-item">
-                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search_form.query.value %}&query={{ search_form.query.value }}{% endif %}{% if search_form.order_by.value %}&order_by={{ search_form.order_by.value }}{% endif %}" aria-label="Última">
-                        <span aria-hidden="true">&raquo;&raquo;</span>
-                    </a>
-                </li>
+            <li class="page-item">
+                <a class="page-link"
+                    href="?page={{ page_obj.next_page_number }}{% if search_form.query.value %}&query={{ search_form.query.value }}{% endif %}{% if search_form.order_by.value %}&order_by={{ search_form.order_by.value }}{% endif %}"
+                    aria-label="Próxima">
+                    <span aria-hidden="true">&raquo;</span>
+                </a>
+            </li>
+            <li class="page-item">
+                <a class="page-link"
+                    href="?page={{ page_obj.paginator.num_pages }}{% if search_form.query.value %}&query={{ search_form.query.value }}{% endif %}{% if search_form.order_by.value %}&order_by={{ search_form.order_by.value }}{% endif %}"
+                    aria-label="Última">
+                    <span aria-hidden="true">&raquo;&raquo;</span>
+                </a>
+            </li>
             {% else %}
-                <li class="page-item disabled">
-                    <a class="page-link" href="#" aria-label="Próxima">
-                        <span aria-hidden="true">&raquo;</span>
-                    </a>
-                </li>
-                <li class="page-item disabled">
-                    <a class="page-link" href="#" aria-label="Última">
-                        <span aria-hidden="true">&raquo;&raquo;</span>
-                    </a>
-                </li>
+            <li class="page-item disabled">
+                <a class="page-link" href="#" aria-label="Próxima">
+                    <span aria-hidden="true">&raquo;</span>
+                </a>
+            </li>
+            <li class="page-item disabled">
+                <a class="page-link" href="#" aria-label="Última">
+                    <span aria-hidden="true">&raquo;&raquo;</span>
+                </a>
+            </li>
             {% endif %}
-        </ul>
-    </nav>
+    </ul>
+</nav>
 {% endif %}
 {% endblock %}

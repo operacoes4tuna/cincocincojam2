@@ -10,6 +10,7 @@ app_name = 'courses'
 student_patterns = [
     path('dashboard/', student_views.StudentDashboardView.as_view(), name='dashboard'),
     path('catalog/', student_views.CourseListView.as_view(), name='course_list'),
+    path('videos/', student_views.VideosView.as_view(), name='videos'),
     path('course/<int:pk>/', student_views.CourseDetailView.as_view(), name='course_detail'),
     path('course/<int:pk>/enroll/', student_views.CourseEnrollView.as_view(), name='course_enroll'),
     path('course/<int:pk>/learn/', student_views.CourseLearnView.as_view(), name='course_learn'),

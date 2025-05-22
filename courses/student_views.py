@@ -694,3 +694,17 @@ class EnrollmentCancelView(LoginRequiredMixin, EnrollmentRequiredMixin, View):
         messages.success(request, 'Sua matrícula foi cancelada.')
         
         return HttpResponseRedirect(reverse('courses:student:dashboard'))
+
+
+class VideosView(LoginRequiredMixin, View):
+    """
+    Exibe uma página com vídeos em destaque para os alunos.
+    """
+    template_name = 'courses/student/videos.html'
+    
+    def get(self, request, *args, **kwargs):
+        context = {
+            'is_professor': request.user.is_professor,
+            'is_student': request.user.is_student,
+        }
+        return render(request, self.template_name, context)
