@@ -48,42 +48,91 @@
                     <form method="post">
                         {% csrf_token %}
                         
-                        <div class="mb-3">
-                            <label for="{{ form.lesson.id_for_label }}" class="form-label">{% trans "Aula" %}*</label>
-                            {{ form.lesson|add_class:"form-select" }}
-                            <div class="form-text">{% trans "Selecione a aula que será liberada para a turma." %}</div>
-                            {% if form.lesson.errors %}
-                                <div class="invalid-feedback d-block">
-                                    {{ form.lesson.errors }}
+                        <div class="card mb-4">
+                            <div class="card-header bg-light">
+                                <h5 class="mb-0">{% trans "Configurações de Liberação" %}</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <!-- Seleção de Aula -->
+                                    <div class="col-md-6">
+                                        <div class="card h-100 border-light">
+                                            <div class="card-body">
+                                                <div class="mb-3">
+                                                    <label for="{{ form.lesson.id_for_label }}" class="form-label">
+                                                        <i class="fas fa-video me-1"></i> {% trans "Aula" %}*
+                                                    </label>
+                                                    {{ form.lesson|add_class:"form-select" }}
+                                                    <div class="form-text">
+                                                        <small>{% trans "Selecione a aula que será liberada para a turma." %}</small>
+                                                    </div>
+                                                    {% if form.lesson.errors %}
+                                                        <div class="invalid-feedback d-block">
+                                                            {{ form.lesson.errors }}
+                                                        </div>
+                                                    {% endif %}
+                                                </div>
+                                                
+                                                <div class="form-check mb-3 mt-4">
+                                                    {{ form.is_released|add_class:"form-check-input" }}
+                                                    <label for="{{ form.is_released.id_for_label }}" class="form-check-label">
+                                                        <i class="fas fa-unlock me-1"></i> {% trans "Liberar imediatamente" %}
+                                                    </label>
+                                                    <div class="form-text">
+                                                        <small>{% trans "Marque esta opção para liberar a aula imediatamente, independente da data." %}</small>
+                                                    </div>
+                                                    {% if form.is_released.errors %}
+                                                        <div class="invalid-feedback d-block">
+                                                            {{ form.is_released.errors }}
+                                                        </div>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Data de Liberação -->
+                                    <div class="col-md-6">
+                                        <div class="card h-100 border-light">
+                                            <div class="card-body">
+                                                <div class="mb-3">
+                                                    <label for="{{ form.release_date.id_for_label }}" class="form-label">
+                                                        <i class="fas fa-calendar-alt me-1"></i> {% trans "Data de Liberação" %}*
+                                                    </label>
+                                                    {{ form.release_date|add_class:"form-control" }}
+                                                    <div class="form-text">
+                                                        <small>{% trans "Data e hora em que a aula será liberada automaticamente." %}</small>
+                                                    </div>
+                                                    {% if form.release_date.errors %}
+                                                        <div class="invalid-feedback d-block">
+                                                            {{ form.release_date.errors }}
+                                                        </div>
+                                                    {% endif %}
+                                                </div>
+                                                
+                                                <div class="alert alert-info mt-4">
+                                                    <small>
+                                                        <i class="fas fa-info-circle me-1"></i>
+                                                        {% trans "A liberação ocorrerá automaticamente na data programada. Você também pode liberar manualmente a qualquer momento marcando a opção ao lado." %}
+                                                    </small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
-                            {% endif %}
+                            </div>
                         </div>
                         
-                        <div class="mb-3">
-                            <label for="{{ form.release_date.id_for_label }}" class="form-label">{% trans "Data de Liberação" %}*</label>
-                            {{ form.release_date|add_class:"form-control" }}
-                            <div class="form-text">{% trans "Data e hora em que a aula será liberada automaticamente." %}</div>
-                            {% if form.release_date.errors %}
-                                <div class="invalid-feedback d-block">
-                                    {{ form.release_date.errors }}
-                                </div>
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-3">
+                            {% if object %}
+                                <a href="{% url 'courses:class_group_detail' object.class_group.id %}" class="btn btn-secondary me-2">
+                                    <i class="fas fa-times"></i> {% trans "Cancelar" %}
+                                </a>
+                            {% else %}
+                                <a href="{% url 'courses:class_group_detail' view.kwargs.class_group_id %}" class="btn btn-secondary me-2">
+                                    <i class="fas fa-times"></i> {% trans "Cancelar" %}
+                                </a>
                             {% endif %}
-                        </div>
-                        
-                        <div class="mb-3 form-check">
-                            {{ form.is_released|add_class:"form-check-input" }}
-                            <label for="{{ form.is_released.id_for_label }}" class="form-check-label">
-                                {% trans "Liberar imediatamente" %}
-                            </label>
-                            <div class="form-text">{% trans "Marque esta opção para liberar a aula imediatamente, independente da data." %}</div>
-                            {% if form.is_released.errors %}
-                                <div class="invalid-feedback d-block">
-                                    {{ form.is_released.errors }}
-                                </div>
-                            {% endif %}
-                        </div>
-                        
-                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
                             <button type="submit" class="btn btn-primary">
                                 {% if object %}
                                     <i class="fas fa-save"></i> {% trans "Atualizar Liberação" %}
