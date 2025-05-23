@@ -250,6 +250,10 @@ class LessonRelease(models.Model):
         # Verificar se a data de liberação já passou
         if self.release_date <= timezone.now():
             self.is_released = True
+        # Se is_released for True mas a data ainda não chegou, e não estamos
+        # forçando a liberação, ajustar is_released para False
+        elif not kwargs.pop('force_release', False):
+            self.is_released = False
         super().save(*args, **kwargs)
 
 

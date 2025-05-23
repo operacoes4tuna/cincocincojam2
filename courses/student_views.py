@@ -560,6 +560,10 @@ class CourseLearnView(LoginRequiredMixin, DetailView):
         
         print(f"[DEBUG] is_professor: {is_professor}, is_course_author: {is_course_author}")
         
+        # Extrai o ID da aula, se fornecido na URL
+        lesson_id = request.GET.get('lesson_id')
+        print(f"[DEBUG] lesson_id na URL: {lesson_id}")
+        
         # Se não for professor/autor, verifica se está matriculado e com status ACTIVE
         if not (is_professor and is_course_author):
             # Primeiro verificamos se o usuário tem acesso via turma
@@ -590,6 +594,41 @@ class CourseLearnView(LoginRequiredMixin, DetailView):
                     enrollment.status = Enrollment.Status.ACTIVE
                     enrollment.save()
                     
+                # Se estiver acessando uma aula específica, verificar liberação por turma
+                if lesson_id and class_group:
+                    try:
+                        lesson = Lesson.objects.get(pk=lesson_id, course=course)
+                        
+                        # Verificar se a aula está liberada para a turma do aluno
+                        lesson_release = LessonRelease.objects.filter(
+                            class_group=class_group,
+                            lesson=lesson
+                        ).first()
+                        
+                        print(f"[DEBUG] Verificando liberação da aula {lesson_id} para turma {class_group.id}")
+                        if lesson_release:
+                            print(f"[DEBUG] Encontrada liberação com status: {lesson_release.is_released}, data: {lesson_release.release_date}")
+                        else:
+                            print(f"[DEBUG] Nenhuma configuração de liberação encontrada para esta aula")
+                        
+                        # Verificar com regra mais estrita:
+                        # 1. Se existe uma liberação configurada e não está liberada
+                        # 2. Ou se a data de liberação ainda não chegou
+                        if lesson_release and (not lesson_release.is_released or lesson_release.release_date > timezone.now()):
+                            print(f"[DEBUG] BLOQUEANDO acesso à aula {lesson_id} - não liberada ou data futura")
+                            
+                            # Formatação da data para exibição
+                            release_date = lesson_release.release_date.strftime('%d/%m/%Y às %H:%M')
+                            messages.warning(
+                                request, 
+                                f'Esta aula será liberada em {release_date}. Entre em contato com seu professor para mais informações.'
+                            )
+                            # Redirecionar para a página do curso sem o parâmetro lesson_id
+                            return redirect('courses:student:course_learn', pk=course.id)
+                    except Lesson.DoesNotExist:
+                        # Se a aula não existir, deixa prosseguir e a view tratará isso
+                        pass
+                
                 # Segue para a visualização do curso
                 pass
             else:
@@ -641,6 +680,12 @@ class CourseLearnView(LoginRequiredMixin, DetailView):
             context['enrollment'] = None
             context['progress_width'] = "100%"
             context['viewing_as_professor'] = True
+            
+            # Obtém todas as aulas do curso em ordem
+            lessons = Lesson.objects.filter(
+                course=course,
+                status=Lesson.Status.PUBLISHED
+            ).order_by('order')
         else:
             # Obtém a matrícula do aluno
             enrollment = get_object_or_404(
@@ -652,12 +697,51 @@ class CourseLearnView(LoginRequiredMixin, DetailView):
             
             context['enrollment'] = enrollment
             context['progress_width'] = f"{enrollment.progress}%"
-        
-        # Obtém todas as aulas do curso em ordem
-        lessons = Lesson.objects.filter(
-            course=course,
-            status=Lesson.Status.PUBLISHED
-        ).order_by('order')
+            
+            # Verifica se o aluno está matriculado através de uma turma
+            if enrollment.class_group:
+                # Obtém aulas liberadas para a turma
+                released_lesson_ids = LessonRelease.objects.filter(
+                    class_group=enrollment.class_group,
+                    is_released=True
+                ).values_list('lesson_id', flat=True)
+                
+                # Obtém apenas as aulas liberadas ou todas se não houver configuração de liberação
+                lessons_with_releases = Lesson.objects.filter(
+                    course=course,
+                    status=Lesson.Status.PUBLISHED,
+                    id__in=released_lesson_ids
+                ).order_by('order')
+                
+                # Se não houver aulas liberadas explicitamente, verificamos se há configurações de liberação
+                has_releases = LessonRelease.objects.filter(
+                    class_group=enrollment.class_group
+                ).exists()
+                
+                if has_releases:
+                    # Se há configurações, só mostra aulas liberadas
+                    lessons = lessons_with_releases
+                    context['has_lesson_releases'] = True
+                    
+                    # Adiciona informações sobre aulas pendentes
+                    pending_releases = LessonRelease.objects.filter(
+                        class_group=enrollment.class_group,
+                        is_released=False
+                    ).select_related('lesson').order_by('release_date')
+                    
+                    context['pending_releases'] = pending_releases
+                else:
+                    # Se não há configurações de liberação, mostra todas as aulas
+                    lessons = Lesson.objects.filter(
+                        course=course,
+                        status=Lesson.Status.PUBLISHED
+                    ).order_by('order')
+            else:
+                # Se não tem turma, mostra todas as aulas
+                lessons = Lesson.objects.filter(
+                    course=course,
+                    status=Lesson.Status.PUBLISHED
+                ).order_by('order')
         
         context['lessons'] = lessons
         
@@ -674,16 +758,63 @@ class CourseLearnView(LoginRequiredMixin, DetailView):
                 
         if not current_lesson and lessons.exists():
             # Encontra a primeira aula não concluída ou a primeira aula
-            lesson_progress = LessonProgress.objects.filter(
-                enrollment=enrollment,
-                is_completed=False
-            ).order_by('lesson__order').first()
-            
-            if lesson_progress:
-                current_lesson = lesson_progress.lesson
-            else:
-                current_lesson = lessons.first()
+            if enrollment and enrollment.class_group:
+                # Primeiro, verificar se existem liberações para esta turma
+                has_releases = LessonRelease.objects.filter(
+                    class_group=enrollment.class_group
+                ).exists()
                 
+                if has_releases:
+                    # Se existem liberações configuradas, só considerar aulas liberadas
+                    released_lessons = LessonRelease.objects.filter(
+                        class_group=enrollment.class_group,
+                        is_released=True,
+                        release_date__lte=timezone.now()  # Garantir que a data já passou
+                    ).values_list('lesson_id', flat=True)
+                    
+                    print(f"[DEBUG] Aulas liberadas para turma {enrollment.class_group.id}: {list(released_lessons)}")
+                    
+                    if released_lessons:
+                        # Encontrar a primeira aula não concluída entre as liberadas
+                        lesson_progress = LessonProgress.objects.filter(
+                            enrollment=enrollment,
+                            is_completed=False,
+                            lesson__id__in=released_lessons  # Apenas aulas liberadas
+                        ).order_by('lesson__order').first()
+                        
+                        if lesson_progress:
+                            current_lesson = lesson_progress.lesson
+                            print(f"[DEBUG] Selecionada aula não concluída liberada: {current_lesson.id}")
+                        else:
+                            # Se todas estão concluídas, pega a primeira liberada
+                            first_released_lesson = Lesson.objects.filter(
+                                id__in=released_lessons,
+                                course=course
+                            ).order_by('order').first()
+                            
+                            if first_released_lesson:
+                                current_lesson = first_released_lesson
+                                print(f"[DEBUG] Todas concluídas, selecionada primeira liberada: {current_lesson.id}")
+                    
+                    # Se não encontrou nenhuma aula liberada, não seleciona nenhuma
+                    if not current_lesson:
+                        print("[DEBUG] Nenhuma aula liberada encontrada para este curso")
+                else:
+                    # Comportamento normal quando não há liberações configuradas
+                    lesson_progress = LessonProgress.objects.filter(
+                        enrollment=enrollment,
+                        is_completed=False,
+                        lesson__in=lessons
+                    ).order_by('lesson__order').first()
+                    
+                    if lesson_progress:
+                        current_lesson = lesson_progress.lesson
+                    else:
+                        current_lesson = lessons.first()
+            else:
+                # Para professores ou alunos sem turma, comportamento normal
+                current_lesson = lessons.first()
+        
         context['current_lesson'] = current_lesson
         
         # Busca as aulas que o aluno já completou para marcar visualmente
@@ -698,6 +829,32 @@ class CourseLearnView(LoginRequiredMixin, DetailView):
             context['completed_lessons'] = [lesson.id for lesson in context['lessons']]
         
         if current_lesson:
+            # Verificar se a aula está liberada (para alunos em turmas)
+            is_lesson_released = True  # Padrão: liberada
+            release_date = None
+            
+            if enrollment and enrollment.class_group and not (is_professor and is_course_author):
+                # Buscar liberação desta aula para esta turma
+                lesson_release = LessonRelease.objects.filter(
+                    class_group=enrollment.class_group,
+                    lesson=current_lesson
+                ).first()
+                
+                if lesson_release:
+                    # Verificar não apenas o flag is_released, mas também a data
+                    if lesson_release.release_date > timezone.now():
+                        # Se a data é futura, forçar is_lesson_released = False
+                        is_lesson_released = False
+                        print(f"[DEBUG] get_context_data: Forçando bloqueio da aula {current_lesson.id} - data futura")
+                    else:
+                        is_lesson_released = lesson_release.is_released
+                    
+                    release_date = lesson_release.release_date
+                    print(f"[DEBUG] get_context_data: Aula {current_lesson.id}, release_date={release_date}, is_released={is_lesson_released}")
+            
+            context['is_lesson_released'] = is_lesson_released
+            context['release_date'] = release_date
+            
             # Atualiza ou cria um registro de progresso para esta aula (apenas para alunos)
             if enrollment:
                 lesson_progress, created = LessonProgress.objects.get_or_create(
@@ -707,7 +864,7 @@ class CourseLearnView(LoginRequiredMixin, DetailView):
             
             # Extrai o ID do vídeo do YouTube, se for um vídeo do YouTube
             youtube_video_id = None
-            if current_lesson.video_url:
+            if current_lesson.video_url and is_lesson_released:
                 import re
                 from urllib.parse import urlparse, parse_qs
                 
@@ -733,8 +890,13 @@ class CourseLearnView(LoginRequiredMixin, DetailView):
                             query = parse_qs(parsed_url.query)
                             if 'v' in query:
                                 youtube_video_id = query['v'][0]
-            
-            context['youtube_video_id'] = youtube_video_id
+            # Importante: só passar o youtube_video_id para o contexto se a aula estiver liberada
+            if is_lesson_released:
+                context['youtube_video_id'] = youtube_video_id
+            else:
+                # Limpar todas as URLs de vídeo no contexto se não estiver liberada
+                context['youtube_video_id'] = None
+                context['private_video_url'] = None
             
             # Determina a aula anterior e a próxima
             lesson_list = list(lessons)

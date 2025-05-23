@@ -55,6 +55,43 @@
         color: #ff4444;
         margin-bottom: 10px;
     }
+    
+    /* Estilos para mensagem de aula agendada */
+    .scheduled-lesson-message {
+        background-color: #f8f9fa;
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+        padding: 2rem;
+        text-align: center;
+        margin-bottom: 20px;
+        min-height: 250px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+    }
+    
+    .scheduled-lesson-message i.fa-clock {
+        font-size: 3rem;
+        color: #ffc107;
+        margin-bottom: 1rem;
+    }
+    
+    .scheduled-lesson-message h4 {
+        color: #495057;
+        margin-bottom: 1rem;
+    }
+    
+    .scheduled-lesson-message .release-date {
+        font-size: 1.2rem;
+        font-weight: bold;
+        color: #6c757d;
+        margin-bottom: 1rem;
+    }
+    
+    .scheduled-lesson-message p {
+        color: #6c757d;
+    }
 </style>
 {% endblock %}
 
@@ -143,53 +180,61 @@
                                 </div>
                             {% endif %}
                             
-                            <!-- Para vídeos HTML5 usamos uma proporção mais flexível -->
-                            {% if private_video_url and "s3.amazonaws.com" in private_video_url %}
+                            {% if not is_lesson_released %}
+                                <div class="scheduled-lesson-message">
+                                    <i class="fas fa-clock fa-3x"></i>
+                                    <h4>Aula agendada</h4>
+                                    <p class="release-date">
+                                        Esta aula será liberada em {{ release_date|date:"d/m/Y \à\s H:i" }}.
+                                    </p>
+                                    <p>Entre em contato com seu professor para mais informações.</p>
+                                </div>
+                            {% elif is_lesson_released and private_video_url and "s3.amazonaws.com" in private_video_url %}
                                 <div class="video-wrapper mb-2">
                                     <video id="custom-video-{{ current_lesson.id }}"
-                                          controls
-                                          playsinline
-                                          autoplay
-                                          class="video-js"
-                                          controlsList="nodownload noremoteplayback" 
-                                          disablePictureInPicture
-                                          oncontextmenu="return false;"
-                                          style="background-color: #000;">
+                                        controls
+                                        playsinline
+                                        autoplay
+                                        class="video-js"
+                                        controlsList="nodownload noremoteplayback" 
+                                        disablePictureInPicture
+                                        oncontextmenu="return false;"
+                                        style="background-color: #000;">
                                         <source src="{{ private_video_url }}" type="video/mp4">
                                         Seu navegador não suporta a tag de vídeo.
                                     </video>
                                 </div>
-                            {% elif "s3.amazonaws.com" in current_lesson.video_url %}
+                            {% elif is_lesson_released and "s3.amazonaws.com" in current_lesson.video_url %}
                                 <div class="video-wrapper mb-2">
                                     <video id="custom-video-{{ current_lesson.id }}"
-                                          controls
-                                          playsinline
-                                          autoplay
-                                          class="video-js"
-                                          controlsList="nodownload noremoteplayback" 
-                                          disablePictureInPicture
-                                          oncontextmenu="return false;"
-                                          style="background-color: #000;">
+                                        controls
+                                        playsinline
+                                        autoplay
+                                        class="video-js"
+                                        controlsList="nodownload noremoteplayback" 
+                                        disablePictureInPicture
+                                        oncontextmenu="return false;"
+                                        style="background-color: #000;">
                                         <source src="{{ current_lesson.video_url }}" type="video/mp4">
                                         Seu navegador não suporta a tag de vídeo.
                                     </video>
                                 </div>
-                            {% elif "play.giancorrea.55jam.com.br" in current_lesson.video_url or "55jam.com.br" in current_lesson.video_url %}
+                            {% elif is_lesson_released and "play.giancorrea.55jam.com.br" in current_lesson.video_url or "55jam.com.br" in current_lesson.video_url %}
                                 <div class="video-wrapper mb-2">
                                     <video id="custom-video-{{ current_lesson.id }}"
-                                          controls
-                                          playsinline
-                                          autoplay
-                                          class="video-js"
-                                          controlsList="nodownload noremoteplayback" 
-                                          disablePictureInPicture
-                                          oncontextmenu="return false;"
-                                          style="background-color: #000;">
+                                        controls
+                                        playsinline
+                                        autoplay
+                                        class="video-js"
+                                        controlsList="nodownload noremoteplayback" 
+                                        disablePictureInPicture
+                                        oncontextmenu="return false;"
+                                        style="background-color: #000;">
                                         <source src="{{ current_lesson.video_url }}" type="video/mp4">
                                         Seu navegador não suporta a tag de vídeo.
                                     </video>
                                 </div>
-                            {% else %}
+                            {% elif is_lesson_released %}
                                 <!-- Para iframes usamos a classe ratio -->
                                 <div class="ratio" style="--bs-aspect-ratio: 56.25%;">
                                     {% if private_video_url %}
@@ -228,11 +273,11 @@
                             
                             <div class="progress-container">
                                 <div id="video-progress-bar-{{ current_lesson.id }}" 
-                                     class="video-progress-bar" 
-                                     role="progressbar" 
-                                     aria-valuenow="0" 
-                                     aria-valuemin="0" 
-                                     aria-valuemax="100"></div>
+                                    class="video-progress-bar" 
+                                    role="progressbar" 
+                                    aria-valuenow="0" 
+                                    aria-valuemin="0" 
+                                    aria-valuemax="100"></div>
                             </div>
                             
                             <div class="d-flex justify-content-between">
@@ -314,11 +359,49 @@
         {% else %}
             <div class="alert alert-warning">
                 <i class="fas fa-exclamation-triangle me-2"></i>
-                Nenhuma aula disponível para este curso.
+                {% if has_lesson_releases and pending_releases %}
+                    Não há aulas liberadas no momento. A primeira aula será liberada em {{ pending_releases.0.release_date|date:"d/m/Y \à\s H:i" }}.
+                {% else %}
+                    Nenhuma aula disponível para este curso.
+                {% endif %}
             </div>
         {% endif %}
     </div>
 </div>
+
+{% if has_lesson_releases and pending_releases %}
+<div class="card shadow mt-4">
+    <div class="card-header bg-warning text-dark">
+        <h5 class="mb-0"><i class="fas fa-clock me-2"></i> Próximas Aulas a Serem Liberadas</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Aula</th>
+                        <th>Data de Liberação</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for release in pending_releases %}
+                    <tr>
+                        <td>{{ release.lesson.title }}</td>
+                        <td>{{ release.release_date|date:"d/m/Y H:i" }}</td>
+                        <td>
+                            <span class="badge bg-warning text-dark">
+                                <i class="fas fa-clock me-1"></i> Aguardando liberação
+                            </span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
 
 {% endblock %}
 

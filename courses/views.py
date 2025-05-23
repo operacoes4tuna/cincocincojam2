@@ -99,12 +99,33 @@ class ProfessorClassGroupMixin(UserPassesTestMixin):
         # Se não é professor autenticado, não tem acesso
         if not self.request.user.is_authenticated or not self.request.user.is_professor:
             return False
+        
+        # Caso especial para LessonReleaseCreateView (usa class_group_id)
+        if hasattr(self, 'kwargs') and 'class_group_id' in self.kwargs:
+            class_group_id = self.kwargs['class_group_id']
+            try:
+                class_group = ClassGroup.objects.get(pk=class_group_id)
+                print(f"[DEBUG] ProfessorClassGroupMixin verificando acesso à turma {class_group_id} para professor {self.request.user}")
+                return class_group.professor == self.request.user
+            except ClassGroup.DoesNotExist:
+                return False
+            
+        # Caso especial para LessonReleaseUpdateView e LessonReleaseDeleteView
+        if self.model == LessonRelease and hasattr(self, 'get_object'):
+            try:
+                lesson_release = self.get_object()
+                return lesson_release.class_group.professor == self.request.user
+            except:
+                return False
             
         # Verificar contexto - para ClassGroupViews
-        class_group_id = self.kwargs.get('class_group_id') or self.kwargs.get('pk')
+        class_group_id = self.kwargs.get('pk')
         if class_group_id:
-            class_group = get_object_or_404(ClassGroup, pk=class_group_id)
-            return class_group.professor == self.request.user
+            try:
+                class_group = ClassGroup.objects.get(pk=class_group_id)
+                return class_group.professor == self.request.user
+            except ClassGroup.DoesNotExist:
+                return False
             
         return True  # Para CreateView, que não tem turma ainda
 
@@ -543,10 +564,31 @@ class LessonReleaseCreateView(LoginRequiredMixin, ProfessorClassGroupMixin, Crea
         return form
     
     def form_valid(self, form):
-        # Define a turma para a liberação de aula
-        form.instance.class_group = get_object_or_404(ClassGroup, pk=self.kwargs['class_group_id'])
-        messages.success(self.request, 'Liberação de aula criada com sucesso!')
-        return super().form_valid(form)
+        try:
+            # Define a turma para a liberação de aula
+            class_group = get_object_or_404(ClassGroup, pk=self.kwargs['class_group_id'])
+            form.instance.class_group = class_group
+            
+            # Verificar se já existe uma liberação para esta combinação de aula e turma
+            lesson = form.cleaned_data['lesson']
+            existing_release = LessonRelease.objects.filter(
+                class_group=class_group,
+                lesson=lesson
+            ).exists()
+            
+            if existing_release:
+                messages.error(
+                    self.request, 
+                    f'Já existe uma liberação para a aula "{lesson.title}" nesta turma. '
+                    'Escolha outra aula ou edite a liberação existente.'
+                )
+                return self.form_invalid(form)
+            
+            messages.success(self.request, 'Liberação de aula criada com sucesso!')
+            return super().form_valid(form)
+        except Exception as e:
+            messages.error(self.request, f'Erro ao criar liberação: {str(e)}')
+            return self.form_invalid(form)
     
     def get_success_url(self):
         return reverse('courses:class_group_detail', kwargs={'pk': self.kwargs['class_group_id']})
@@ -572,8 +614,28 @@ class LessonReleaseUpdateView(LoginRequiredMixin, ProfessorClassGroupMixin, Upda
         return form
     
     def form_valid(self, form):
-        messages.success(self.request, 'Liberação de aula atualizada com sucesso!')
-        return super().form_valid(form)
+        try:
+            # Verificar se já existe uma liberação para esta combinação de aula e turma
+            lesson = form.cleaned_data['lesson']
+            class_group = self.get_object().class_group
+            existing_release = LessonRelease.objects.filter(
+                class_group=class_group,
+                lesson=lesson
+            ).exclude(pk=self.get_object().pk).exists()
+            
+            if existing_release:
+                messages.error(
+                    self.request, 
+                    f'Já existe uma liberação para a aula "{lesson.title}" nesta turma. '
+                    'Escolha outra aula ou edite a liberação existente.'
+                )
+                return self.form_invalid(form)
+            
+            messages.success(self.request, 'Liberação de aula atualizada com sucesso!')
+            return super().form_valid(form)
+        except Exception as e:
+            messages.error(self.request, f'Erro ao atualizar liberação: {str(e)}')
+            return self.form_invalid(form)
     
     def get_success_url(self):
         return reverse('courses:class_group_detail', kwargs={'pk': self.object.class_group.pk})
