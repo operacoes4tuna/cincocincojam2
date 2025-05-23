@@ -730,6 +730,16 @@ class CourseLearnView(LoginRequiredMixin, DetailView):
                     ).select_related('lesson').order_by('release_date')
                     
                     context['pending_releases'] = pending_releases
+                    
+                    # MODIFICAÇÃO: Obter e passar para o template a lista de aulas efetivamente liberadas
+                    # considerando tanto is_released quanto a data de liberação
+                    released_lessons = LessonRelease.objects.filter(
+                        class_group=enrollment.class_group,
+                        is_released=True,
+                        release_date__lte=timezone.now()  # Garantir que a data já passou
+                    ).values_list('lesson_id', flat=True)
+                    
+                    context['released_lessons'] = list(released_lessons)
                 else:
                     # Se não há configurações de liberação, mostra todas as aulas
                     lessons = Lesson.objects.filter(
@@ -773,6 +783,10 @@ class CourseLearnView(LoginRequiredMixin, DetailView):
                     ).values_list('lesson_id', flat=True)
                     
                     print(f"[DEBUG] Aulas liberadas para turma {enrollment.class_group.id}: {list(released_lessons)}")
+                    
+                    # MODIFICAÇÃO: Adicionar released_lessons ao contexto se ainda não foi adicionado
+                    if 'released_lessons' not in context:
+                        context['released_lessons'] = list(released_lessons)
                     
                     if released_lessons:
                         # Encontrar a primeira aula não concluída entre as liberadas
@@ -851,6 +865,23 @@ class CourseLearnView(LoginRequiredMixin, DetailView):
                     
                     release_date = lesson_release.release_date
                     print(f"[DEBUG] get_context_data: Aula {current_lesson.id}, release_date={release_date}, is_released={is_lesson_released}")
+
+                # MODIFICAÇÃO: Se a aula não estiver liberada e não for a primeira acesso,
+                # substitua por uma aula liberada ou mostre mensagem
+                if not is_lesson_released and not self.request.GET.get('lesson_id'):
+                    # Tentar encontrar a primeira aula liberada
+                    if 'released_lessons' in context and context['released_lessons']:
+                        try:
+                            current_lesson = Lesson.objects.filter(
+                                id__in=context['released_lessons'],
+                                course=course
+                            ).order_by('order').first()
+                            
+                            if current_lesson:
+                                is_lesson_released = True
+                                print(f"[DEBUG] Substituindo por primeira aula liberada: {current_lesson.id}")
+                        except Exception as e:
+                            print(f"[DEBUG] Erro ao buscar aula liberada: {e}")
             
             context['is_lesson_released'] = is_lesson_released
             context['release_date'] = release_date

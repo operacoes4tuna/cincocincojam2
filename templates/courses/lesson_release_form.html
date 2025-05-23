@@ -11,6 +11,33 @@
     {% endif %}
 {% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<style>
+    /* Estilo personalizado para o datepicker */
+    .flatpickr-calendar {
+        box-shadow: 0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23);
+        border-radius: 4px;
+    }
+    
+    .flatpickr-day.selected {
+        background: #0d6efd;
+        border-color: #0d6efd;
+    }
+    
+    .flatpickr-day.selected:hover {
+        background: #0b5ed7;
+        border-color: #0b5ed7;
+    }
+    
+    /* Estilo para o botão de calendário */
+    .date-picker-addon {
+        cursor: pointer;
+        border-left: 0;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container mt-4">
     <div class="row mb-4">
@@ -99,7 +126,12 @@
                                                     <label for="{{ form.release_date.id_for_label }}" class="form-label">
                                                         <i class="fas fa-calendar-alt me-1"></i> {% trans "Data de Liberação" %}*
                                                     </label>
-                                                    {{ form.release_date|add_class:"form-control" }}
+                                                    <div class="input-group">
+                                                        {{ form.release_date|add_class:"form-control date-picker" }}
+                                                        <span class="input-group-text date-picker-addon" id="calendar-icon">
+                                                            <i class="fas fa-calendar-alt"></i>
+                                                        </span>
+                                                    </div>
                                                     <div class="form-text">
                                                         <small>{% trans "Data e hora em que a aula será liberada automaticamente." %}</small>
                                                     </div>
@@ -147,4 +179,34 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/pt.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Inicializar o flatpickr para o campo de data
+        const datePicker = flatpickr(".date-picker", {
+            enableTime: true,  // Habilitar seleção de hora
+            dateFormat: "Y-m-d H:i",  // Formato compatível com Django
+            time_24hr: true,  // Usar formato 24h
+            locale: "pt",     // Localização em português
+            minuteIncrement: 15,  // Incremento de 15 minutos
+            allowInput: true,     // Permitir entrada manual
+            // Posicionamento e estilo
+            position: "auto",
+            static: false,
+            // Callbacks
+            onChange: function(selectedDates, dateStr, instance) {
+                console.log("Data selecionada:", dateStr);
+            }
+        });
+        
+        // Quando clicar no ícone de calendário, abrir o datepicker
+        document.getElementById('calendar-icon').addEventListener('click', function() {
+            datePicker.open();
+        });
+    });
+</script>
 {% endblock %} 
