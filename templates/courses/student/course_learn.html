@@ -5,6 +5,57 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/custom.css' %}">
+<style>
+    /* Prevent video download/right-click */
+    iframe[src*="youtube.com"],
+    iframe[src*="play.giancorrea.55jam.com.br"] {
+        pointer-events: none !important; /* Disables all interactions including download */
+    }
+    
+    /* Container needs click events for player controls */
+    .video-container, .ratio {
+        pointer-events: auto !important;
+    }
+    
+    /* Esconder elementos específicos de download do player de vídeo */
+    video::-webkit-media-controls-enclosure {
+        overflow: hidden !important;
+    }
+    
+    video::-webkit-media-controls-panel {
+        width: calc(100% + 30px) !important;
+    }
+    
+    /* Hide download button in browser context menu */
+    @media screen and (-webkit-min-device-pixel-ratio:0) {
+        video::-internal-media-controls-download-button {
+            display: none !important;
+        }
+    }
+    
+    /* Anti-piracy message */
+    .anti-piracy-message {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.8);
+        color: white;
+        display: none;
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+        z-index: 100;
+        text-align: center;
+        padding: 20px;
+    }
+    
+    .anti-piracy-message h3 {
+        color: #ff4444;
+        margin-bottom: 10px;
+    }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -100,6 +151,9 @@
                                           playsinline
                                           autoplay
                                           class="video-js"
+                                          controlsList="nodownload noremoteplayback" 
+                                          disablePictureInPicture
+                                          oncontextmenu="return false;"
                                           style="background-color: #000;">
                                         <source src="{{ private_video_url }}" type="video/mp4">
                                         Seu navegador não suporta a tag de vídeo.
@@ -112,6 +166,9 @@
                                           playsinline
                                           autoplay
                                           class="video-js"
+                                          controlsList="nodownload noremoteplayback" 
+                                          disablePictureInPicture
+                                          oncontextmenu="return false;"
                                           style="background-color: #000;">
                                         <source src="{{ current_lesson.video_url }}" type="video/mp4">
                                         Seu navegador não suporta a tag de vídeo.
@@ -124,6 +181,9 @@
                                           playsinline
                                           autoplay
                                           class="video-js"
+                                          controlsList="nodownload noremoteplayback" 
+                                          disablePictureInPicture
+                                          oncontextmenu="return false;"
                                           style="background-color: #000;">
                                         <source src="{{ current_lesson.video_url }}" type="video/mp4">
                                         Seu navegador não suporta a tag de vídeo.
@@ -266,6 +326,74 @@
 <script src="{% static 'js/video-player.js' %}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // Adicionar mensagem anti-pirataria
+        const videoContainer = document.querySelector('.video-container');
+        
+        if (videoContainer) {
+            // Função para remover opções de download do player
+            const removeDownloadOptions = function() {
+                // Encontrar todos os vídeos
+                const videos = document.querySelectorAll('video');
+                
+                videos.forEach(function(video) {
+                    // Forçar a remoção do botão de download programaticamente
+                    if (video.controlsList) {
+                        video.controlsList.add('nodownload');
+                    }
+                    
+                    // Desativar menu de contexto específico para vídeo
+                    video.addEventListener('contextmenu', function(e) {
+                        e.preventDefault();
+                        antiPiracyMessage.style.display = 'flex';
+                        return false;
+                    });
+                });
+                
+                // Adicionar manipulador global para teclas que podem ser usadas para download
+                document.addEventListener('keydown', function(e) {
+                    // Prevenir Ctrl+S, Ctrl+U, Ctrl+Shift+I
+                    if (
+                        (e.ctrlKey && e.keyCode === 83) || // Ctrl+S
+                        (e.ctrlKey && e.keyCode === 85) || // Ctrl+U
+                        (e.ctrlKey && e.shiftKey && e.keyCode === 73) // Ctrl+Shift+I
+                    ) {
+                        e.preventDefault();
+                        return false;
+                    }
+                });
+            };
+            
+            // Executar ao carregar e após um curto delay para garantir
+            removeDownloadOptions();
+            setTimeout(removeDownloadOptions, 1000);
+            
+            // Criar elemento de mensagem anti-pirataria
+            const antiPiracyMessage = document.createElement('div');
+            antiPiracyMessage.className = 'anti-piracy-message';
+            antiPiracyMessage.innerHTML = `
+                <h3><i class="fas fa-exclamation-triangle me-2"></i>Conteúdo Protegido</h3>
+                <p>Este conteúdo é de uso exclusivo para alunos matriculados.</p>
+                <p>A cópia, download ou distribuição não autorizada é proibida por lei.</p>
+                <p>O uso indevido pode resultar em penalidades legais.</p>
+                <button class="btn btn-sm btn-light mt-3">Fechar</button>
+            `;
+            
+            videoContainer.appendChild(antiPiracyMessage);
+            
+            // Evento de clique com botão direito no vídeo
+            videoContainer.addEventListener('contextmenu', function(e) {
+                e.preventDefault();
+                antiPiracyMessage.style.display = 'flex';
+                return false;
+            });
+            
+            // Manipulador do botão fechar
+            const closeButton = antiPiracyMessage.querySelector('button');
+            closeButton.addEventListener('click', function() {
+                antiPiracyMessage.style.display = 'none';
+            });
+        }
+    
         {% if current_lesson and current_lesson.video_url %}
             // Verificar primeiro os casos de vídeo HTML5 direto (MP4)
             {% if private_video_url and "s3.amazonaws.com" in private_video_url %}

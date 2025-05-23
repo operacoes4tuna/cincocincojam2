@@ -58,26 +58,17 @@
                     </div>
 
                     <div class="row mb-4">
-                        <div class="col-md-6">
+                        <div class="col-md-12">
                             <div class="mb-3">
                                 {{ form.video_url|as_crispy_field }}
-                                <small class="form-text text-muted">Cole a URL do vídeo do YouTube (ex:
-                                    https://www.youtube.com/watch?v=VIDEO_ID)</small>
+                                <small class="form-text text-muted">Cole a URL do vídeo do YouTube ou do 55JAM (ex: 
+                                    https://www.youtube.com/watch?v=VIDEO_ID ou https://play.giancorrea.55jam.com.br/embed/XX/HASH)</small>
                                 {% if form.instance.video_url %}
                                 <div class="mt-2">
                                     <small class="text-muted">URL atual: <a href="{{ form.instance.video_url }}"
                                             target="_blank">{{ form.instance.video_url }}</a></small>
                                 </div>
                                 {% endif %}
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="id_private_video_url" class="form-label">URL do vídeo privado</label>
-                                <input type="url" name="private_video_url" id="id_private_video_url"
-                                    class="form-control"
-                                    placeholder="https://play.giancorrea.55jam.com.br/embed/XX/HASH">
-                                <small class="form-text text-muted">URL opcional para vídeo com acesso restrito (ex: 55JAM).</small>
                             </div>
                         </div>
                     </div>
@@ -147,7 +138,9 @@
                         style="display: {% if form.instance.video_url %}block{% else %}none{% endif %};">
                         <iframe id="youtube-preview" src="" title="Preview do vídeo" frameborder="0"
                             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                            allowfullscreen></iframe>
+                            allowfullscreen
+                            controlsList="nodownload" 
+                            oncontextmenu="return false;"></iframe>
                     </div>
                     <div class="py-5" id="video-placeholder"
                         style="display: {% if form.instance.video_url %}none{% else %}block{% endif %};">
@@ -200,8 +193,73 @@
 {% endblock %}
 
 {% block extra_js %}
+<style>
+    /* Prevent video download/right-click */
+    #youtube-preview {
+        pointer-events: none; /* Disables all interactions */
+    }
+    
+    /* Re-enable necessary interactions */
+    #youtube-container {
+        pointer-events: auto; /* Allow container interactions */
+    }
+    
+    /* Anti-piracy message */
+    .anti-piracy-message {
+        display: none;
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.8);
+        color: white;
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+        z-index: 100;
+        text-align: center;
+        padding: 20px;
+    }
+    
+    .anti-piracy-message h3 {
+        color: #ff4444;
+        margin-bottom: 10px;
+    }
+</style>
 <script>
     document.addEventListener('DOMContentLoaded', function () {
+        // Anti-piracy message setup
+        const videoContainer = document.getElementById('video-preview');
+        const youtubeContainer = document.getElementById('youtube-container');
+        
+        if (videoContainer) {
+            // Create anti-piracy message element
+            const antiPiracyMessage = document.createElement('div');
+            antiPiracyMessage.className = 'anti-piracy-message';
+            antiPiracyMessage.innerHTML = `
+                <h3><i class="fas fa-exclamation-triangle me-2"></i>Conteúdo Protegido</h3>
+                <p>Este vídeo é protegido por direitos autorais.</p>
+                <p>A cópia ou distribuição não autorizada é proibida por lei.</p>
+                <button class="btn btn-sm btn-light mt-3">Fechar</button>
+            `;
+            
+            videoContainer.appendChild(antiPiracyMessage);
+            
+            // Right-click event for video container
+            videoContainer.addEventListener('contextmenu', function(e) {
+                e.preventDefault();
+                antiPiracyMessage.style.display = 'flex';
+                return false;
+            });
+            
+            // Close button handler
+            const closeButton = antiPiracyMessage.querySelector('button');
+            closeButton.addEventListener('click', function() {
+                antiPiracyMessage.style.display = 'none';
+            });
+        }
+        
         // Agendamento toggle
         const enableScheduleCheckbox = document.getElementById('id_enable_schedule');
         const scheduleFields = document.getElementById('schedule_fields');
