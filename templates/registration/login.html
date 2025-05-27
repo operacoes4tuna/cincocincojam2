@@ -15,55 +15,18 @@
                 <form method="post" class="form" id="login-form">
                     {% csrf_token %}
                     {{ form|crispy }}
-                    
+
                     <div class="d-grid gap-2 mt-4">
                         <button type="submit" class="btn btn-primary">Entrar</button>
                     </div>
                 </form>
-                
+
                 <div class="mt-3 text-center">
                     <p>Esqueceu sua senha? <a href="{% url 'password_reset' %}">Recuperar senha</a></p>
                 </div>
-                
-                <!-- Botões de Demo para Login Rápido -->
-                <div class="mt-4">
-                    <div class="card">
-                        <div class="card-header bg-info text-white">
-                            <h5 class="mb-0">Login Rápido (Somente para Demo)</h5>
-                        </div>
-                        <div class="card-body">
-                            <p class="text-muted small mb-3">Clique em um dos botões abaixo para fazer login com diferentes perfis de usuário.</p>
-                            <div class="d-grid gap-2">
-                                <form method="post" action="{% url 'login' %}" class="mb-2">
-                                    {% csrf_token %}
-                                    <input type="hidden" name="username" value="aluno@55jam.com">
-                                    <input type="hidden" name="password" value="senha123">
-                                    <button type="submit" class="btn btn-outline-success w-100">
-                                        <i class="fas fa-user-graduate me-2"></i> Login como Aluno
-                                    </button>
-                                </form>
-                                
-                                <form method="post" action="{% url 'login' %}" class="mb-2">
-                                    {% csrf_token %}
-                                    <input type="hidden" name="username" value="professor@55jam.com">
-                                    <input type="hidden" name="password" value="senha123">
-                                    <button type="submit" class="btn btn-outline-primary w-100">
-                                        <i class="fas fa-chalkboard-teacher me-2"></i> Login como Professor
-                                    </button>
-                                </form>
-                                
-                                <form method="post" action="{% url 'login' %}" class="mb-2">
-                                    {% csrf_token %}
-                                    <input type="hidden" name="username" value="admin@55jam.com">
-                                    <input type="hidden" name="password" value="senha123">
-                                    <button type="submit" class="btn btn-outline-danger w-100">
-                                        <i class="fas fa-user-shield me-2"></i> Login como Admin
-                                    </button>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+
+
+
             </div>
         </div>
     </div>
