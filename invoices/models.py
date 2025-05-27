@@ -143,11 +143,10 @@ class CompanyConfig(models.Model):
         default='simples_nacional',
         verbose_name=_('regime tributário')
     )
-    city_service_code = models.CharField(
-        max_length=10,
-        default='0107',
-        verbose_name=_('código de serviço municipal'),
-        help_text=_('Código de serviço específico do município para atividades educacionais')
+    city_service_code = models.TextField(
+        default='["0107"]',  # Armazenar como uma lista JSON
+        verbose_name=_('códigos de serviço municipal'),
+        help_text=_('Códigos de serviço específicos do município para atividades educacionais. Clique em + para adicionar mais códigos.')
     )
     
     # Campos para controle de RPS (Recibo Provisório de Serviço)
