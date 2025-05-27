@@ -206,19 +206,19 @@ def pix_webhook(request):
             return HttpResponse(status=200)
             
         except PaymentTransaction.DoesNotExist:
-            # Verificar se é uma venda avulsa
+            # Verificar se é uma nota avulsa
             from .models import SingleSale
             try:
                 sale = SingleSale.objects.get(correlation_id=correlation_id)
                 
                 # Se já estiver pago, apenas retorna sucesso
                 if sale.status == SingleSale.Status.PAID:
-                    logger.info(f"Venda avulsa {sale.id} já estava marcada como paga.")
+                    logger.info(f"Nota avulsa {sale.id} já estava marcada como paga.")
                     return HttpResponse(status=200)
                 
                 # Marcar como pago
                 sale.mark_as_paid()
-                logger.info(f"Pagamento confirmado para venda avulsa {sale.id} via webhook.")
+                logger.info(f"Pagamento confirmado para nota avulsa {sale.id} via webhook.")
                 return HttpResponse(status=200)
                 
             except SingleSale.DoesNotExist:

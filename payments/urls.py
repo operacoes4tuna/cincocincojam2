@@ -54,7 +54,7 @@ card_patterns = [
     path('card/simulate/<int:payment_id>/', card_views.simulate_card_payment, name='simulate_card_payment'),
 ]
 
-# URLs para vendas avulsas
+# URLs para notas avulsas
 singlesale_patterns = [
     path('sales/', views.SingleSaleListView.as_view(), name='singlesale_list'),
     path('sales/new/', views.SingleSaleCreateView.as_view(), name='singlesale_create'),
@@ -66,7 +66,7 @@ singlesale_patterns = [
     path('admin/sales/', views.SingleSaleAdminListView.as_view(), name='admin_singlesale_list'),
     path('transactions/', views.transaction_list, name='transactions'),
     path('transactions/emit-invoice/<int:transaction_id>/', views.emit_invoice_from_transactions, name='emit_invoice_from_transactions'),
-    # Nova URL para API de criação de venda
+    # Nova URL para API de criação de nota
     path('api/sales/create/', views.create_singlesale_api, name='create_singlesale_api'),
 ]
 

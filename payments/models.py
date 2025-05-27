@@ -101,7 +101,7 @@ class PaymentTransaction(models.Model):
 
 class SingleSale(models.Model):
     """
-    Representa uma venda avulsa de produtos ou serviços não vinculados a matrículas em cursos.
+    Representa uma nota avulsa de produtos ou serviços não vinculados a matrículas em cursos.
     """
     class Status(models.TextChoices):
         PENDING = 'PENDING', _('Pendente')
@@ -184,15 +184,15 @@ class SingleSale(models.Model):
     metadata = models.JSONField(_('Metadados'), default=dict, blank=True)
     
     class Meta:
-        verbose_name = _('Venda Avulsa')
-        verbose_name_plural = _('Vendas Avulsas')
+        verbose_name = _('Nota Avulsa')
+        verbose_name_plural = _('Notas Avulsas')
         ordering = ['-created_at']
     
     def __str__(self):
         return f"{self.description} - R$ {self.amount} ({self.get_status_display()})"
     
     def mark_as_paid(self, save=True):
-        """Marca a venda como paga e registra a data/hora do pagamento."""
+        """Marca a nota como paga e registra a data/hora do pagamento."""
         self.status = self.Status.PAID
         self.paid_at = timezone.now()
         self.is_payment_confirmed = True
@@ -200,14 +200,14 @@ class SingleSale(models.Model):
             self.save()
     
     def mark_as_refunded(self, save=True):
-        """Marca a venda como estornada."""
+        """Marca a nota como estornada."""
         self.status = self.Status.REFUNDED
         self.is_payment_confirmed = False
         if save:
             self.save()
     
     def is_paid(self):
-        """Verifica se a venda está paga."""
+        """Verifica se a nota está paga."""
         return self.status == self.Status.PAID
     
     def save(self, *args, **kwargs):

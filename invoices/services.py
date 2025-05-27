@@ -204,7 +204,7 @@ class NFEioService:
                 invoice.save()
                 return {"error": True, "message": student_message}
         elif invoice.singlesale:
-            # 1. Validar configuração do professor para venda avulsa
+            # 1. Validar configuração do professor para nota avulsa
             professor = invoice.singlesale.seller
             print(f"DEBUG - Professor (vendedor): {professor.get_full_name()}")
             
@@ -216,10 +216,10 @@ class NFEioService:
                 invoice.save()
                 return {"error": True, "message": config_message}
                 
-            # 2. Para vendas avulsas, não há validação de student
+            # 2. Para notas avulsas, não há validação de student
             print(f"DEBUG - Cliente: {invoice.singlesale.customer_name}")
         else:
-            error_message = "A nota fiscal não está associada a uma transação ou venda avulsa"
+            error_message = "A nota fiscal não está associada a uma transação ou nota avulsa"
             print(f"DEBUG - Erro: {error_message}")
             invoice.status = 'error'
             invoice.error_message = error_message
@@ -282,7 +282,7 @@ class NFEioService:
         """
         print("\nDEBUG - Preparando dados da nota fiscal...")
         
-        # Verificar se é uma invoice de transação ou venda avulsa
+        # Verificar se é uma invoice de transação ou nota avulsa
         if invoice.transaction:
             # PROCESSAMENTO PARA TRANSAÇÕES DE CURSO
             transaction = invoice.transaction
@@ -357,7 +357,7 @@ class NFEioService:
             }
             
         elif invoice.singlesale:
-            # PROCESSAMENTO PARA VENDAS AVULSAS
+            # PROCESSAMENTO PARA NOTAS AVULSAS
             sale = invoice.singlesale
             professor = sale.seller
             company_config = professor.company_config
@@ -381,7 +381,7 @@ class NFEioService:
             print(f"DEBUG - Tipo de pessoa: {borrower_type}")
             
             # Descrição do serviço
-            service_description = sale.description or "Venda avulsa"
+            service_description = sale.description or "Nota avulsa"
             print(f"DEBUG - Descrição do serviço: {service_description}")
                 
             # Formatar valor do serviço
@@ -391,13 +391,13 @@ class NFEioService:
                 print("DEBUG - Valor do serviço ajustado para mínimo")
             print(f"DEBUG - Valor do serviço: {services_amount}")
             
-            # Dados para venda avulsa (usando padrões para endereço)
+            # Dados para nota avulsa (usando padrões para endereço)
             borrower_name = sale.customer_name
             borrower_email = sale.customer_email
             reference = f"SALE_{sale.id}"
-            additional_information = f"Venda realizada por {professor.get_full_name().strip() or professor.email}. Plataforma: 555JAM"
+            additional_information = f"Nota realizada por {professor.get_full_name().strip() or professor.email}. Plataforma: 555JAM"
             
-            # Endereço padrão para venda avulsa
+            # Endereço padrão para nota avulsa
             address = {
                 "country": "BRA",
                 "state": "SP",
@@ -412,7 +412,7 @@ class NFEioService:
                 "additionalInformation": ""
             }
         else:
-            raise ValueError("Invoice não está associada a uma transação ou venda avulsa")
+            raise ValueError("Invoice não está associada a uma transação ou nota avulsa")
 
         # Formatação comum para ambos os tipos de invoice
         # Formatar o código de serviço (remover pontos e garantir 4 dígitos)

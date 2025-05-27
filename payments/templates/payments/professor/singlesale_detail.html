@@ -3,12 +3,12 @@
 {% load i18n %}
 {% load humanize %}
 
-{% block title %}{% translate "Detalhes da Venda" %} #{{ sale.id }}{% endblock %}
+{% block title %}{% translate "Detalhes da Nota" %} #{{ sale.id }}{% endblock %}
 
 {% block content %}
 <div class="container py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1>{% translate "Venda" %} #{{ sale.id }}</h1>
+        <h1>{% translate "Nota" %} #{{ sale.id }}</h1>
         <div>
             <a href="{% url 'payments:singlesale_list' %}" class="btn btn-outline-secondary me-2">
                 <i class="fas fa-arrow-left me-1"></i> {% translate "Voltar" %}
@@ -20,11 +20,11 @@
     </div>
 
     <div class="row">
-        <!-- Detalhes da Venda -->
+        <!-- Detalhes da Nota -->
         <div class="col-md-8">
             <div class="card mb-4">
                 <div class="card-header bg-transparent">
-                    <h5 class="card-title mb-0">{% translate "Informações da Venda" %}</h5>
+                    <h5 class="card-title mb-0">{% translate "Informações da Nota" %}</h5>
                 </div>
                 <div class="card-body">
                     <div class="row mb-3">
@@ -38,13 +38,13 @@
                             <h6 class="text-muted mb-1">{% translate "Status" %}</h6>
                             <p class="mb-3">
                                 {% if sale.status == 'PAID' %}
-                                    <span class="badge bg-success">{{ sale.get_status_display }}</span>
+                                <span class="badge bg-success">{{ sale.get_status_display }}</span>
                                 {% elif sale.status == 'PENDING' %}
-                                    <span class="badge bg-warning text-dark">{{ sale.get_status_display }}</span>
+                                <span class="badge bg-warning text-dark">{{ sale.get_status_display }}</span>
                                 {% elif sale.status == 'REFUNDED' %}
-                                    <span class="badge bg-info">{{ sale.get_status_display }}</span>
+                                <span class="badge bg-info">{{ sale.get_status_display }}</span>
                                 {% else %}
-                                    <span class="badge bg-danger">{{ sale.get_status_display }}</span>
+                                <span class="badge bg-danger">{{ sale.get_status_display }}</span>
                                 {% endif %}
                             </p>
 
@@ -94,26 +94,28 @@
                                     <td>{{ invoice.id }}</td>
                                     <td>
                                         {% if invoice.status == 'approved' %}
-                                            <span class="badge bg-success">{{ invoice.get_status_display }}</span>
+                                        <span class="badge bg-success">{{ invoice.get_status_display }}</span>
                                         {% elif invoice.status == 'pending' %}
-                                            <span class="badge bg-warning text-dark">{{ invoice.get_status_display }}</span>
+                                        <span class="badge bg-warning text-dark">{{ invoice.get_status_display }}</span>
                                         {% elif invoice.status == 'processing' %}
-                                            <span class="badge bg-info">{{ invoice.get_status_display }}</span>
+                                        <span class="badge bg-info">{{ invoice.get_status_display }}</span>
                                         {% elif invoice.status == 'error' %}
-                                            <span class="badge bg-danger">{{ invoice.get_status_display }}</span>
+                                        <span class="badge bg-danger">{{ invoice.get_status_display }}</span>
                                         {% else %}
-                                            <span class="badge bg-secondary">{{ invoice.get_status_display }}</span>
+                                        <span class="badge bg-secondary">{{ invoice.get_status_display }}</span>
                                         {% endif %}
                                     </td>
                                     <td>{{ invoice.created_at|date:"d/m/Y" }}</td>
                                     <td>
                                         {% if invoice.focus_pdf_url %}
-                                        <a href="{{ invoice.focus_pdf_url }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                        <a href="{{ invoice.focus_pdf_url }}" target="_blank"
+                                            class="btn btn-sm btn-outline-primary">
                                             <i class="fas fa-file-pdf"></i>
                                         </a>
                                         {% endif %}
                                         {% if invoice.focus_xml_url %}
-                                        <a href="{{ invoice.focus_xml_url }}" target="_blank" class="btn btn-sm btn-outline-secondary">
+                                        <a href="{{ invoice.focus_xml_url }}" target="_blank"
+                                            class="btn btn-sm btn-outline-secondary">
                                             <i class="fas fa-file-code"></i>
                                         </a>
                                         {% endif %}
@@ -137,40 +139,45 @@
                 </div>
                 <div class="card-body">
                     {% if sale.status == 'PENDING' %}
-                        {% if sale.brcode %}
-                            <a href="{% url 'payments:singlesale_pix_detail' sale_id=sale.id %}" class="btn btn-success w-100 mb-3">
-                                <i class="fas fa-qrcode me-1"></i> {% translate "Ver Pix Gerado" %}
-                            </a>
-                            <a href="#" class="btn btn-outline-primary w-100 mb-3" onclick="checkPaymentStatus(); return false;">
-                                <i class="fas fa-sync-alt me-1"></i> {% translate "Verificar Pagamento" %}
-                            </a>
-                        {% else %}
-                            <a href="{% url 'payments:create_singlesale_pix' sale_id=sale.id %}" class="btn btn-primary w-100 mb-3">
-                                <i class="fas fa-qrcode me-1"></i> {% translate "Gerar Pagamento Pix" %}
-                            </a>
-                        {% endif %}
+                    {% if sale.brcode %}
+                    <a href="{% url 'payments:singlesale_pix_detail' sale_id=sale.id %}"
+                        class="btn btn-success w-100 mb-3">
+                        <i class="fas fa-qrcode me-1"></i> {% translate "Ver Pix Gerado" %}
+                    </a>
+                    <a href="#" class="btn btn-outline-primary w-100 mb-3"
+                        onclick="checkPaymentStatus(); return false;">
+                        <i class="fas fa-sync-alt me-1"></i> {% translate "Verificar Pagamento" %}
+                    </a>
+                    {% else %}
+                    <a href="{% url 'payments:create_singlesale_pix' sale_id=sale.id %}"
+                        class="btn btn-primary w-100 mb-3">
+                        <i class="fas fa-qrcode me-1"></i> {% translate "Gerar Pagamento Pix" %}
+                    </a>
+                    {% endif %}
                     {% endif %}
 
                     {% if not sale.invoices.exists %}
-                        <a href="{% url 'invoices:emit_sale' sale_id=sale.id %}" class="btn btn-outline-primary w-100 mb-3">
-                            <i class="fas fa-file-invoice me-1"></i> {% translate "Emitir NFe" %}
-                        </a>
+                    <a href="{% url 'invoices:emit_sale' sale_id=sale.id %}" class="btn btn-outline-primary w-100 mb-3">
+                        <i class="fas fa-file-invoice me-1"></i> {% translate "Emitir NFe" %}
+                    </a>
                     {% endif %}
 
                     <!-- Compartilhar link de pagamento (se pendente) -->
                     {% if sale.status == 'PENDING' and sale.brcode %}
-                        <div class="mt-3">
-                            <label for="payment-link" class="form-label">{% translate "Link de Pagamento" %}</label>
-                            <div class="input-group mb-3">
-                                <input type="text" class="form-control" id="payment-link" value="{{ request.scheme }}://{{ request.get_host }}{% url 'payments:singlesale_pix_detail' sale_id=sale.id %}" readonly>
-                                <button class="btn btn-outline-secondary" type="button" onclick="copyPaymentLink()">
-                                    <i class="fas fa-copy"></i>
-                                </button>
-                            </div>
-                            <div id="link-copied" class="text-success" style="display: none;">
-                                <i class="fas fa-check"></i> {% translate "Link copiado!" %}
-                            </div>
+                    <div class="mt-3">
+                        <label for="payment-link" class="form-label">{% translate "Link de Pagamento" %}</label>
+                        <div class="input-group mb-3">
+                            <input type="text" class="form-control" id="payment-link"
+                                value="{{ request.scheme }}://{{ request.get_host }}{% url 'payments:singlesale_pix_detail' sale_id=sale.id %}"
+                                readonly>
+                            <button class="btn btn-outline-secondary" type="button" onclick="copyPaymentLink()">
+                                <i class="fas fa-copy"></i>
+                            </button>
                         </div>
+                        <div id="link-copied" class="text-success" style="display: none;">
+                            <i class="fas fa-check"></i> {% translate "Link copiado!" %}
+                        </div>
+                    </div>
                     {% endif %}
                 </div>
             </div>
@@ -186,40 +193,41 @@
                         <div class="d-flex align-items-center mb-3">
                             <div class="me-3">
                                 {% if sale.status == 'PAID' %}
-                                    <i class="fas fa-check-circle text-success fa-3x"></i>
+                                <i class="fas fa-check-circle text-success fa-3x"></i>
                                 {% elif sale.status == 'PENDING' %}
-                                    <i class="fas fa-clock text-warning fa-3x"></i>
+                                <i class="fas fa-clock text-warning fa-3x"></i>
                                 {% else %}
-                                    <i class="fas fa-exclamation-circle text-danger fa-3x"></i>
+                                <i class="fas fa-exclamation-circle text-danger fa-3x"></i>
                                 {% endif %}
                             </div>
                             <div>
                                 <h6 class="fw-bold mb-0" id="status-text">
                                     {% if sale.status == 'PAID' %}
-                                        {% translate "Pagamento Confirmado" %}
+                                    {% translate "Pagamento Confirmado" %}
                                     {% elif sale.status == 'PENDING' %}
-                                        {% translate "Aguardando Pagamento" %}
+                                    {% translate "Aguardando Pagamento" %}
                                     {% else %}
-                                        {% translate "Pagamento Cancelado" %}
+                                    {% translate "Pagamento Cancelado" %}
                                     {% endif %}
                                 </h6>
                                 <small class="text-muted" id="status-date">
                                     {% if sale.paid_at %}
-                                        {{ sale.paid_at|date:"d/m/Y H:i" }}
+                                    {{ sale.paid_at|date:"d/m/Y H:i" }}
                                     {% else %}
-                                        {{ sale.updated_at|date:"d/m/Y H:i" }}
+                                    {{ sale.updated_at|date:"d/m/Y H:i" }}
                                     {% endif %}
                                 </small>
                             </div>
                         </div>
-                        
+
                         <!-- QR Code e dados do Pix -->
                         {% if sale.qrcode_image %}
                         <div class="text-center mb-3">
-                            <img src="{{ sale.qrcode_image }}" alt="QR Code Pix" class="img-fluid" style="max-width: 200px;">
+                            <img src="{{ sale.qrcode_image }}" alt="QR Code Pix" class="img-fluid"
+                                style="max-width: 200px;">
                         </div>
                         {% endif %}
-                        
+
                         {% if sale.brcode %}
                         <div class="mb-3">
                             <label for="brcode" class="form-label">{% translate "Pix Copia e Cola" %}</label>
@@ -249,27 +257,27 @@
         copyText.select();
         copyText.setSelectionRange(0, 99999);
         document.execCommand("copy");
-        
+
         var copyMessage = document.getElementById("link-copied");
         copyMessage.style.display = "block";
-        setTimeout(function(){
+        setTimeout(function () {
             copyMessage.style.display = "none";
         }, 3000);
     }
-    
+
     function copyBRCode() {
         var copyText = document.getElementById("brcode");
         copyText.select();
         copyText.setSelectionRange(0, 99999);
         document.execCommand("copy");
-        
+
         var copyMessage = document.getElementById("brcode-copied");
         copyMessage.style.display = "block";
-        setTimeout(function(){
+        setTimeout(function () {
             copyMessage.style.display = "none";
         }, 3000);
     }
-    
+
     function checkPaymentStatus() {
         fetch("{% url 'payments:check_singlesale_status' sale_id=sale.id %}")
             .then(response => response.json())
@@ -282,14 +290,14 @@
                         statusIcon.classList.remove("fa-clock", "text-warning");
                         statusIcon.classList.add("fa-check-circle", "text-success");
                     }
-                    
+
                     // Atualizar data de pagamento
                     if (data.paid_at) {
                         document.getElementById("status-date").innerHTML = new Date(data.paid_at).toLocaleString();
                     }
-                    
+
                     // Recarregar a página após 2 segundos
-                    setTimeout(function() {
+                    setTimeout(function () {
                         window.location.reload();
                     }, 2000);
                 } else {
@@ -303,4 +311,4 @@
     }
 </script>
 {% endblock %}
-{% endblock %} 
+{% endblock %}

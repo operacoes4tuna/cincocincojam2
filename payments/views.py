@@ -756,10 +756,10 @@ def emit_payment_charge(request, transaction_id):
         return redirect('payments:professor_transactions')
 
 
-# Views para vendas avulsas
+# Views para notas avulsas
 class SingleSaleListView(LoginRequiredMixin, ProfessorRequiredMixin, ListView):
     """
-    Lista todas as vendas avulsas criadas pelo professor/vendedor.
+    Lista todas as notas avulsas criadas pelo professor/vendedor.
     """
     model = SingleSale
     template_name = 'payments/professor/singlesale_list.html'
@@ -818,7 +818,7 @@ class SingleSaleListView(LoginRequiredMixin, ProfessorRequiredMixin, ListView):
 
 class SingleSaleCreateView(LoginRequiredMixin, ProfessorRequiredMixin, CreateView):
     """
-    Permite ao professor/vendedor criar uma nova venda avulsa.
+    Permite ao professor/vendedor criar uma nova nota avulsa.
     """
     model = SingleSale
     template_name = 'payments/professor/singlesale_form.html'
@@ -907,20 +907,20 @@ class SingleSaleCreateView(LoginRequiredMixin, ProfessorRequiredMixin, CreateVie
                 print(f"Objeto salvo com ID: {sale.id}")
                 
                 # Mostrar mensagem de sucesso
-                messages.success(self.request, _('Venda avulsa criada com sucesso!'))
+                messages.success(self.request, _('Nota avulsa criada com sucesso!'))
                 
                 # Redirecionar para a lista
                 return redirect(self.success_url)
             else:
                 # Log de erros do formulário
                 print(f"Erros de validação: {form.errors}")
-                messages.error(self.request, _('Erro ao criar venda. Verifique os campos.'))
+                messages.error(self.request, _('Erro ao criar nota. Verifique os campos.'))
                 return self.form_invalid(form)
                 
         except Exception as e:
             # Log detalhado do erro
             import traceback
-            print(f"Erro ao criar venda: {str(e)}")
+            print(f"Erro ao criar nota: {str(e)}")
             print(traceback.format_exc())
             
             # Mostrar mensagem de erro para o usuário
@@ -930,31 +930,31 @@ class SingleSaleCreateView(LoginRequiredMixin, ProfessorRequiredMixin, CreateVie
 
 class SingleSaleDetailView(LoginRequiredMixin, ProfessorRequiredMixin, DetailView):
     """
-    Mostra detalhes de uma venda avulsa específica.
+    Mostra detalhes de uma nota avulsa específica.
     """
     model = SingleSale
     template_name = 'payments/professor/singlesale_detail.html'
     context_object_name = 'sale'
     
     def get_queryset(self):
-        # Garantir que só mostra vendas do professor atual
+        # Garantir que só mostra notas do professor atual
         return SingleSale.objects.filter(seller=self.request.user)
 
 
-# View para gerar pagamento via Pix para uma venda avulsa
+# View para gerar pagamento via Pix para uma nota avulsa
 @login_required
 def create_singlesale_pix(request, sale_id):
     """
-    Cria um pagamento Pix para uma venda avulsa.
+    Cria um pagamento Pix para uma nota avulsa.
     """
     sale = get_object_or_404(SingleSale, id=sale_id, seller=request.user)
     
     if sale.status == SingleSale.Status.PAID:
-        messages.warning(request, _('Esta venda já foi paga!'))
+        messages.warning(request, _('Esta nota já foi paga!'))
         return redirect('payments:singlesale_detail', pk=sale.id)
     
     if sale.brcode:
-        messages.info(request, _('Esta venda já possui um Pix gerado.'))
+        messages.info(request, _('Esta nota já possui um Pix gerado.'))
         return redirect('payments:singlesale_pix_detail', sale_id=sale.id)
     
     # Inicia o serviço de Pix
@@ -964,7 +964,7 @@ def create_singlesale_pix(request, sale_id):
     charge_data = {
         'correlationID': str(uuid.uuid4()),
         'value': int(sale.amount * 100),  # Converte para centavos
-        'comment': f"Venda: {sale.description}",
+        'comment': f"Nota: {sale.description}",
         'customer': {
             'name': sale.customer_name,
             'email': sale.customer_email,
@@ -978,7 +978,7 @@ def create_singlesale_pix(request, sale_id):
         response = openpix_service.create_charge_dict(charge_data)
         
         if response and response.get('brCode'):
-            # Atualiza a venda com os dados do Pix
+            # Atualiza a nota com os dados do Pix
             sale.correlation_id = charge_data['correlationID']
             sale.brcode = response.get('brCode')
             sale.qrcode_image = response.get('qrCodeImage')
@@ -997,7 +997,7 @@ def create_singlesale_pix(request, sale_id):
 @login_required
 def singlesale_pix_detail(request, sale_id):
     """
-    Exibe os detalhes do pagamento Pix para uma venda avulsa.
+    Exibe os detalhes do pagamento Pix para uma nota avulsa.
     """
     sale = get_object_or_404(SingleSale, id=sale_id)
     
@@ -1019,7 +1019,7 @@ def singlesale_pix_detail(request, sale_id):
 @login_required
 def check_singlesale_payment_status(request, sale_id):
     """
-    Verifica o status do pagamento via API e atualiza o status da venda.
+    Verifica o status do pagamento via API e atualiza o status da nota.
     """
     sale = get_object_or_404(SingleSale, id=sale_id)
     
@@ -1051,7 +1051,7 @@ def check_singlesale_payment_status(request, sale_id):
                 invoice = Invoice.objects.create(
                     type='rps',
                     transaction=None,  # Não é uma transação de matrícula
-                    singlesale=sale,  # Relaciona com a venda avulsa
+                    singlesale=sale,  # Relaciona com a nota avulsa
                     amount=sale.amount,
                     customer_name=sale.customer_name,
                     customer_email=sale.customer_email,
@@ -1081,7 +1081,7 @@ def check_singlesale_payment_status(request, sale_id):
 
 class SingleSaleAdminListView(LoginRequiredMixin, AdminRequiredMixin, ListView):
     """
-    Lista todas as vendas avulsas para o administrador.
+    Lista todas as notas avulsas para o administrador.
     """
     model = SingleSale
     template_name = 'payments/admin/singlesale_list.html'
@@ -1123,14 +1123,14 @@ class SingleSaleAdminListView(LoginRequiredMixin, AdminRequiredMixin, ListView):
 
 class SingleSaleUpdateView(LoginRequiredMixin, ProfessorRequiredMixin, UpdateView):
     """
-    Permite ao professor/vendedor atualizar uma venda avulsa existente.
+    Permite ao professor/vendedor atualizar uma nota avulsa existente.
     """
     model = SingleSale
     template_name = 'payments/professor/singlesale_form.html'
     form_class = SingleSaleForm
     
     def get_queryset(self):
-        # Garantir que só atualiza vendas do professor atual
+        # Garantir que só atualiza notas do professor atual
         return SingleSale.objects.filter(seller=self.request.user)
     
     def get_context_data(self, **kwargs):
@@ -1220,20 +1220,20 @@ class SingleSaleUpdateView(LoginRequiredMixin, ProfessorRequiredMixin, UpdateVie
                 print(f"Objeto atualizado com sucesso")
                 
                 # Mostrar mensagem de sucesso
-                messages.success(self.request, _('Venda atualizada com sucesso!'))
+                messages.success(self.request, _('Nota atualizada com sucesso!'))
                 
                 # Redirecionar para a lista
                 return redirect(self.get_success_url())
             else:
                 # Log de erros do formulário
                 print(f"Erros de validação (update): {form.errors}")
-                messages.error(self.request, _('Erro ao atualizar venda. Verifique os campos.'))
+                messages.error(self.request, _('Erro ao atualizar nota. Verifique os campos.'))
                 return self.form_invalid(form)
                 
         except Exception as e:
             # Log detalhado do erro
             import traceback
-            print(f"Erro ao atualizar venda: {str(e)}")
+            print(f"Erro ao atualizar nota: {str(e)}")
             print(traceback.format_exc())
             
             # Mostrar mensagem de erro para o usuário
@@ -1288,7 +1288,7 @@ def emit_invoice_from_transactions(request, transaction_id):
 @login_required
 def create_singlesale_api(request):
     """
-    API para criar uma venda avulsa com validação simplificada.
+    API para criar uma nota avulsa com validação simplificada.
     """
     if request.method != 'POST':
         return JsonResponse({'error': 'Método não permitido'}, status=405)
@@ -1306,14 +1306,14 @@ def create_singlesale_api(request):
         # Verificar ID de sessão para evitar processamento duplicado
         session_id = data.get('session_id')
         if session_id:
-            # Verificar se já existe uma venda com este session_id (usando cache ou banco de dados)
+            # Verificar se já existe uma nota com este session_id (usando cache ou banco de dados)
             cache_key = f"singlesale_session_{session_id}"
             
             # Verificar se já processamos esta submissão
             if cache.get(cache_key):
                 print(f"Submissão duplicada detectada com session_id: {session_id}")
                 return JsonResponse({
-                    'warning': 'Esta venda já foi processada',
+                    'warning': 'Esta nota já foi processada',
                     'success': True,
                     'redirect_url': reverse('payments:singlesale_list')
                 })
@@ -1349,7 +1349,7 @@ def create_singlesale_api(request):
         if customer_cpf:
             customer_cpf = ''.join(c for c in customer_cpf if c.isdigit())
         
-        # Criar o objeto de venda
+        # Criar o objeto de nota
         sale = SingleSale()
         sale.description = description
         sale.amount = amount
@@ -1396,7 +1396,7 @@ def create_singlesale_api(request):
         
         return JsonResponse({
             'success': True,
-            'message': 'Venda criada com sucesso',
+            'message': 'Nota criada com sucesso',
             'sale_id': sale.id,
             'redirect_url': reverse('payments:singlesale_list')
         })
@@ -1404,7 +1404,7 @@ def create_singlesale_api(request):
     except Exception as e:
         # Log detalhado do erro
         import traceback
-        print(f"Erro ao criar venda via API: {str(e)}")
+        print(f"Erro ao criar nota via API: {str(e)}")
         print(traceback.format_exc())
         
         # Retornar erro

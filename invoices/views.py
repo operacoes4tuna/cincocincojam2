@@ -698,10 +698,10 @@ def retry_waiting_invoices(request):
 def sync_invoice_status(request, invoice_id):
     """
     Sincroniza o status da nota fiscal com a API NFE.io.
-    Funciona tanto para notas fiscais de transações quanto de vendas avulsas.
+    Funciona tanto para notas fiscais de transações quanto de notas avulsas.
     """
     try:
-        # Tentar obter a invoice de duas formas: transação ou venda avulsa
+        # Tentar obter a invoice de duas formas: transação ou nota avulsa
         try:
             # Primeiro tenta encontrar via transação
             invoice = get_object_or_404(
@@ -710,7 +710,7 @@ def sync_invoice_status(request, invoice_id):
                 transaction__enrollment__course__professor=request.user
             )
         except (Invoice.DoesNotExist, Http404):
-            # Se não encontrou, tenta via venda avulsa
+            # Se não encontrou, tenta via nota avulsa
             invoice = get_object_or_404(
                 Invoice, 
                 id=invoice_id, 
@@ -736,7 +736,7 @@ def sync_invoice_status(request, invoice_id):
 @professor_required
 def emit_singlesale_invoice(request, sale_id):
     """
-    Emite uma nota fiscal para uma venda avulsa.
+    Emite uma nota fiscal para uma nota avulsa.
     """
     try:
         sale = get_object_or_404(
@@ -744,17 +744,17 @@ def emit_singlesale_invoice(request, sale_id):
             id=sale_id,
             seller=request.user
         )
-        logger.debug(f"Venda avulsa encontrada: {sale_id}, valor: {sale.amount}, status: {sale.status}")
+        logger.debug(f"Nota avulsa encontrada: {sale_id}, valor: {sale.amount}, status: {sale.status}")
     except Exception as e:
-        logger.error(f"Erro ao obter venda avulsa {sale_id}: {str(e)}")
-        messages.error(request, _('Erro ao localizar venda avulsa.'))
+        logger.error(f"Erro ao obter nota avulsa {sale_id}: {str(e)}")
+        messages.error(request, _('Erro ao localizar nota avulsa.'))
         return redirect('payments:singlesale_list')
     
-    # Verificar se já existe uma nota fiscal para esta venda
+    # Verificar se já existe uma nota fiscal para esta nota
     existing_invoice = Invoice.objects.filter(singlesale=sale).first()
     if existing_invoice:
-        logger.info(f"Já existe nota fiscal para venda avulsa {sale_id}: Invoice ID {existing_invoice.id}, status: {existing_invoice.status}")
-        messages.info(request, _('Já existe uma nota fiscal para esta venda.'))
+        logger.info(f"Já existe nota fiscal para nota avulsa {sale_id}: Invoice ID {existing_invoice.id}, status: {existing_invoice.status}")
+        messages.info(request, _('Já existe uma nota fiscal para esta nota.'))
         return redirect('payments:singlesale_list')
     
     # Verificar se o professor tem as configurações fiscais completas
@@ -777,7 +777,7 @@ def emit_singlesale_invoice(request, sale_id):
         return redirect('invoices:company_settings')
     
     # Criar a invoice no banco de dados
-    logger.info(f"Criando nova invoice para venda avulsa {sale_id}")
+    logger.info(f"Criando nova invoice para nota avulsa {sale_id}")
     
     try:
         # Criar a invoice
@@ -834,7 +834,7 @@ def emit_singlesale_invoice(request, sale_id):
         logger.error(f"Exceção ao criar invoice: {str(e)}\n{error_traceback}")
         messages.error(request, _('Erro ao criar nota fiscal: {}').format(str(e)))
     
-    logger.info(f"Concluindo processo de emissão para venda avulsa {sale_id}")
+    logger.info(f"Concluindo processo de emissão para nota avulsa {sale_id}")
     return redirect('payments:singlesale_list')
 
 @login_required
@@ -865,7 +865,7 @@ def invoice_detail_json(request, invoice_id):
                     transaction__enrollment__course__professor=request.user
                 )
             except (Invoice.DoesNotExist, Http404):
-                # Se não encontrou, tentar via venda avulsa
+                # Se não encontrou, tentar via nota avulsa
                 invoice = get_object_or_404(
                     Invoice,
                     id=invoice_id,
