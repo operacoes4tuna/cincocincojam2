@@ -767,11 +767,7 @@ class SingleSaleListView(LoginRequiredMixin, ProfessorRequiredMixin, ListView):
     paginate_by = 20
     
     def get_queryset(self):
-        # Use only the basic fields to avoid any errors with potentially missing fields
-        queryset = SingleSale.objects.filter(seller=self.request.user).only(
-            'id', 'description', 'amount', 'status', 'customer_name', 
-            'customer_email', 'created_at', 'updated_at', 'paid_at'
-        )
+        queryset = SingleSale.objects.filter(seller=self.request.user)
         
         # Filtro por status
         status = self.request.GET.get('status')
@@ -901,6 +897,14 @@ class SingleSaleCreateView(LoginRequiredMixin, ProfessorRequiredMixin, CreateVie
                 sale.invoice_type = form.cleaned_data.get('invoice_type', 'nfse')
                 sale.generate_invoice = form.cleaned_data.get('generate_invoice', False)
                 
+                # Novos campos readicionados
+                sale.data_emissao = form.cleaned_data.get('data_emissao', None)
+                sale.codigo_servico = form.cleaned_data.get('codigo_servico', None)
+                sale.recorrencia = form.cleaned_data.get('recorrencia', 'none')
+                sale.gerar_boleto = form.cleaned_data.get('gerar_boleto', False)
+                sale.vencimento_boleto = form.cleaned_data.get('vencimento_boleto', None)
+                # Fim dos novos campos
+
                 # Salvar o objeto
                 print("Tentando salvar o objeto...")
                 sale.save()
@@ -1214,6 +1218,14 @@ class SingleSaleUpdateView(LoginRequiredMixin, ProfessorRequiredMixin, UpdateVie
                 sale.invoice_type = form.cleaned_data.get('invoice_type', 'nfse')
                 sale.generate_invoice = form.cleaned_data.get('generate_invoice', False)
                 
+                # Novos campos readicionados
+                sale.data_emissao = form.cleaned_data.get('data_emissao', None)
+                sale.codigo_servico = form.cleaned_data.get('codigo_servico', None)
+                sale.recorrencia = form.cleaned_data.get('recorrencia', 'none')
+                sale.gerar_boleto = form.cleaned_data.get('gerar_boleto', False)
+                sale.vencimento_boleto = form.cleaned_data.get('vencimento_boleto', None)
+                # Fim dos novos campos
+
                 # Salvar o objeto
                 print(f"Tentando atualizar o objeto ID: {sale.id}")
                 sale.save()
@@ -1391,6 +1403,14 @@ def create_singlesale_api(request):
         sale.invoice_type = data.get('invoice_type', 'nfse')
         sale.generate_invoice = data.get('generate_invoice') in ['true', 'True', '1', 'on', True]
         
+        # Novos campos readicionados
+        sale.data_emissao = data.get('data_emissao') if data.get('data_emissao') else None
+        sale.codigo_servico = data.get('codigo_servico', None)
+        sale.recorrencia = data.get('recorrencia', 'none')
+        sale.gerar_boleto = data.get('gerar_boleto') in ['true', 'True', '1', 'on', True]
+        sale.vencimento_boleto = data.get('vencimento_boleto') if data.get('vencimento_boleto') else None
+        # Fim dos novos campos
+
         # Salvar o objeto
         sale.save()
         

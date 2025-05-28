@@ -12,9 +12,8 @@
                 <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">Configurações Fiscais para Emissão de Notas</h5>
                     <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" id="enableNFe" {% if company_config.enabled %}
-                            checked {% endif %}>
-                        <label class="form-check-label text-white" for="enableNFe">Habilitar Emissão de Nota</label>
+
+
                     </div>
                 </div>
                 <div class="card-body">
@@ -28,7 +27,9 @@
                     <form method="post" id="companyForm">
                         {% csrf_token %}
 
-                        {{ form.city_service_code }} <!-- Campo oculto -->
+                        <!-- Campo oculto para códigos de serviço -->
+                        <input type="hidden" id="id_city_service_code" name="city_service_code"
+                            value="{{ form.city_service_code.value|default:'' }}">
 
                         <div class="row mb-4">
                             <div class="col-12">
@@ -70,18 +71,28 @@
                                     {{ form.inscricao_municipal|as_crispy_field }}
                                 </div>
                                 <div class="col-md-6">
-                                    <label for="id_city_service_code_display" class="form-label">Códigos de Serviço
-                                        Municipal</label>
-                                    <div id="cityServiceCodeContainer">
-                                        <!-- Inputs de código de serviço serão adicionados aqui pelo JavaScript -->
+                                    <div class="mb-3">
+                                        <label for="cityServiceCodeContainer" class="form-label">
+                                            <strong>Códigos de Serviço Municipal</strong>
+                                            <span class="text-danger">*</span>
+                                        </label>
+                                        <div id="cityServiceCodeContainer" class="mb-2">
+                                            <!-- Inputs de código de serviço serão adicionados aqui pelo JavaScript -->
+                                        </div>
+                                        <button type="button" class="btn btn-sm btn-outline-primary"
+                                            id="addCityServiceCode">
+                                            <i class="fas fa-plus"></i> Adicionar Código
+                                        </button>
+                                        <div class="form-text text-muted mt-2">
+                                            <i class="fas fa-info-circle"></i>
+                                            Códigos de serviço específicos do município para atividades educacionais.
+                                            Exemplo: 0107 (Ensino e treinamento).
+                                            <a href="#" data-bs-toggle="modal" data-bs-target="#codigosServicoModal"
+                                                class="text-decoration-none">
+                                                Ver códigos comuns
+                                            </a>
+                                        </div>
                                     </div>
-                                    <button type="button" class="btn btn-sm btn-outline-primary mt-2"
-                                        id="addCityServiceCode">
-                                        <i class="fas fa-plus"></i> Adicionar Código
-                                    </button>
-                                    <small class="form-text text-muted">
-                                        {{ form.city_service_code.help_text }}
-                                    </small>
                                 </div>
                             </div>
 
@@ -165,6 +176,96 @@
         </div>
     </div>
 </div>
+
+<!-- Modal com códigos de serviço comuns -->
+<div class="modal fade" id="codigosServicoModal" tabindex="-1" aria-labelledby="codigosServicoModalLabel"
+    aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="codigosServicoModalLabel">Códigos de Serviço Municipal Comuns</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Código</th>
+                                <th>Descrição</th>
+                                <th>Ação</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>0107</code></td>
+                                <td>Ensino e treinamento</td>
+                                <td><button type="button" class="btn btn-sm btn-outline-primary add-code-btn"
+                                        data-code="0107">Adicionar</button></td>
+                            </tr>
+                            <tr>
+                                <td><code>0801</code></td>
+                                <td>Ensino regular pré-escolar, fundamental, médio e superior</td>
+                                <td><button type="button" class="btn btn-sm btn-outline-primary add-code-btn"
+                                        data-code="0801">Adicionar</button></td>
+                            </tr>
+                            <tr>
+                                <td><code>0802</code></td>
+                                <td>Instrução, treinamento, orientação pedagógica e educacional</td>
+                                <td><button type="button" class="btn btn-sm btn-outline-primary add-code-btn"
+                                        data-code="0802">Adicionar</button></td>
+                            </tr>
+                            <tr>
+                                <td><code>0803</code></td>
+                                <td>Ensino de idiomas</td>
+                                <td><button type="button" class="btn btn-sm btn-outline-primary add-code-btn"
+                                        data-code="0803">Adicionar</button></td>
+                            </tr>
+                            <tr>
+                                <td><code>0804</code></td>
+                                <td>Ensino de esportes</td>
+                                <td><button type="button" class="btn btn-sm btn-outline-primary add-code-btn"
+                                        data-code="0804">Adicionar</button></td>
+                            </tr>
+                            <tr>
+                                <td><code>0805</code></td>
+                                <td>Ensino de artes cênicas, artes visuais, dança e música</td>
+                                <td><button type="button" class="btn btn-sm btn-outline-primary add-code-btn"
+                                        data-code="0805">Adicionar</button></td>
+                            </tr>
+                            <tr>
+                                <td><code>0806</code></td>
+                                <td>Ensino de computação</td>
+                                <td><button type="button" class="btn btn-sm btn-outline-primary add-code-btn"
+                                        data-code="0806">Adicionar</button></td>
+                            </tr>
+                            <tr>
+                                <td><code>0807</code></td>
+                                <td>Ensino de cursos técnicos de 2º grau</td>
+                                <td><button type="button" class="btn btn-sm btn-outline-primary add-code-btn"
+                                        data-code="0807">Adicionar</button></td>
+                            </tr>
+                            <tr>
+                                <td><code>0808</code></td>
+                                <td>Ensino de cursos técnicos de nível superior</td>
+                                <td><button type="button" class="btn btn-sm btn-outline-primary add-code-btn"
+                                        data-code="0808">Adicionar</button></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="alert alert-info mt-3">
+                    <i class="fas fa-info-circle"></i>
+                    <strong>Importante:</strong> Os códigos podem variar conforme o município.
+                    Consulte a prefeitura local para confirmar os códigos específicos da sua cidade.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock content %}
 
 {% block extra_js %}
@@ -184,14 +285,16 @@
         enabledCheckbox.addEventListener('change', toggleFiscalFields);
 
         const headerCheckbox = document.getElementById('enableNFe');
-        headerCheckbox.addEventListener('change', function () {
-            enabledCheckbox.checked = this.checked;
-            toggleFiscalFields();
-        });
+        if (headerCheckbox) {
+            headerCheckbox.addEventListener('change', function () {
+                enabledCheckbox.checked = this.checked;
+                toggleFiscalFields();
+            });
 
-        enabledCheckbox.addEventListener('change', function () {
-            headerCheckbox.checked = this.checked;
-        });
+            enabledCheckbox.addEventListener('change', function () {
+                headerCheckbox.checked = this.checked;
+            });
+        }
 
         // --- Gerenciamento de Códigos de Serviço Municipal ---
         const serviceCodeContainer = document.getElementById('cityServiceCodeContainer');
@@ -207,14 +310,19 @@
             input.className = 'form-control city-service-code-input';
             input.value = value;
             input.placeholder = 'Ex: 0107';
+            input.maxLength = 10;
+            input.pattern = '[0-9]{4}';
+            input.title = 'Digite um código de 4 dígitos';
 
             const removeButton = document.createElement('button');
             removeButton.type = 'button';
             removeButton.className = 'btn btn-outline-danger';
             removeButton.innerHTML = '<i class="fas fa-times"></i>';
+            removeButton.title = 'Remover código';
             removeButton.onclick = function () {
                 inputGroup.remove();
                 updateHiddenServiceCodeInput();
+                updateAddButtonState();
             };
 
             inputGroup.appendChild(input);
@@ -222,59 +330,171 @@
             serviceCodeContainer.appendChild(inputGroup);
 
             // Atualizar o campo oculto sempre que um input visível mudar
-            input.addEventListener('input', updateHiddenServiceCodeInput);
+            input.addEventListener('input', function () {
+                // Permitir apenas números
+                this.value = this.value.replace(/[^0-9]/g, '');
+                updateHiddenServiceCodeInput();
+            });
+
+            input.addEventListener('blur', function () {
+                // Validar formato ao sair do campo
+                if (this.value && this.value.length !== 4) {
+                    this.classList.add('is-invalid');
+                    this.title = 'O código deve ter exatamente 4 dígitos';
+                } else {
+                    this.classList.remove('is-invalid');
+                    this.title = 'Digite um código de 4 dígitos';
+                }
+            });
+
+            return input;
         }
 
         function updateHiddenServiceCodeInput() {
             const codes = [];
             serviceCodeContainer.querySelectorAll('.city-service-code-input').forEach(input => {
-                if (input.value.trim() !== '') {
-                    codes.push(input.value.trim());
+                const value = input.value.trim();
+                if (value !== '' && value.length === 4) {
+                    codes.push(value);
                 }
             });
             hiddenServiceCodeInput.value = JSON.stringify(codes);
         }
 
+        function updateAddButtonState() {
+            const currentInputs = serviceCodeContainer.querySelectorAll('.city-service-code-input');
+            // Limitar a 10 códigos para evitar interface muito carregada
+            if (currentInputs.length >= 10) {
+                addServiceCodeButton.disabled = true;
+                addServiceCodeButton.innerHTML = '<i class="fas fa-plus"></i> Máximo de códigos atingido';
+            } else {
+                addServiceCodeButton.disabled = false;
+                addServiceCodeButton.innerHTML = '<i class="fas fa-plus"></i> Adicionar Código';
+            }
+        }
+
+        function addServiceCode(code) {
+            // Verificar se o código já existe
+            const existingCodes = Array.from(serviceCodeContainer.querySelectorAll('.city-service-code-input'))
+                .map(input => input.value.trim());
+
+            if (existingCodes.includes(code)) {
+                // Destacar o campo existente
+                const existingInput = Array.from(serviceCodeContainer.querySelectorAll('.city-service-code-input'))
+                    .find(input => input.value.trim() === code);
+                if (existingInput) {
+                    existingInput.focus();
+                    existingInput.classList.add('border-warning');
+                    setTimeout(() => {
+                        existingInput.classList.remove('border-warning');
+                    }, 2000);
+                }
+                return false;
+            }
+
+            const newInput = createServiceCodeInput(code);
+            updateHiddenServiceCodeInput();
+            updateAddButtonState();
+            newInput.focus();
+            return true;
+        }
+
         addServiceCodeButton.addEventListener('click', function () {
             createServiceCodeInput();
-            updateHiddenServiceCodeInput(); // Garante que se adicionar vazio, ainda atualiza (para limpar se necessário)
+            updateHiddenServiceCodeInput();
+            updateAddButtonState();
+        });
+
+        // Funcionalidade do modal de códigos comuns
+        document.querySelectorAll('.add-code-btn').forEach(button => {
+            button.addEventListener('click', function () {
+                const code = this.getAttribute('data-code');
+                if (addServiceCode(code)) {
+                    // Fechar o modal se o código foi adicionado com sucesso
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('codigosServicoModal'));
+                    if (modal) {
+                        modal.hide();
+                    }
+
+                    // Mostrar feedback visual
+                    this.innerHTML = '<i class="fas fa-check"></i> Adicionado';
+                    this.classList.remove('btn-outline-primary');
+                    this.classList.add('btn-success');
+                    this.disabled = true;
+
+                    // Restaurar o botão após 2 segundos
+                    setTimeout(() => {
+                        this.innerHTML = 'Adicionar';
+                        this.classList.remove('btn-success');
+                        this.classList.add('btn-outline-primary');
+                        this.disabled = false;
+                    }, 2000);
+                } else {
+                    // Mostrar que o código já existe
+                    this.innerHTML = '<i class="fas fa-exclamation"></i> Já existe';
+                    this.classList.remove('btn-outline-primary');
+                    this.classList.add('btn-warning');
+
+                    setTimeout(() => {
+                        this.innerHTML = 'Adicionar';
+                        this.classList.remove('btn-warning');
+                        this.classList.add('btn-outline-primary');
+                    }, 2000);
+                }
+            });
         });
 
         // Carregar códigos iniciais
-        const initialCodesJson = hiddenServiceCodeInput.getAttribute('data-initial-codes');
-        let initialCodes = ['0107']; // Default se nada for carregado
-        if (initialCodesJson) {
+        let initialCodes = ['0107']; // Default
+        const hiddenValue = hiddenServiceCodeInput.value;
+
+        if (hiddenValue) {
             try {
-                const parsedCodes = JSON.parse(initialCodesJson);
+                const parsedCodes = JSON.parse(hiddenValue);
                 if (Array.isArray(parsedCodes) && parsedCodes.length > 0) {
                     initialCodes = parsedCodes;
-                } else if (Array.isArray(parsedCodes) && parsedCodes.length === 0) {
-                    // Não faz nada, o default de um campo será criado abaixo
-                } else if (!Array.isArray(parsedCodes) && typeof parsedCodes === 'string' && parsedCodes.trim() !== '') {
-                    initialCodes = [parsedCodes]; // Trata caso de string única antiga não JSON
                 }
             } catch (e) {
                 console.warn('Erro ao parsear códigos de serviço iniciais, usando default:', e);
-                // initialCodes já é ['0107']
-                if (typeof initialCodesJson === 'string' && initialCodesJson.trim() !== '' && !initialCodesJson.startsWith('[')) {
-                    initialCodes = [initialCodesJson.trim()]; // Trata string não JSON
+                // Se não for JSON válido, tentar como string única
+                if (typeof hiddenValue === 'string' && hiddenValue.trim() !== '' && !hiddenValue.startsWith('[')) {
+                    initialCodes = [hiddenValue.trim()];
                 }
             }
         }
 
+        // Criar campos para os códigos iniciais
         if (initialCodes.length > 0) {
             initialCodes.forEach(code => createServiceCodeInput(code));
         } else {
-            createServiceCodeInput(); // Criar pelo menos um campo se não houver códigos iniciais
+            createServiceCodeInput(); // Criar pelo menos um campo vazio
         }
-        updateHiddenServiceCodeInput(); // Atualizar o valor inicial do campo oculto
+
+        updateHiddenServiceCodeInput();
+        updateAddButtonState();
 
         // Atualizar o campo oculto antes de submeter o formulário
         const form = document.getElementById('companyForm');
         form.addEventListener('submit', function () {
             updateHiddenServiceCodeInput();
+
+            // Validar se há pelo menos um código válido
+            const codes = JSON.parse(hiddenServiceCodeInput.value || '[]');
+            if (enabledCheckbox.checked && codes.length === 0) {
+                alert('Por favor, adicione pelo menos um código de serviço municipal válido.');
+                return false;
+            }
         });
 
+        // Resetar estado dos botões do modal quando ele for aberto
+        document.getElementById('codigosServicoModal').addEventListener('show.bs.modal', function () {
+            document.querySelectorAll('.add-code-btn').forEach(button => {
+                button.innerHTML = 'Adicionar';
+                button.classList.remove('btn-success', 'btn-warning');
+                button.classList.add('btn-outline-primary');
+                button.disabled = false;
+            });
+        });
     });
 </script>
 {% endblock extra_js %}
