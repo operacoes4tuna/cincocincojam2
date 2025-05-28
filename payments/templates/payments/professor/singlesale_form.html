@@ -150,7 +150,61 @@
                     <div class="col-md-3">
                         {% if object %}
                             {{ form.status|as_crispy_field }}
+                        {% else %}
+                            <div class="card border p-2 mt-4">
+                                <div class="d-flex align-items-center">
+                                    <div class="me-3">
+                                        <label class="form-label mb-0 fw-bold">{% translate "Gerar boleto" %}</label>
+                                    </div>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="generate_boleto" name="generate_boleto" style="transform: scale(1.5); cursor: pointer;">
+                                    </div>
+                                </div>
+                            </div>
                         {% endif %}
+                    </div>
+                </div>
+                
+                <!-- Campos condicionais que só aparecem quando o checkbox de boleto está marcado -->
+                <div id="boleto_options" class="row mt-3" style="display: none;">
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label for="emission_date" class="form-label">{% translate "Data de emissão" %}</label>
+                            <input type="date" class="form-control" id="emission_date" name="emission_date">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label for="due_date" class="form-label">{% translate "Vencimento do boleto" %}</label>
+                            <input type="date" class="form-control" id="due_date" name="due_date">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label for="recurrence_count" class="form-label">{% translate "Quantidade de recorrências" %}</label>
+                            <select class="form-select" id="recurrence_count" name="recurrence_count">
+                                <option value="0">{% translate "Sem recorrência" %}</option>
+                                <option value="2">2</option>
+                                <option value="3">3</option>
+                                <option value="4">4</option>
+                                <option value="5">5</option>
+                                <option value="6">6</option>
+                                <option value="7">7</option>
+                                <option value="8">8</option>
+                                <option value="9">9</option>
+                                <option value="10">10</option>
+                                <option value="11">11</option>
+                                <option value="12">12</option>
+                                <option value="13">13</option>
+                                <option value="14">14</option>
+                                <option value="15">15</option>
+                                <option value="16">16</option>
+                                <option value="17">17</option>
+                                <option value="18">18</option>
+                                <option value="19">19</option>
+                                <option value="20">20</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -171,6 +225,30 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Definir data atual para o campo de emissão
+    const today = new Date();
+    const formattedDate = today.toISOString().split('T')[0]; // Formato YYYY-MM-DD
+    document.getElementById('emission_date').value = formattedDate;
+    
+    // Controle de visibilidade dos campos de boleto
+    const generateBoletoCheckbox = document.getElementById('generate_boleto');
+    const boletoOptions = document.getElementById('boleto_options');
+    
+    // Função para mostrar/esconder campos do boleto
+    function toggleBoletoOptions() {
+        if (generateBoletoCheckbox.checked) {
+            boletoOptions.style.display = 'flex';
+        } else {
+            boletoOptions.style.display = 'none';
+        }
+    }
+    
+    // Verificar o estado inicial
+    toggleBoletoOptions();
+    
+    // Adicionar evento para alteração do checkbox
+    generateBoletoCheckbox.addEventListener('change', toggleBoletoOptions);
+    
     // Get client select elements
     const companySelect = document.getElementById('company-client-select');
     const individualSelect = document.getElementById('individual-client-select');
