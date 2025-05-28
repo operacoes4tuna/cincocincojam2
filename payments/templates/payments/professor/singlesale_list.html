@@ -3,12 +3,12 @@
 {% load i18n %}
 {% load humanize %}
 
-{% block title %}{% translate "Vendas Avulsas" %}{% endblock %}
+{% block title %}{% translate "Notas Avulsas" %}{% endblock %}
 
 {% block content %}
 <div class="container py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1>{% translate "Vendas Avulsas" %}</h1>
+        <h1>{% translate "Notas Avulsas" %}</h1>
         <a href="{% url 'payments:singlesale_create' %}" class="btn btn-primary">
             <i class="fas fa-plus me-1"></i> {% translate "Nova Venda" %}
         </a>
@@ -52,7 +52,7 @@
         <div class="col-md-4">
             <div class="card h-100">
                 <div class="card-body">
-                    <h5 class="card-title text-primary">{% translate "Total de Vendas" %}</h5>
+                    <h5 class="card-title text-primary">{% translate "Total de Vendas Avulsas" %}</h5>
                     <div class="display-6">R$ {{ total_amount|floatformat:2|intcomma }}</div>
                     <div class="text-muted mt-2">
                         <div>{% translate "Qtd. Vendas" %}: {{ sales|length }}</div>
@@ -87,7 +87,7 @@
     <!-- Lista de Vendas -->
     <div class="card">
         <div class="card-body">
-            <h5 class="card-title">{% translate "Lista de Vendas" %}</h5>
+            <h5 class="card-title">{% translate "Lista de Notas Avulsas" %}</h5>
             
             {% if sales %}
                 <div class="table-responsive">
