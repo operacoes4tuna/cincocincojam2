@@ -141,30 +141,87 @@
             </div>
             <div class="card-body">
                 <div class="row">
-                    <div class="col-md-6">
+                    <div class="col-md-5">
                         {{ form.description|as_crispy_field }}
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         {{ form.amount|as_crispy_field }}
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         {% if object %}
                             {{ form.status|as_crispy_field }}
                         {% else %}
-                            <div class="card border p-2 mt-4">
-                                <div class="d-flex align-items-center">
-                                    <div class="me-3">
-                                        <label class="form-label mb-0 fw-bold">{% translate "Gerar boleto" %}</label>
-                                    </div>
-                                    <div class="form-check form-switch">
-                                        <input class="form-check-input" type="checkbox" id="generate_boleto" name="generate_boleto" style="transform: scale(1.5); cursor: pointer;">
-                                    </div>
-                                </div>
+                            <div class="form-group">
+                                {{ form.status|as_crispy_field }}
                             </div>
                         {% endif %}
                     </div>
+                    {% if not object %}
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="form-label">{% translate "Gerar boleto" %}</label>
+                            <div class="d-flex align-items-center border rounded p-2 bg-light" style="height: 38px;">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="generate_boleto" name="generate_boleto" style="transform: scale(1.3); cursor: pointer; margin-left: 0.5rem;">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
                 </div>
                 
+                {% if object %}
+                <!-- Adicionar campos de boleto também na edição -->
+                <div class="row mt-3">
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label for="emission_date" class="form-label">{% translate "Data de emissão" %}</label>
+                            <input type="date" class="form-control" id="emission_date" name="emission_date" value="{{ emission_date|default:'' }}">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label for="due_date" class="form-label">{% translate "Vencimento do boleto" %}</label>
+                            <input type="date" class="form-control" id="due_date" name="due_date" value="{{ due_date|default:'' }}">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label for="recurrence_count" class="form-label">{% translate "Quantidade de recorrências" %}</label>
+                            <select class="form-select" id="recurrence_count" name="recurrence_count">
+                                <option value="0" {% if recurrence_count == 0 %}selected{% endif %}>{% translate "Sem recorrência" %}</option>
+                                <option value="2" {% if recurrence_count == 2 %}selected{% endif %}>2</option>
+                                <option value="3" {% if recurrence_count == 3 %}selected{% endif %}>3</option>
+                                <option value="4" {% if recurrence_count == 4 %}selected{% endif %}>4</option>
+                                <option value="5" {% if recurrence_count == 5 %}selected{% endif %}>5</option>
+                                <option value="6" {% if recurrence_count == 6 %}selected{% endif %}>6</option>
+                                <option value="7" {% if recurrence_count == 7 %}selected{% endif %}>7</option>
+                                <option value="8" {% if recurrence_count == 8 %}selected{% endif %}>8</option>
+                                <option value="9" {% if recurrence_count == 9 %}selected{% endif %}>9</option>
+                                <option value="10" {% if recurrence_count == 10 %}selected{% endif %}>10</option>
+                                <option value="11" {% if recurrence_count == 11 %}selected{% endif %}>11</option>
+                                <option value="12" {% if recurrence_count == 12 %}selected{% endif %}>12</option>
+                                <option value="13" {% if recurrence_count == 13 %}selected{% endif %}>13</option>
+                                <option value="14" {% if recurrence_count == 14 %}selected{% endif %}>14</option>
+                                <option value="15" {% if recurrence_count == 15 %}selected{% endif %}>15</option>
+                                <option value="16" {% if recurrence_count == 16 %}selected{% endif %}>16</option>
+                                <option value="17" {% if recurrence_count == 17 %}selected{% endif %}>17</option>
+                                <option value="18" {% if recurrence_count == 18 %}selected{% endif %}>18</option>
+                                <option value="19" {% if recurrence_count == 19 %}selected{% endif %}>19</option>
+                                <option value="20" {% if recurrence_count == 20 %}selected{% endif %}>20</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label for="has_boleto" class="form-label">{% translate "Possui boleto" %}</label>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="has_boleto" name="has_boleto" {% if has_boleto %}checked{% endif %} style="transform: scale(1.5); cursor: pointer;">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
                 <!-- Campos condicionais que só aparecem quando o checkbox de boleto está marcado -->
                 <div id="boleto_options" class="row mt-3" style="display: none;">
                     <div class="col-md-3">
@@ -183,30 +240,31 @@
                         <div class="form-group">
                             <label for="recurrence_count" class="form-label">{% translate "Quantidade de recorrências" %}</label>
                             <select class="form-select" id="recurrence_count" name="recurrence_count">
-                                <option value="0">{% translate "Sem recorrência" %}</option>
-                                <option value="2">2</option>
-                                <option value="3">3</option>
-                                <option value="4">4</option>
-                                <option value="5">5</option>
-                                <option value="6">6</option>
-                                <option value="7">7</option>
-                                <option value="8">8</option>
-                                <option value="9">9</option>
-                                <option value="10">10</option>
-                                <option value="11">11</option>
-                                <option value="12">12</option>
-                                <option value="13">13</option>
-                                <option value="14">14</option>
-                                <option value="15">15</option>
-                                <option value="16">16</option>
-                                <option value="17">17</option>
-                                <option value="18">18</option>
-                                <option value="19">19</option>
-                                <option value="20">20</option>
+                                <option value="0" {% if recurrence_count == 0 %}selected{% endif %}>{% translate "Sem recorrência" %}</option>
+                                <option value="2" {% if recurrence_count == 2 %}selected{% endif %}>2</option>
+                                <option value="3" {% if recurrence_count == 3 %}selected{% endif %}>3</option>
+                                <option value="4" {% if recurrence_count == 4 %}selected{% endif %}>4</option>
+                                <option value="5" {% if recurrence_count == 5 %}selected{% endif %}>5</option>
+                                <option value="6" {% if recurrence_count == 6 %}selected{% endif %}>6</option>
+                                <option value="7" {% if recurrence_count == 7 %}selected{% endif %}>7</option>
+                                <option value="8" {% if recurrence_count == 8 %}selected{% endif %}>8</option>
+                                <option value="9" {% if recurrence_count == 9 %}selected{% endif %}>9</option>
+                                <option value="10" {% if recurrence_count == 10 %}selected{% endif %}>10</option>
+                                <option value="11" {% if recurrence_count == 11 %}selected{% endif %}>11</option>
+                                <option value="12" {% if recurrence_count == 12 %}selected{% endif %}>12</option>
+                                <option value="13" {% if recurrence_count == 13 %}selected{% endif %}>13</option>
+                                <option value="14" {% if recurrence_count == 14 %}selected{% endif %}>14</option>
+                                <option value="15" {% if recurrence_count == 15 %}selected{% endif %}>15</option>
+                                <option value="16" {% if recurrence_count == 16 %}selected{% endif %}>16</option>
+                                <option value="17" {% if recurrence_count == 17 %}selected{% endif %}>17</option>
+                                <option value="18" {% if recurrence_count == 18 %}selected{% endif %}>18</option>
+                                <option value="19" {% if recurrence_count == 19 %}selected{% endif %}>19</option>
+                                <option value="20" {% if recurrence_count == 20 %}selected{% endif %}>20</option>
                             </select>
                         </div>
                     </div>
                 </div>
+                {% endif %}
             </div>
         </div>
         
@@ -225,10 +283,15 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Definir data atual para o campo de emissão
+    // Definir data atual para o campo de emissão apenas se estivermos criando (não editando)
+    {% if not object %}
     const today = new Date();
     const formattedDate = today.toISOString().split('T')[0]; // Formato YYYY-MM-DD
-    document.getElementById('emission_date').value = formattedDate;
+    
+    const emissionDateField = document.getElementById('emission_date');
+    if (emissionDateField && !emissionDateField.value) {
+        emissionDateField.value = formattedDate;
+    }
     
     // Controle de visibilidade dos campos de boleto
     const generateBoletoCheckbox = document.getElementById('generate_boleto');
@@ -248,6 +311,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Adicionar evento para alteração do checkbox
     generateBoletoCheckbox.addEventListener('change', toggleBoletoOptions);
+    {% endif %}
     
     // Get client select elements
     const companySelect = document.getElementById('company-client-select');
@@ -366,11 +430,8 @@ document.addEventListener('DOMContentLoaded', function() {
             newBtn.addEventListener('click', function(e) {
                 // Se for formulário de edição, deixar o envio normal do formulário acontecer
                 if (isEditForm) {
-                    // Remover o evento personalizado e restaurar o comportamento padrão do formulário
-                    form.removeEventListener('submit', function(e) { e.preventDefault(); });
-                    
-                    // Enviar o formulário normalmente
-                    form.submit();
+                    console.log('Formulário de edição, enviando normalmente');
+                    // Não prevenir o comportamento padrão para edição
                     return true;
                 }
                 
@@ -403,6 +464,19 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     // Adicionar ID de sessão único para evitar processamento duplicado no backend
                     formData.append('session_id', sessionId);
+                    
+                    // Garantir que o status está sendo enviado
+                    const statusField = document.getElementById('id_status');
+                    if (statusField) {
+                        console.log(`Status selecionado: ${statusField.value}`);
+                        formData.set('status', statusField.value);
+                    }
+                    
+                    // Log de todos os dados sendo enviados
+                    console.log('Dados do formulário:');
+                    for (let pair of formData.entries()) {
+                        console.log(pair[0] + ': ' + pair[1]);
+                    }
                     
                     // Get the CPF/CNPJ field and clean it
                     const cpfField = document.getElementById('id_customer_cpf');
@@ -482,8 +556,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Bloquear submit apenas para formulários de criação
                 if (!isEditForm) {
                     e.preventDefault();
+                    console.log('Formulário de criação, prevenindo envio padrão');
                     return false;
                 }
+                
+                console.log('Formulário de edição, permitindo envio padrão');
                 // Para formulários de edição, permitir o submit normal
                 return true;
             });

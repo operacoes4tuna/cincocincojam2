@@ -180,6 +180,14 @@
                                                                 <i class="fas fa-file-pdf"></i>
                                                             </a>
                                                         {% endif %}
+                                                        
+                                                        <!-- Novos botões: email e boleto -->
+                                                        <a href="#" class="btn btn-sm btn-outline-info send-email-btn" data-invoice-id="{{ invoice.id }}" title="{% translate 'Enviar por Email' %}">
+                                                            <i class="fas fa-envelope"></i>
+                                                        </a>
+                                                        <a href="#" class="btn btn-sm btn-outline-warning generate-boleto-btn" data-invoice-id="{{ invoice.id }}" title="{% translate 'Gerar Boleto' %}">
+                                                            <i class="fas fa-file-invoice-dollar"></i>
+                                                        </a>
                                                     {% elif invoice.status == 'pending' or invoice.status == 'processing' %}
                                                         <span class="badge bg-warning ms-1 me-1">
                                                             <i class="fas fa-clock me-1"></i> NF Em processamento
@@ -270,6 +278,25 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Handlers para os novos botões
+    document.querySelectorAll('.send-email-btn').forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            const invoiceId = this.getAttribute('data-invoice-id');
+            alert(`Enviando nota fiscal ${invoiceId} por email...`);
+            // Implementação futura
+        });
+    });
+    
+    document.querySelectorAll('.generate-boleto-btn').forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            const invoiceId = this.getAttribute('data-invoice-id');
+            alert(`Gerando boleto para a nota fiscal ${invoiceId}...`);
+            // Implementação futura
+        });
+    });
+    
     // Manipulador para ações em massa
     document.querySelectorAll('.bulk-action').forEach(button => {
         button.addEventListener('click', function(e) {
