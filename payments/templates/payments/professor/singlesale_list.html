@@ -87,13 +87,44 @@
     <!-- Lista de Vendas -->
     <div class="card">
         <div class="card-body">
-            <h5 class="card-title">{% translate "Lista de Notas Avulsas" %}</h5>
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="card-title mb-0">{% translate "Lista de Notas Avulsas" %}</h5>
+                
+                <div class="dropdown">
+                    <button class="btn btn-outline-primary dropdown-toggle" type="button" id="bulkActionDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="fas fa-tasks me-1"></i> {% translate "Ações em massa" %}
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="bulkActionDropdown">
+                        <li>
+                            <button class="dropdown-item bulk-action" data-action="generate-invoices" type="button">
+                                <i class="fas fa-file-invoice me-2"></i> {% translate "Gerar notas selecionadas" %}
+                            </button>
+                        </li>
+                        <li>
+                            <button class="dropdown-item bulk-action" data-action="generate-boletos" type="button">
+                                <i class="fas fa-file-invoice-dollar me-2"></i> {% translate "Gerar todos os boletos" %}
+                            </button>
+                        </li>
+                        <li>
+                            <button class="dropdown-item bulk-action" data-action="send-boletos" type="button">
+                                <i class="fas fa-paper-plane me-2"></i> {% translate "Enviar todos os boletos" %}
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+            </div>
             
             {% if sales %}
                 <div class="table-responsive">
                     <table class="table table-hover">
                         <thead>
                             <tr>
+                                <th>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="selectAll">
+                                        <label class="form-check-label" for="selectAll"></label>
+                                    </div>
+                                </th>
                                 <th>{% translate "ID" %}</th>
                                 <th>{% translate "Descrição" %}</th>
                                 <th>{% translate "Cliente" %}</th>
@@ -106,6 +137,12 @@
                         <tbody>
                             {% for sale in sales %}
                                 <tr>
+                                    <td>
+                                        <div class="form-check">
+                                            <input class="form-check-input sale-checkbox" type="checkbox" id="sale{{ sale.id }}" value="{{ sale.id }}">
+                                            <label class="form-check-label" for="sale{{ sale.id }}"></label>
+                                        </div>
+                                    </td>
                                     <td>{{ sale.id }}</td>
                                     <td>{{ sale.description }}</td>
                                     <td>{{ sale.customer_name }}</td>
@@ -233,6 +270,60 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Manipulador para ações em massa
+    document.querySelectorAll('.bulk-action').forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            const action = this.getAttribute('data-action');
+            const selectedSales = Array.from(document.querySelectorAll('.sale-checkbox:checked'))
+                .map(checkbox => checkbox.value);
+                
+            if (action === 'generate-invoices') {
+                if (selectedSales.length === 0) {
+                    alert('Por favor, selecione pelo menos uma nota para gerar.');
+                    return;
+                }
+                
+                alert(`Ação: Gerar notas para os IDs: ${selectedSales.join(', ')}`);
+                // Implementação futura do backend
+            } 
+            else if (action === 'generate-boletos') {
+                alert('Ação: Gerar todos os boletos');
+                // Implementação futura do backend
+            }
+            else if (action === 'send-boletos') {
+                alert('Ação: Enviar todos os boletos');
+                // Implementação futura do backend
+            }
+        });
+    });
+    
+    // Lógica para selecionar todos os checkboxes
+    const selectAllCheckbox = document.getElementById('selectAll');
+    const saleCheckboxes = document.querySelectorAll('.sale-checkbox');
+    
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', function() {
+            saleCheckboxes.forEach(checkbox => {
+                checkbox.checked = selectAllCheckbox.checked;
+            });
+        });
+    }
+    
+    // Ao desmarcar qualquer checkbox individual, desmarcar também o "selecionar todos"
+    saleCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            if (!this.checked && selectAllCheckbox.checked) {
+                selectAllCheckbox.checked = false;
+            } else if (this.checked) {
+                // Verificar se todos estão marcados para marcar o "selecionar todos"
+                const allChecked = Array.from(saleCheckboxes).every(cb => cb.checked);
+                selectAllCheckbox.checked = allChecked;
+            }
+        });
+    });
+    
     // Handle click on check status buttons
     document.querySelectorAll('.check-status-btn').forEach(button => {
         button.addEventListener('click', function(e) {
