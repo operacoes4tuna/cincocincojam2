@@ -1,0 +1,310 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{% trans "Pagamento via Pix" %} - {{ course.title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .pix-container {
+        padding: 20px;
+        background-color: #f8f9fa;
+        border-radius: 10px;
+    }
+    
+    .pix-title {
+        font-size: 24px;
+        font-weight: 600;
+        margin-bottom: 20px;
+        color: #3c4858;
+    }
+    
+    .qrcode-container {
+        text-align: center;
+        padding: 15px;
+        background-color: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+        margin-bottom: 20px;
+    }
+    
+    .brcode-input {
+        background-color: white;
+    }
+    
+    .payment-info {
+        margin-top: 20px;
+    }
+    
+    .payment-info-item {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 10px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #e9ecef;
+    }
+    
+    .payment-info-item:last-child {
+        border-bottom: none;
+    }
+    
+    .payment-status {
+        padding: 15px;
+        margin-top: 20px;
+        border-radius: 8px;
+        background-color: #fff9e6;
+        border-left: 4px solid #ffc107;
+    }
+    
+    .payment-status.completed {
+        background-color: #e6fff2;
+        border-left: 4px solid #28a745;
+    }
+    
+    .payment-status.expired {
+        background-color: #ffebee;
+        border-left: 4px solid #dc3545;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4 mb-5">
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">{% trans "Pagamento via Pix" %}</h5>
+                </div>
+                <div class="card-body">
+                    <!-- Informações do curso -->
+                    <div class="d-flex align-items-center mb-4">
+                        <div class="flex-shrink-0">
+                            {% if course.cover_image %}
+                                <img src="{{ course.cover_image.url }}" alt="{{ course.title }}" class="img-thumbnail" style="width: 100px;">
+                            {% else %}
+                                <div class="bg-light rounded text-center p-3" style="width: 100px; height: 100px;">
+                                    <i class="fas fa-book fa-3x text-muted"></i>
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div class="ms-3">
+                            <h5 class="mb-1">{{ course.title }}</h5>
+                            <p class="text-muted mb-1">{% trans "Professor" %}: {{ course.professor.get_full_name }}</p>
+                            <p class="text-primary fw-bold mb-0">R$ {{ payment.amount }}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <!-- QR Code e códigos -->
+                        <div class="col-md-6">
+                            <div class="pix-container">
+                                <h6 class="pix-title text-center">{% trans "Pague com Pix" %}</h6>
+                                
+                                {% if payment.status == 'PENDING' %}
+                                    <div class="qrcode-container mb-4">
+                                        {% if payment.qrcode_image %}
+                                            <img src="{{ payment.qrcode_image }}" alt="QR Code Pix" class="img-fluid mb-2" style="max-width: 200px;">
+                                            <p class="small text-muted mb-0">
+                                                {% trans "Escaneie o código com o aplicativo do seu banco" %}
+                                            </p>
+                                        {% else %}
+                                            <div class="alert alert-warning">
+                                                {% trans "QR Code não disponível" %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    {% if payment.brcode %}
+                                        <div class="mb-4">
+                                            <label class="form-label fw-bold">{% trans "Ou copie o código Pix" %}</label>
+                                            <div class="input-group">
+                                                <input type="text" class="form-control brcode-input" id="brcode" value="{{ payment.brcode }}" readonly>
+                                                <button class="btn btn-outline-primary" type="button" onclick="copyPixCode()">
+                                                    <i class="fas fa-copy"></i>
+                                                </button>
+                                            </div>
+                                            <div class="form-text">{% trans "Cole este código no app do seu banco" %}</div>
+                                        </div>
+                                    {% endif %}
+                                {% else %}
+                                    <div class="alert alert-info">
+                                        {% trans "Pagamento já processado" %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <!-- Detalhes e status -->
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">{% trans "Detalhes do pagamento" %}</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="payment-info">
+                                        <div class="payment-info-item">
+                                            <span>{% trans "ID do Pagamento" %}</span>
+                                            <strong>{{ payment.id }}</strong>
+                                        </div>
+                                        <div class="payment-info-item">
+                                            <span>{% trans "Data" %}</span>
+                                            <strong>{{ payment.created_at|date:"d/m/Y H:i" }}</strong>
+                                        </div>
+                                        <div class="payment-info-item">
+                                            <span>{% trans "Método" %}</span>
+                                            <strong>Pix</strong>
+                                        </div>
+                                        <div class="payment-info-item">
+                                            <span>{% trans "Valor" %}</span>
+                                            <strong>R$ {{ payment.amount }}</strong>
+                                        </div>
+                                        <div class="payment-info-item">
+                                            <span>{% trans "Status" %}</span>
+                                            <strong>
+                                                {% if payment.status == 'PENDING' %}
+                                                    <span class="badge bg-warning">{% trans "Pendente" %}</span>
+                                                {% elif payment.status == 'PAID' %}
+                                                    <span class="badge bg-success">{% trans "Pago" %}</span>
+                                                {% elif payment.status == 'REFUNDED' %}
+                                                    <span class="badge bg-info">{% trans "Estornado" %}</span>
+                                                {% elif payment.status == 'FAILED' %}
+                                                    <span class="badge bg-danger">{% trans "Falhou" %}</span>
+                                                {% endif %}
+                                            </strong>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Status e próximos passos -->
+                                    <div class="payment-status {% if payment.status == 'PAID' %}completed{% elif payment.status == 'FAILED' %}expired{% endif %}">
+                                        {% if payment.status == 'PENDING' %}
+                                            <h6><i class="fas fa-info-circle me-2"></i>{% trans "Aguardando pagamento" %}</h6>
+                                            <p class="mb-0 small">{% trans "Após o pagamento, você será automaticamente matriculado no curso." %}</p>
+                                        {% elif payment.status == 'PAID' %}
+                                            <h6><i class="fas fa-check-circle me-2"></i>{% trans "Pagamento confirmado!" %}</h6>
+                                            <p class="mb-0 small">{% trans "Você já está matriculado no curso e pode começar a estudar agora mesmo." %}</p>
+                                        {% elif payment.status == 'REFUNDED' %}
+                                            <h6><i class="fas fa-undo me-2"></i>{% trans "Pagamento estornado" %}</h6>
+                                            <p class="mb-0 small">{% trans "Este pagamento foi estornado e sua matrícula foi cancelada." %}</p>
+                                        {% elif payment.status == 'FAILED' %}
+                                            <h6><i class="fas fa-times-circle me-2"></i>{% trans "Pagamento não realizado" %}</h6>
+                                            <p class="mb-0 small">{% trans "Houve um problema com este pagamento. Tente novamente ou use outro método." %}</p>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Ações -->
+                            <div class="mt-4 d-grid gap-2">
+                                {% if payment.status == 'PENDING' %}
+                                    <button class="btn btn-primary" id="check-payment-btn">
+                                        <i class="fas fa-sync-alt me-2"></i>{% trans "Verificar pagamento" %}
+                                    </button>
+                                    <a href="{% url 'courses:course_detail' course.id %}" class="btn btn-outline-secondary">
+                                        <i class="fas fa-arrow-left me-2"></i>{% trans "Voltar para o curso" %}
+                                    </a>
+                                {% elif payment.status == 'PAID' %}
+                                    <a href="{% url 'courses:course_content' payment.enrollment.course.id %}" class="btn btn-success">
+                                        <i class="fas fa-play-circle me-2"></i>{% trans "Ir para o curso" %}
+                                    </a>
+                                {% else %}
+                                    <a href="{% url 'courses:course_detail' course.id %}" class="btn btn-primary">
+                                        <i class="fas fa-arrow-left me-2"></i>{% trans "Voltar para o curso" %}
+                                    </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% if payment.status == 'PENDING' %}
+<script>
+    // Dados da página para JavaScript
+    const pixConfig = {
+        checkStatusUrl: "{% url 'payments:check_pix_status' payment.id %}",
+        checkPaymentText: "{% trans 'Verificar pagamento' %}",
+        verifyingText: "{% trans 'Verificando...' %}"
+    };
+    
+    // Função para copiar o código Pix
+    function copyPixCode() {
+        const pixCodeInput = document.getElementById('brcode');
+        pixCodeInput.select();
+        document.execCommand('copy');
+        alert("{% trans 'Código Pix copiado!' %}");
+    }
+    
+    // Função para verificar o status do pagamento com feedback visual
+    function checkPaymentStatus(button, url, normalText, loadingText) {
+        // Desabilita o botão durante a verificação
+        button.disabled = true;
+        button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> ' + loadingText;
+        
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'PAID') {
+                    // Se pago, redireciona
+                    window.location.href = data.redirect_url;
+                } else {
+                    // Se ainda não pago, habilita o botão novamente
+                    button.disabled = false;
+                    button.innerHTML = '<i class="fas fa-sync-alt me-2"></i>' + normalText;
+                }
+            })
+            .catch(error => {
+                console.error('Erro ao verificar pagamento:', error);
+                button.disabled = false;
+                button.innerHTML = '<i class="fas fa-sync-alt me-2"></i>' + normalText;
+            });
+    }
+    
+    // Função para verificar o status do pagamento sem feedback visual
+    function checkPaymentStatusSilent(url) {
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'PAID') {
+                    window.location.href = data.redirect_url;
+                }
+            })
+            .catch(error => {
+                console.error('Erro ao verificar pagamento:', error);
+            });
+    }
+    
+    // Inicialização quando o DOM estiver pronto
+    document.addEventListener('DOMContentLoaded', function() {
+        const checkBtn = document.getElementById('check-payment-btn');
+        
+        if (checkBtn) {
+            // Handler para o botão de verificação
+            checkBtn.addEventListener('click', function() {
+                checkPaymentStatus(checkBtn, pixConfig.checkStatusUrl, pixConfig.checkPaymentText, pixConfig.verifyingText);
+            });
+            
+            // Verificar automaticamente a cada 30 segundos
+            setInterval(function() {
+                checkPaymentStatusSilent(pixConfig.checkStatusUrl);
+            }, 30000);
+        }
+    });
+</script>
+{% else %}
+<script>
+    // Função para copiar o código Pix
+    function copyPixCode() {
+        const pixCodeInput = document.getElementById('brcode');
+        pixCodeInput.select();
+        document.execCommand('copy');
+        alert("{% trans 'Código Pix copiado!' %}");
+    }
+</script>
+{% endif %}
+{% endblock %}

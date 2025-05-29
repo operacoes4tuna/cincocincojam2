@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load static %}
+
+{% block title %}{% translate "Cadastro de Pessoa Jurídica" %}{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="h3 fw-bold">{% translate "Cadastro de Pessoa Jurídica" %}</h1>
+            <p class="text-muted">{% translate "Preencha os dados abaixo para cadastrar uma nova empresa." %}</p>
+        </div>
+    </div>
+    
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <form method="post" id="clientForm">
+                {% csrf_token %}
+                
+                <!-- Campo client_type oculto, será preenchido automaticamente -->
+                <input type="hidden" name="client_type" value="COMPANY">
+                
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <h5 class="fw-bold mb-3">{% translate "Informações de Contato" %}</h5>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.email.id_for_label }}" class="form-label">{{ form.email.label }} *</label>
+                        {{ form.email }}
+                        {% if form.email.errors %}
+                            <div class="text-danger">{{ form.email.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.phone.id_for_label }}" class="form-label">{{ form.phone.label }} *</label>
+                        {{ form.phone }}
+                        {% if form.phone.errors %}
+                            <div class="text-danger">{{ form.phone.errors }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <h5 class="fw-bold mb-3">{% translate "Endereço" %}</h5>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.address.id_for_label }}" class="form-label">{{ form.address.label }} *</label>
+                        {{ form.address }}
+                        {% if form.address.errors %}
+                            <div class="text-danger">{{ form.address.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        <label for="{{ form.address_number.id_for_label }}" class="form-label">{{ form.address_number.label }} *</label>
+                        {{ form.address_number }}
+                        {% if form.address_number.errors %}
+                            <div class="text-danger">{{ form.address_number.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label for="{{ form.address_complement.id_for_label }}" class="form-label">{{ form.address_complement.label }}</label>
+                        {{ form.address_complement }}
+                        {% if form.address_complement.errors %}
+                            <div class="text-danger">{{ form.address_complement.errors }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="row mb-4">
+                    <div class="col-md-4 mb-3">
+                        <label for="{{ form.neighborhood.id_for_label }}" class="form-label">{{ form.neighborhood.label }} *</label>
+                        {{ form.neighborhood }}
+                        {% if form.neighborhood.errors %}
+                            <div class="text-danger">{{ form.neighborhood.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label for="{{ form.city.id_for_label }}" class="form-label">{{ form.city.label }} *</label>
+                        {{ form.city }}
+                        {% if form.city.errors %}
+                            <div class="text-danger">{{ form.city.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        <label for="{{ form.state.id_for_label }}" class="form-label">{{ form.state.label }} *</label>
+                        {{ form.state }}
+                        {% if form.state.errors %}
+                            <div class="text-danger">{{ form.state.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        <label for="{{ form.zipcode.id_for_label }}" class="form-label">{{ form.zipcode.label }} *</label>
+                        {{ form.zipcode }}
+                        {% if form.zipcode.errors %}
+                            <div class="text-danger">{{ form.zipcode.errors }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <!-- Campos específicos para Pessoa Jurídica -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <h5 class="fw-bold mb-3">{% translate "Dados da Empresa" %}</h5>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.company_name.id_for_label }}" class="form-label">{{ form.company_name.label }} *</label>
+                        {{ form.company_name }}
+                        {% if form.company_name.errors %}
+                            <div class="text-danger">{{ form.company_name.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.trade_name.id_for_label }}" class="form-label">{{ form.trade_name.label }} *</label>
+                        {{ form.trade_name }}
+                        {% if form.trade_name.errors %}
+                            <div class="text-danger">{{ form.trade_name.errors }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="row mb-4">
+                    <div class="col-md-4 mb-3">
+                        <label for="{{ form.cnpj.id_for_label }}" class="form-label">{{ form.cnpj.label }} *</label>
+                        {{ form.cnpj }}
+                        {% if form.cnpj.errors %}
+                            <div class="text-danger">{{ form.cnpj.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label for="{{ form.state_registration.id_for_label }}" class="form-label">{{ form.state_registration.label }}</label>
+                        {{ form.state_registration }}
+                        {% if form.state_registration.errors %}
+                            <div class="text-danger">{{ form.state_registration.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label for="{{ form.municipal_registration.id_for_label }}" class="form-label">{{ form.municipal_registration.label }}</label>
+                        {{ form.municipal_registration }}
+                        {% if form.municipal_registration.errors %}
+                            <div class="text-danger">{{ form.municipal_registration.errors }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <h5 class="fw-bold mb-3">{% translate "Responsável pela Empresa" %}</h5>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.responsible_name.id_for_label }}" class="form-label">{{ form.responsible_name.label }} *</label>
+                        {{ form.responsible_name }}
+                        {% if form.responsible_name.errors %}
+                            <div class="text-danger">{{ form.responsible_name.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.responsible_cpf.id_for_label }}" class="form-label">{{ form.responsible_cpf.label }} *</label>
+                        {{ form.responsible_cpf }}
+                        {% if form.responsible_cpf.errors %}
+                            <div class="text-danger">{{ form.responsible_cpf.errors }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="row mt-4">
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-primary">{% translate "Cadastrar Pessoa Jurídica" %}</button>
+                        <a href="{% url 'clients:client_list' %}" class="btn btn-secondary ms-2">{% translate "Cancelar" %}</a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Máscara para CNPJ
+    const cnpjField = document.querySelector('input[name="cnpj"]');
+    if (cnpjField) {
+        cnpjField.addEventListener('input', function(e) {
+            let value = e.target.value.replace(/\D/g, '');
+            if (value.length <= 14) {
+                value = value.replace(/(\d{2})(\d)/, '$1.$2');
+                value = value.replace(/(\d{3})(\d)/, '$1.$2');
+                value = value.replace(/(\d{3})(\d)/, '$1/$2');
+                value = value.replace(/(\d{4})(\d{1,2})$/, '$1-$2');
+                e.target.value = value;
+            }
+        });
+    }
+    
+    // Máscara para CPF do responsável
+    const cpfField = document.querySelector('input[name="responsible_cpf"]');
+    if (cpfField) {
+        cpfField.addEventListener('input', function(e) {
+            let value = e.target.value.replace(/\D/g, '');
+            if (value.length <= 11) {
+                value = value.replace(/(\d{3})(\d)/, '$1.$2');
+                value = value.replace(/(\d{3})(\d)/, '$1.$2');
+                value = value.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+                e.target.value = value;
+            }
+        });
+    }
+    
+    // Máscara para CEP
+    const cepField = document.querySelector('input[name="zipcode"]');
+    if (cepField) {
+        cepField.addEventListener('input', function(e) {
+            let value = e.target.value.replace(/\D/g, '');
+            if (value.length <= 8) {
+                value = value.replace(/(\d{5})(\d{1,3})$/, '$1-$2');
+                e.target.value = value;
+            }
+        });
+    }
+});
+</script>
+{% endblock %} 

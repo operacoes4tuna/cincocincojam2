@@ -1,0 +1,56 @@
+07:16:55 - === INICIANDO TESTE SIMPLIFICADO NFE.IO ===
+07:16:55 - API Key: DSVnC...6GUZB (67 caracteres)
+07:16:55 - Company ID: 67ea5530094b7d18f44a88fa
+07:16:55 - 
+--- TESTE DE CONEXÃO BÁSICA ---
+07:16:55 - Status: 200
+07:16:55 - Conexão OK - Autenticação funciona
+07:16:55 - 
+--- TESTE DE EMISSÃO BÁSICA ---
+07:16:55 - Enviando dados: {
+  "borrower": {
+    "name": "Cliente Teste NFE.io",
+    "federalTaxNumber": 11111111111,
+    "address": {
+      "street": "Rua de Teste",
+      "number": "100",
+      "district": "Centro",
+      "city": "São Paulo",
+      "state": "SP"
+    }
+  },
+  "serviceCode": "01.07",
+  "description": "Teste de emissão via script",
+  "servicesAmount": 10.0
+}
+07:16:56 - Status: 400
+07:16:56 - Headers: {'Date': 'Mon, 31 Mar 2025 10:16:55 GMT', 'Content-Type': 'application/json; charset=utf-8', 'Content-Length': '2', 'Connection': 'keep-alive', 'X-Request-Id': '0HNBADN7RPB5H:0000000C'}
+07:16:56 - Conteúdo da resposta (2 bytes):
+07:16:56 - ""
+07:16:56 - JSON decodificado: ""
+07:16:56 - FALHA NA EMISSÃO
+07:16:56 - 
+--- TESTE COM FORMATO ALTERNATIVO ---
+07:16:56 - Enviando dados alternativos: {
+  "borrower": {
+    "name": "Cliente Teste Alt",
+    "federalTaxNumber": "11111111111",
+    "address": {
+      "street": "Rua de Teste",
+      "number": "100",
+      "district": "Centro",
+      "city": "São Paulo",
+      "state": "SP"
+    }
+  },
+  "serviceCode": "0107",
+  "description": "Teste de emissão formato alternativo",
+  "servicesAmount": 10.0
+}
+07:16:57 - Status alt: 400
+07:16:57 - Headers alt: {'Date': 'Mon, 31 Mar 2025 10:16:55 GMT', 'Content-Type': 'application/json; charset=utf-8', 'Content-Length': '2', 'Connection': 'keep-alive', 'X-Request-Id': '0HNBADN7RPB5J:0000000B'}
+07:16:57 - Conteúdo alt: ""
+07:16:57 - FALHA COM FORMATO ALTERNATIVO
+07:16:57 - 
+=== TESTE CONCLUÍDO ===
+07:16:57 - Resultados completos disponíveis em: test_results/nfeio_test_20250331_071655.txt

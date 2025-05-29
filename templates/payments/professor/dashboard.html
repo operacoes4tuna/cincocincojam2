@@ -1,0 +1,339 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard Financeiro - CincoCincoJAM 2.0{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Dashboard Financeiro</h2>
+    <div>
+        <a href="{% url 'payments:singlesale_list' %}" class="btn btn-outline-success me-2">
+            <i class="fas fa-shopping-cart"></i> Vendas Avulsas
+        </a>
+        <a href="{% url 'payments:professor_students' %}" class="btn btn-outline-primary me-2">
+            <i class="fas fa-users"></i> Gerenciar Alunos
+        </a>
+        <a href="{% url 'payments:professor_transactions' %}" class="btn btn-primary">
+            <i class="fas fa-list"></i> Ver Todas Transações
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Card de Cursos -->
+    <div class="col-md-2">
+        <div class="card shadow mb-4">
+            <div class="card-body text-center">
+                <div class="display-4 text-primary mb-2">{{ courses_count }}</div>
+                <h4>Cursos</h4>
+                <div class="small text-muted">
+                    <span class="badge bg-info">{{ enrollments_count }} Matrículas</span>
+                </div>
+                <hr>
+                <a href="{% url 'courses:course_list' %}" class="btn btn-sm btn-outline-primary">Ver Cursos</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Card de Alunos -->
+    <div class="col-md-2">
+        <div class="card shadow mb-4">
+            <div class="card-body text-center">
+                <div class="display-4 text-info mb-2">{{ active_students_count }}</div>
+                <h4>Alunos Ativos</h4>
+                <div class="small text-muted">
+                    <span class="badge bg-primary">{{ recent_students_count }} novos em 30 dias</span>
+                </div>
+                <hr>
+                <a href="{% url 'payments:professor_students' %}" class="btn btn-sm btn-outline-info">Ver Alunos</a>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Card de Vendas Avulsas -->
+    <div class="col-md-2">
+        <div class="card shadow mb-4">
+            <div class="card-body text-center">
+                <div class="display-4 text-success mb-2">
+                    <i class="fas fa-shopping-cart"></i>
+                </div>
+                <h4>Vendas Avulsas</h4>
+                <div class="small text-muted">
+                    <span class="badge bg-success">Pagamentos diretos</span>
+                </div>
+                <hr>
+                <a href="{% url 'payments:singlesale_list' %}" class="btn btn-sm btn-outline-success">Ver Vendas</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Card de Pagamentos Recebidos -->
+    <div class="col-md-3">
+        <div class="card shadow mb-4">
+            <div class="card-body text-center">
+                <div class="display-4 text-success mb-2">R$ {{ total_received|floatformat:2 }}</div>
+                <h4>Recebido</h4>
+                <div class="small text-muted">
+                    <span class="badge bg-success">Pagamentos confirmados</span>
+                </div>
+                <hr>
+                <a href="{% url 'payments:professor_transactions' %}?status=PAID" class="btn btn-sm btn-outline-success">Ver Pagos</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Card de Pagamentos Pendentes -->
+    <div class="col-md-3">
+        <div class="card shadow mb-4">
+            <div class="card-body text-center">
+                <div class="display-4 text-warning mb-2">R$ {{ total_pending|floatformat:2 }}</div>
+                <h4>Pendente</h4>
+                <div class="small text-muted">
+                    <span class="badge bg-warning text-dark">Aguardando pagamento</span>
+                </div>
+                <hr>
+                <a href="{% url 'payments:professor_transactions' %}?status=PENDING" class="btn btn-sm btn-outline-warning">Ver Pendentes</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Estatísticas por Curso -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card shadow mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Estatísticas por Curso</h5>
+            </div>
+            <div class="card-body">
+                {% if course_stats %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Curso</th>
+                                    <th>Matrículas</th>
+                                    <th class="text-end">Total Recebido</th>
+                                    <th class="text-center">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for stat in course_stats %}
+                                <tr>
+                                    <td>{{ stat.course.title }}</td>
+                                    <td>{{ stat.enrollments }}</td>
+                                    <td class="text-end">R$ {{ stat.total_paid|floatformat:2 }}</td>
+                                    <td class="text-center">
+                                        <a href="{% url 'payments:professor_course_enrollments' stat.course.id %}" class="btn btn-sm btn-outline-info">
+                                            <i class="fas fa-users"></i> Alunos
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="alert alert-info">
+                        Nenhum curso com matrículas encontrado.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Notas Fiscais - Nova seção -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card shadow mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Notas Fiscais</h5>
+                <div>
+                    {% if has_company_config %}
+                        {% if company_config_complete and company_config_enabled %}
+                            <span class="badge bg-success">Configuração Completa</span>
+                        {% else %}
+                            <span class="badge bg-warning text-dark">Configuração Incompleta</span>
+                        {% endif %}
+                    {% else %}
+                        <span class="badge bg-danger">Não Configurado</span>
+                    {% endif %}
+                    <a href="{% url 'invoices:company_settings' %}" class="btn btn-sm btn-outline-primary ms-2">
+                        <i class="fas fa-cog"></i> Configurações Fiscais
+                    </a>
+                </div>
+            </div>
+            <div class="card-body">
+                {% if invoices_count %}
+                    <div class="row mb-4">
+                        <!-- Estatísticas de Notas Fiscais -->
+                        <div class="col-md-3">
+                            <div class="card shadow-sm">
+                                <div class="card-body text-center p-3">
+                                    <div class="h1 mb-1">{{ invoices_count }}</div>
+                                    <p class="mb-0">Total de Notas</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card shadow-sm">
+                                <div class="card-body text-center p-3 bg-success bg-opacity-10">
+                                    <div class="h1 mb-1 text-success">{{ invoices_approved }}</div>
+                                    <p class="mb-0">Emitidas</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card shadow-sm">
+                                <div class="card-body text-center p-3 bg-warning bg-opacity-10">
+                                    <div class="h1 mb-1 text-warning">{{ invoices_processing|add:invoices_pending }}</div>
+                                    <p class="mb-0">Em Processamento</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card shadow-sm">
+                                <div class="card-body text-center p-3 bg-danger bg-opacity-10">
+                                    <div class="h1 mb-1 text-danger">{{ invoices_error }}</div>
+                                    <p class="mb-0">Com Erro</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Tabela de Notas Fiscais Recentes -->
+                    <h6 class="border-bottom pb-2 mb-3">Notas Fiscais Recentes</h6>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Data</th>
+                                    <th>Aluno</th>
+                                    <th>Valor</th>
+                                    <th>Status</th>
+                                    <th class="text-center">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for invoice in recent_invoices %}
+                                <tr>
+                                    <td>{{ invoice.id }}</td>
+                                    <td>{{ invoice.created_at|date:"d/m/Y H:i" }}</td>
+                                    <td>{{ invoice.transaction.enrollment.student.email }}</td>
+                                    <td>R$ {{ invoice.transaction.amount|floatformat:2 }}</td>
+                                    <td>
+                                        {% if invoice.status == 'approved' %}
+                                            <span class="badge bg-success">Emitida</span>
+                                        {% elif invoice.status == 'processing' %}
+                                            <span class="badge bg-warning text-dark">Processando</span>
+                                        {% elif invoice.status == 'pending' %}
+                                            <span class="badge bg-info">Pendente</span>
+                                        {% elif invoice.status == 'cancelled' %}
+                                            <span class="badge bg-secondary">Cancelada</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">Erro</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="{% url 'invoices:invoice_detail' invoice.id %}" class="btn btn-outline-primary" title="Detalhes">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            
+                                            <a href="{% url 'invoices:check_status' invoice.id %}" class="btn btn-outline-secondary check-status-btn" title="Verificar status" data-invoice-id="{{ invoice.id }}">
+                                                <i class="fas fa-sync"></i>
+                                            </a>
+                                            
+                                            {% if invoice.focus_pdf_url %}
+                                            <a href="{{ invoice.focus_pdf_url }}" class="btn btn-outline-success" target="_blank" title="Download PDF">
+                                                <i class="fas fa-file-pdf"></i>
+                                            </a>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="text-end mt-3">
+                        <a href="{% url 'payments:professor_transactions' %}" class="btn btn-primary">
+                            <i class="fas fa-list"></i> Ver Todas Transações
+                        </a>
+                    </div>
+                {% else %}
+                    <div class="alert alert-info">
+                        <p><i class="fas fa-info-circle me-2"></i> Você ainda não emitiu nenhuma nota fiscal.</p>
+                        
+                        {% if has_company_config and company_config_complete and company_config_enabled %}
+                            <p class="mb-0">Para emitir uma nota fiscal, vá para a <a href="{% url 'payments:professor_transactions' %}">lista de transações</a> e clique no botão "Emitir NFe" ao lado de uma transação.</p>
+                        {% else %}
+                            <p class="mb-0">Para começar a emitir notas fiscais, primeiro <a href="{% url 'invoices:company_settings' %}">configure seus dados fiscais</a>.</p>
+                        {% endif %}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Transações Recentes -->
+<div class="row mt-2">
+    <div class="col-12">
+        <div class="card shadow mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Transações Recentes</h5>
+            </div>
+            <div class="card-body">
+                {% if recent_transactions %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Data</th>
+                                    <th>Aluno</th>
+                                    <th>Curso</th>
+                                    <th>Valor</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for transaction in recent_transactions %}
+                                <tr>
+                                    <td>{{ transaction.created_at|date:"d/m/Y H:i" }}</td>
+                                    <td>{{ transaction.enrollment.student.email }}</td>
+                                    <td>{{ transaction.enrollment.course.title }}</td>
+                                    <td>R$ {{ transaction.amount|floatformat:2 }}</td>
+                                    <td>
+                                        {% if transaction.status == 'PAID' %}
+                                            <span class="badge bg-success">Pago</span>
+                                        {% elif transaction.status == 'PENDING' %}
+                                            <span class="badge bg-warning text-dark">Pendente</span>
+                                        {% elif transaction.status == 'REFUNDED' %}
+                                            <span class="badge bg-danger">Estornado</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">{{ transaction.status }}</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="alert alert-info">
+                        Nenhuma transação recente encontrada.
+                    </div>
+                {% endif %}
+                
+                {% if recent_transactions %}
+                <div class="text-center mt-3">
+                    <a href="{% url 'payments:professor_transactions' %}" class="btn btn-outline-primary">Ver Todas Transações</a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

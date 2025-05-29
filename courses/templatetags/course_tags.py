@@ -1,6 +1,8 @@
 from django import template
 import re
 from urllib.parse import urlparse, parse_qs
+from django.utils.safestring import mark_safe
+from django.utils.text import slugify
 
 register = template.Library()
 

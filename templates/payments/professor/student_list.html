@@ -1,0 +1,190 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{% translate "Lista de Alunos" %}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3">{% translate "Alunos Matriculados" %}</h1>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb mb-0">
+                <li class="breadcrumb-item"><a href="{% url 'dashboard_redirect' %}">{% translate "Dashboard" %}</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'payments:professor_dashboard' %}">{% translate "Financeiro" %}</a></li>
+                <li class="breadcrumb-item active">{% translate "Alunos" %}</li>
+            </ol>
+        </nav>
+    </div>
+
+    <!-- Card com estatísticas rápidas -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-4">
+                    <div class="row">
+                        <div class="col-md-4 text-center border-end">
+                            <h5 class="card-title text-muted">{% translate "Total de Alunos" %}</h5>
+                            <p class="h2 mb-0">{{ total_students }}</p>
+                        </div>
+                        <div class="col-md-8">
+                            <h5 class="card-title">{% translate "Filtrar Alunos" %}</h5>
+                            <form method="get" class="row g-3">
+                                <div class="col-md-5">
+                                    <label for="course" class="form-label">{% translate "Curso" %}</label>
+                                    <select class="form-select" id="course" name="course">
+                                        <option value="">{% translate "Todos os cursos" %}</option>
+                                        {% for course in courses %}
+                                            <option value="{{ course.id }}" {% if selected_course == course.id|stringformat:"i" %}selected{% endif %}>
+                                                {{ course.title }}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-5">
+                                    <label for="status" class="form-label">{% translate "Status da Matrícula" %}</label>
+                                    <select class="form-select" id="status" name="status">
+                                        <option value="">{% translate "Todos os status" %}</option>
+                                        {% for status_value, status_label in enrollment_status_choices %}
+                                            <option value="{{ status_value }}" {% if selected_status == status_value %}selected{% endif %}>
+                                                {{ status_label }}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-2 d-flex align-items-end">
+                                    <button type="submit" class="btn btn-primary w-100">{% translate "Filtrar" %}</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lista de alunos -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-transparent py-3">
+            <h5 class="card-title mb-0">{% translate "Lista de Alunos" %}</h5>
+        </div>
+        <div class="card-body p-0">
+            {% if students %}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-4" scope="col">{% translate "Aluno" %}</th>
+                                <th scope="col">{% translate "Email" %}</th>
+                                <th scope="col">{% translate "Cursos" %}</th>
+                                <th scope="col">{% translate "Status" %}</th>
+                                <th scope="col">{% translate "Data da Matrícula" %}</th>
+                                <th class="text-end pe-4" scope="col">{% translate "Ações" %}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for student in students %}
+                                <tr>
+                                    <td class="ps-4">
+                                        <div class="d-flex align-items-center">
+                                            {% if student.profile_image %}
+                                                <img src="{{ student.profile_image.url }}" alt="{{ student.get_full_name }}" 
+                                                     class="rounded-circle me-3" style="width: 40px; height: 40px; object-fit: cover;">
+                                            {% else %}
+                                                <div class="bg-secondary text-white rounded-circle me-3 d-flex align-items-center justify-content-center" 
+                                                     style="width: 40px; height: 40px;">
+                                                    <i class="fas fa-user"></i>
+                                                </div>
+                                            {% endif %}
+                                            <div>
+                                                <h6 class="mb-0">{{ student.get_full_name }}</h6>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>{{ student.email }}</td>
+                                    <td>
+                                        {{ student.enrollments.count }} {% translate "curso" %}{% if student.enrollments.count != 1 %}s{% endif %}
+                                    </td>
+                                    <td>
+                                        {% if student.enrollments.count > 0 %}
+                                            <span class="badge bg-success">Ativo</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Inativo</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if student.enrollments.exists %}
+                                            {{ student.enrollments.first.enrolled_at|date:"d/m/Y" }}
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end pe-4">
+                                        <a href="{% url 'payments:professor_student_detail' student.id %}" 
+                                           class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-eye me-1"></i> {% translate "Detalhes" %}
+                                        </a>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="p-5 text-center">
+                    <div class="text-muted mb-4">
+                        <i class="fas fa-users fa-3x"></i>
+                    </div>
+                    <h5>{% translate "Nenhum aluno encontrado" %}</h5>
+                    <p class="mb-0">{% translate "Não foram encontrados alunos com os critérios de filtro atuais." %}</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Paginação -->
+    {% if is_paginated %}
+    <div class="d-flex justify-content-center mt-4">
+        <nav aria-label="Paginação de alunos">
+            <ul class="pagination">
+                {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page=1{% if request.GET.course %}&course={{ request.GET.course }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}" aria-label="Primeira">
+                            <span aria-hidden="true">&laquo;&laquo;</span>
+                        </a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.course %}&course={{ request.GET.course }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}" aria-label="Anterior">
+                            <span aria-hidden="true">&laquo;</span>
+                        </a>
+                    </li>
+                {% endif %}
+
+                {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                        <li class="page-item active"><a class="page-link" href="#">{{ num }}</a></li>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ num }}{% if request.GET.course %}&course={{ request.GET.course }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">{{ num }}</a>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.course %}&course={{ request.GET.course }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}" aria-label="Próxima">
+                            <span aria-hidden="true">&raquo;</span>
+                        </a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.course %}&course={{ request.GET.course }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}" aria-label="Última">
+                            <span aria-hidden="true">&raquo;&raquo;</span>
+                        </a>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

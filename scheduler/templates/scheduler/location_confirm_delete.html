@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">{% trans "Confirmar Exclusão de Estúdio" %}</h5>
+            <div>
+                <a href="{% url 'scheduler:location_list' %}" class="btn btn-outline-secondary btn-sm">
+                    <i class="fas fa-arrow-left"></i> {% trans "Voltar para a lista" %}
+                </a>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="alert alert-danger">
+                <h4 class="alert-heading mb-3">
+                    <i class="fas fa-exclamation-triangle"></i> {% trans "Tem certeza?" %}
+                </h4>
+                <p>{% trans "Você está prestes a excluir o estúdio:" %} <strong>{{ location.name }}</strong></p>
+                <p>{% trans "Esta ação não pode ser desfeita. Todos os eventos associados a este estúdio terão seus locais removidos." %}</p>
+                
+                <div class="mt-4">
+                    <h6 class="mb-2">{% trans "Detalhes do estúdio:" %}</h6>
+                    <ul class="list-unstyled">
+                        <li><strong>{% trans "Nome:" %}</strong> {{ location.name }}</li>
+                        {% if location.is_online %}
+                            <li><strong>{% trans "Tipo:" %}</strong> {% trans "Online" %}</li>
+                            {% if location.meeting_link %}
+                                <li><strong>{% trans "Link de Acesso:" %}</strong> <a href="{{ location.meeting_link }}" target="_blank">{{ location.meeting_link }}</a></li>
+                            {% endif %}
+                        {% else %}
+                            <li><strong>{% trans "Tipo:" %}</strong> {% trans "Presencial" %}</li>
+                            {% if location.address %}
+                                <li><strong>{% trans "Endereço:" %}</strong> {{ location.address }}</li>
+                            {% endif %}
+                        {% endif %}
+                    </ul>
+                </div>
+                
+                <div class="mt-3">
+                    <h6 class="mb-2">{% trans "Eventos afetados:" %}</h6>
+                    {% with event_count=location.event_set.count %}
+                        {% if event_count > 0 %}
+                            <p>{% trans "Este estúdio está associado a" %} <strong>{{ event_count }}</strong> {% trans "evento(s)" %}</p>
+                            <div class="small text-muted">
+                                {% trans "Ao excluir este estúdio, os eventos não serão excluídos, mas perderão a associação ao local" %}
+                            </div>
+                        {% else %}
+                            <p>{% trans "Nenhum evento está associado a este estúdio" %}</p>
+                        {% endif %}
+                    {% endwith %}
+                </div>
+            </div>
+            
+            <form method="post" class="mt-4">
+                {% csrf_token %}
+                <div class="d-flex justify-content-end">
+                    <a href="{% url 'scheduler:location_list' %}" class="btn btn-secondary me-2">
+                        {% trans "Cancelar" %}
+                    </a>
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash"></i> {% trans "Excluir estúdio" %}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

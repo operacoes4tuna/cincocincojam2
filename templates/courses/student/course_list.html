@@ -6,9 +6,15 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2>Catálogo de Cursos</h2>
     <div>
+        {% if is_student %}
         <a href="{% url 'courses:student:dashboard' %}" class="btn btn-secondary">
             <i class="fas fa-tachometer-alt"></i> Meu Dashboard
         </a>
+        {% elif is_professor %}
+        <a href="{% url 'courses:dashboard' %}" class="btn btn-secondary">
+            <i class="fas fa-tachometer-alt"></i> Meu Dashboard
+        </a>
+        {% endif %}
     </div>
 </div>
 
@@ -48,8 +54,10 @@
                         <h5 class="card-title">{{ course.title }}</h5>
                         <div class="d-flex justify-content-between mb-2">
                             <span class="badge bg-primary">{{ course.lessons_count }} aulas</span>
-                            {% if course.is_enrolled %}
+                            {% if is_student and course.is_enrolled %}
                                 <span class="badge bg-success">Matriculado</span>
+                            {% elif is_professor and course.is_own_course %}
+                                <span class="badge bg-info">Meu Curso</span>
                             {% endif %}
                         </div>
                         <p class="card-text">{{ course.short_description|default:course.description|truncatechars:100 }}</p>

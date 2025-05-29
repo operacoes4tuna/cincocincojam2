@@ -1,0 +1,222 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{% translate "Detalhes do Aluno" %} - {{ student.get_full_name }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <!-- Cabeçalho e Breadcrumb -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3">{% translate "Detalhes do Aluno" %}</h1>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb mb-0">
+                <li class="breadcrumb-item"><a href="{% url 'dashboard_redirect' %}">{% translate "Dashboard" %}</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'payments:professor_dashboard' %}">{% translate "Financeiro" %}</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'payments:professor_students' %}">{% translate "Alunos" %}</a></li>
+                <li class="breadcrumb-item active">{{ student.get_full_name }}</li>
+            </ol>
+        </nav>
+    </div>
+
+    <div class="row">
+        <!-- Informações do Aluno -->
+        <div class="col-md-4 mb-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body p-4">
+                    <div class="text-center mb-4">
+                        {% if student.profile_image %}
+                            <img src="{{ student.profile_image.url }}" alt="{{ student.get_full_name }}" 
+                                 class="rounded-circle mb-3" style="width: 100px; height: 100px; object-fit: cover;">
+                        {% else %}
+                            <div class="bg-secondary text-white rounded-circle mb-3 d-flex align-items-center justify-content-center mx-auto" 
+                                 style="width: 100px; height: 100px;">
+                                <i class="fas fa-user fa-3x"></i>
+                            </div>
+                        {% endif %}
+                        <h4 class="mb-0">{{ student.get_full_name }}</h4>
+                        <p class="text-muted">{{ student.email }}</p>
+
+                        <div class="d-flex justify-content-center gap-2 mt-3">
+                            <a href="mailto:{{ student.email }}" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-envelope me-1"></i> {% translate "Enviar Email" %}
+                            </a>
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    <div class="mb-3">
+                        <h6>{% translate "Data de Cadastro" %}</h6>
+                        <p>{{ student.date_joined|date:"d/m/Y" }}</p>
+                    </div>
+
+                    {% if student.bio %}
+                    <div class="mb-3">
+                        <h6>{% translate "Biografia" %}</h6>
+                        <p class="mb-0">{{ student.bio }}</p>
+                    </div>
+                    {% endif %}
+
+                    <div class="mb-0">
+                        <h6>{% translate "Resumo Financeiro" %}</h6>
+                        <div class="d-flex justify-content-between">
+                            <span>{% translate "Total pago:" %}</span>
+                            <span class="text-success fw-bold">R$ {{ total_paid|floatformat:2 }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span>{% translate "Total pendente:" %}</span>
+                            <span class="text-warning fw-bold">R$ {{ total_pending|floatformat:2 }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cursos e Matrículas -->
+        <div class="col-md-8 mb-4">
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-transparent py-3">
+                    <h5 class="card-title mb-0">
+                        {% translate "Matrículas" %}
+                        <span class="badge bg-primary ms-2">{{ enrollments.count }}</span>
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    {% if enrollments %}
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th class="ps-4" scope="col">{% translate "Curso" %}</th>
+                                        <th scope="col">{% translate "Status" %}</th>
+                                        <th scope="col">{% translate "Progresso" %}</th>
+                                        <th scope="col">{% translate "Data de Matrícula" %}</th>
+                                        <th class="text-end pe-4" scope="col">{% translate "Ações" %}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for enrollment in enrollments %}
+                                        <tr>
+                                            <td class="ps-4">
+                                                <div>
+                                                    <h6 class="mb-0">{{ enrollment.course.title }}</h6>
+                                                    <small class="text-muted">{{ enrollment.course.category }}</small>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                {% if enrollment.status == 'ACTIVE' %}
+                                                    <span class="badge bg-success">{% translate "Ativa" %}</span>
+                                                {% elif enrollment.status == 'COMPLETED' %}
+                                                    <span class="badge bg-primary">{% translate "Concluída" %}</span>
+                                                {% elif enrollment.status == 'CANCELLED' %}
+                                                    <span class="badge bg-danger">{% translate "Cancelada" %}</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <div class="progress" style="height: 8px; width: 100px;">
+                                                    <div class="progress-bar bg-primary" role="progressbar" style="width: {{ enrollment.progress }}%"></div>
+                                                </div>
+                                                <small>{{ enrollment.progress }}%</small>
+                                            </td>
+                                            <td>{{ enrollment.enrolled_at|date:"d/m/Y" }}</td>
+                                            <td class="text-end pe-4">
+                                                <a href="{% url 'payments:professor_course_enrollments' enrollment.course.id %}?student={{ student.id }}" 
+                                                   class="btn btn-sm btn-outline-primary">
+                                                    <i class="fas fa-eye me-1"></i> {% translate "Detalhes" %}
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="p-5 text-center">
+                            <div class="text-muted mb-4">
+                                <i class="fas fa-graduation-cap fa-3x"></i>
+                            </div>
+                            <h5>{% translate "Nenhuma matrícula encontrada" %}</h5>
+                            <p class="mb-0">{% translate "Este aluno não está matriculado em nenhum dos seus cursos atualmente." %}</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Histórico de Pagamentos -->
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-transparent py-3">
+                    <h5 class="card-title mb-0">
+                        {% translate "Histórico de Pagamentos" %}
+                        <span class="badge bg-primary ms-2">{{ transactions.count }}</span>
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    {% if transactions %}
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th class="ps-4" scope="col">{% translate "ID" %}</th>
+                                        <th scope="col">{% translate "Curso" %}</th>
+                                        <th scope="col">{% translate "Valor" %}</th>
+                                        <th scope="col">{% translate "Status" %}</th>
+                                        <th scope="col">{% translate "Data" %}</th>
+                                        <th scope="col">{% translate "Método" %}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for transaction in transactions %}
+                                        <tr>
+                                            <td class="ps-4">
+                                                <span class="badge bg-secondary">#{{ transaction.id }}</span>
+                                            </td>
+                                            <td>{{ transaction.enrollment.course.title }}</td>
+                                            <td>R$ {{ transaction.amount|floatformat:2 }}</td>
+                                            <td>
+                                                {% if transaction.status == 'PAID' %}
+                                                    <span class="badge bg-success">{% translate "Pago" %}</span>
+                                                {% elif transaction.status == 'PENDING' %}
+                                                    <span class="badge bg-warning text-dark">{% translate "Pendente" %}</span>
+                                                {% elif transaction.status == 'REFUNDED' %}
+                                                    <span class="badge bg-info">{% translate "Estornado" %}</span>
+                                                {% elif transaction.status == 'FAILED' %}
+                                                    <span class="badge bg-danger">{% translate "Falhou" %}</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if transaction.status == 'PAID' and transaction.payment_date %}
+                                                    {{ transaction.payment_date|date:"d/m/Y" }}
+                                                {% elif transaction.status == 'PENDING' %}
+                                                    {{ transaction.created_at|date:"d/m/Y" }}
+                                                {% else %}
+                                                    -
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if transaction.payment_method %}
+                                                    {{ transaction.payment_method }}
+                                                {% else %}
+                                                    -
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="p-5 text-center">
+                            <div class="text-muted mb-4">
+                                <i class="fas fa-receipt fa-3x"></i>
+                            </div>
+                            <h5>{% translate "Nenhuma transação encontrada" %}</h5>
+                            <p class="mb-0">{% translate "Não há transações financeiras registradas para este aluno." %}</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

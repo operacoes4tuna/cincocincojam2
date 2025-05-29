@@ -1,0 +1,201 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{{ location.name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .event-card {
+        transition: all 0.2s ease;
+        margin-bottom: 10px;
+    }
+    .event-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+    }
+    .status-badge {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+    }
+    .map-container {
+        height: 250px;
+        border-radius: 4px;
+        overflow: hidden;
+        margin-top: 15px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4 mb-5">
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">{{ location.name }}</h5>
+            <div>
+                <a href="{% url 'scheduler:location_list' %}" class="btn btn-outline-secondary btn-sm">
+                    <i class="fas fa-arrow-left"></i> {% trans "Voltar para a lista" %}
+                </a>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-7">
+                    <h6 class="text-muted mb-3">
+                        {% if location.is_online %}
+                            <i class="fas fa-video me-2"></i> {% trans "Estúdio Online" %}
+                        {% else %}
+                            <i class="fas fa-map-marker-alt me-2"></i> {% trans "Estúdio Presencial" %}
+                        {% endif %}
+                    </h6>
+                    
+                    {% if location.is_online %}
+                        {% if location.meeting_link %}
+                            <div class="mb-4">
+                                <h6>{% trans "Link de Acesso:" %}</h6>
+                                <div class="input-group">
+                                    <input type="text" class="form-control" value="{{ location.meeting_link }}" readonly>
+                                    <a href="{{ location.meeting_link }}" target="_blank" class="btn btn-primary">
+                                        <i class="fas fa-external-link-alt"></i> {% trans "Acessar" %}
+                                    </a>
+                                </div>
+                            </div>
+                        {% endif %}
+                    {% else %}
+                        {% if location.address %}
+                            <div class="mb-4">
+                                <h6>{% trans "Endereço:" %}</h6>
+                                <p class="mb-2">{{ location.address }}</p>
+                                
+                                <!-- Placeholder para mapa (poderia ser integrado com Google Maps) -->
+                                <div class="map-container bg-light d-flex align-items-center justify-content-center">
+                                    <div class="text-center">
+                                        <i class="fas fa-map fa-2x mb-2 text-muted"></i>
+                                        <p class="text-muted">{% trans "Mapa indisponível" %}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endif %}
+                    {% endif %}
+                    
+                    <div class="d-flex justify-content-start mt-4">
+                        {% if location.created_by == request.user or request.user.user_type == 'ADMIN' %}
+                            <a href="{% url 'scheduler:location_update' location.id %}" class="btn btn-outline-primary me-2">
+                                <i class="fas fa-edit"></i> {% trans "Editar" %}
+                            </a>
+                            <a href="{% url 'scheduler:location_delete' location.id %}" class="btn btn-outline-danger me-2">
+                                <i class="fas fa-trash"></i> {% trans "Excluir" %}
+                            </a>
+                        {% endif %}
+                        <a href="{% url 'scheduler:event_create' %}?location={{ location.id }}" class="btn btn-primary">
+                            <i class="fas fa-plus"></i> {% trans "Novo Evento Neste Estúdio" %}
+                        </a>
+                    </div>
+                </div>
+                
+                <div class="col-md-5">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <h6 class="mb-0">{% trans "Informações" %}</h6>
+                        </div>
+                        <div class="card-body">
+                            <ul class="list-group list-group-flush">
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    {% trans "Total de eventos" %}
+                                    <span class="badge bg-primary rounded-pill">{{ events|length }}</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    {% trans "Próximos eventos" %}
+                                    <span class="badge bg-success rounded-pill">
+                                        {{ events|dictsortreversed:"start_time"|length }}
+                                    </span>
+                                </li>
+                                {% if not location.is_online %}
+                                <li class="list-group-item">
+                                    <small class="text-muted">
+                                        {% if location.is_active %}
+                                            <i class="fas fa-check-circle text-success"></i> 
+                                            {% trans "Este estúdio está ativo e visível para todos" %}
+                                        {% else %}
+                                            <i class="fas fa-eye-slash text-muted"></i> 
+                                            {% trans "Este estúdio é privado e visível apenas para você" %}
+                                        {% endif %}
+                                    </small>
+                                </li>
+                                {% endif %}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Lista de eventos neste estúdio -->
+            <div class="mt-5">
+                <h5 class="border-bottom pb-2 mb-4">{% trans "Eventos Neste Estúdio" %}</h5>
+                
+                {% if events %}
+                    {% for event in events %}
+                        <div class="card event-card">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between">
+                                    <h5 class="card-title mb-1">{{ event.title }}</h5>
+                                    <span class="badge 
+                                        {% if event.status == 'SCHEDULED' %}bg-primary
+                                        {% elif event.status == 'CONFIRMED' %}bg-success
+                                        {% elif event.status == 'CANCELLED' %}bg-danger
+                                        {% elif event.status == 'COMPLETED' %}bg-secondary
+                                        {% endif %} status-badge">
+                                        {% if event.status == 'SCHEDULED' %}{% trans "Agendado" %}
+                                        {% elif event.status == 'CONFIRMED' %}{% trans "Confirmado" %}
+                                        {% elif event.status == 'CANCELLED' %}{% trans "Cancelado" %}
+                                        {% elif event.status == 'COMPLETED' %}{% trans "Concluído" %}
+                                        {% endif %}
+                                    </span>
+                                </div>
+                                
+                                <div class="d-flex mb-3">
+                                    <div class="me-4">
+                                        <i class="far fa-calendar-alt text-muted me-1"></i> 
+                                        {{ event.start_time|date:"d/m/Y" }}
+                                    </div>
+                                    <div>
+                                        <i class="far fa-clock text-muted me-1"></i> 
+                                        {{ event.start_time|date:"H:i" }} - {{ event.end_time|date:"H:i" }}
+                                    </div>
+                                </div>
+                                
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <span class="badge 
+                                            {% if event.event_type == 'CLASS' %}bg-info
+                                            {% elif event.event_type == 'MEETING' %}bg-warning
+                                            {% elif event.event_type == 'WORKSHOP' %}bg-success
+                                            {% else %}bg-secondary
+                                            {% endif %}">
+                                            {% if event.event_type == 'CLASS' %}{% trans "Aula" %}
+                                            {% elif event.event_type == 'MEETING' %}{% trans "Reunião" %}
+                                            {% elif event.event_type == 'WORKSHOP' %}{% trans "Workshop" %}
+                                            {% else %}{% trans "Outro" %}
+                                            {% endif %}
+                                        </span>
+                                    </div>
+                                    <div>
+                                        <a href="{% url 'scheduler:event_detail' event.id %}" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-eye"></i> {% trans "Ver detalhes" %}
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="alert alert-info">
+                        <p class="mb-0">{% trans "Nenhum evento agendado neste estúdio." %}</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

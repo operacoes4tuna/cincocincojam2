@@ -1,0 +1,132 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load crispy_forms_tags %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<style>
+    .form-section {
+        border-bottom: 1px solid #e9ecef;
+        padding-bottom: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .form-section h5 {
+        font-weight: 600;
+        color: #495057;
+    }
+    
+    #div_id_is_recurring .form-check {
+        margin-top: 2.2rem;
+    }
+    
+    #div_id_all_day .form-check {
+        margin-top: 2.2rem;
+    }
+    
+    .color-sample {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        margin-right: 5px;
+        vertical-align: middle;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4 mb-5">
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+                {% if event %}
+                    {% trans "Editar Evento" %}: {{ event.title }}
+                {% else %}
+                    {% trans "Novo Evento" %}
+                {% endif %}
+            </h5>
+            <div>
+                <a href="{% url 'scheduler:event_list' %}" class="btn btn-outline-secondary btn-sm">
+                    <i class="fas fa-arrow-left"></i> {% trans "Voltar para a lista" %}
+                </a>
+            </div>
+        </div>
+        <div class="card-body">
+            {% load crispy_forms_tags %}
+            {% crispy form %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/pt.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Inicializar seletores de data e hora
+        const startTimeInput = document.getElementById('start_time');
+        const endTimeInput = document.getElementById('end_time');
+        
+        if (startTimeInput) {
+            flatpickr(startTimeInput, {
+                enableTime: true,
+                dateFormat: "Y-m-d H:i",
+                locale: "pt",
+                time_24hr: true
+            });
+        }
+        
+        if (endTimeInput) {
+            flatpickr(endTimeInput, {
+                enableTime: true,
+                dateFormat: "Y-m-d H:i",
+                locale: "pt",
+                time_24hr: true
+            });
+        }
+        
+        // Atualizar interface com base no tipo de evento selecionado
+        const eventTypeSelect = document.getElementById('id_event_type');
+        const colorSelect = document.getElementById('id_color');
+        
+        if (eventTypeSelect && colorSelect) {
+            eventTypeSelect.addEventListener('change', function() {
+                switch(this.value) {
+                    case 'CLASS':
+                        colorSelect.value = '#3788d8'; // Azul
+                        break;
+                    case 'MEETING':
+                        colorSelect.value = '#6aa84f'; // Verde
+                        break;
+                    case 'WORKSHOP':
+                        colorSelect.value = '#9900ff'; // Roxo
+                        break;
+                    case 'OTHER':
+                        colorSelect.value = '#f1c232'; // Amarelo
+                        break;
+                }
+            });
+        }
+        
+        // Mostrar/esconder o campo de recorrência
+        const isRecurringCheckbox = document.getElementById('id_is_recurring');
+        
+        if (isRecurringCheckbox) {
+            const recurrenceRuleField = document.getElementById('id_recurrence_rule').closest('.mb-3');
+            
+            if (recurrenceRuleField) {
+                recurrenceRuleField.style.display = isRecurringCheckbox.checked ? 'block' : 'none';
+                
+                isRecurringCheckbox.addEventListener('change', function() {
+                    recurrenceRuleField.style.display = this.checked ? 'block' : 'none';
+                });
+            }
+        }
+    });
+</script>
+{% endblock %}

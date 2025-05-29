@@ -1,0 +1,300 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load humanize %}
+
+{% block title %}{% translate "Administração - Notas Avulsas" %}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>{% translate "Administração - Notas Avulsas" %}</h1>
+        <a href="{% url 'payments:admin_dashboard' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i> {% translate "Voltar ao Dashboard" %}
+        </a>
+    </div>
+
+    <!-- Filtros -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="card-title">{% translate "Filtros" %}</h5>
+            <form method="get" class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">{% translate "Vendedor" %}</label>
+                    <select name="seller" class="form-select">
+                        <option value="">{% translate "Todos" %}</option>
+                        {% for seller in sellers %}
+                            <option value="{{ seller.id }}" {% if selected_seller == seller.id|stringformat:"i" %}selected{% endif %}>
+                                {{ seller.get_full_name|default:seller.email }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="col-md-4">
+                    <label class="form-label">{% translate "Status" %}</label>
+                    <select name="status" class="form-select">
+                        <option value="">{% translate "Todos" %}</option>
+                        {% for status_code, status_name in status_choices %}
+                            <option value="{{ status_code }}" {% if selected_status == status_code %}selected{% endif %}>
+                                {{ status_name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="col-md-4 d-flex align-items-end">
+                    <button type="submit" class="btn btn-outline-primary w-100">
+                        <i class="fas fa-filter me-1"></i> {% translate "Filtrar" %}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Resumo Financeiro -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title text-primary">{% translate "Total de Vendas Avulsas" %}</h5>
+                    <div class="display-6">R$ {{ total_amount|floatformat:2|intcomma }}</div>
+                    <div class="text-muted mt-2">
+                        <div>{% translate "Qtd. Vendas" %}: {{ sales|length }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lista de Vendas -->
+    <div class="card">
+        <div class="card-body">
+            <h5 class="card-title">{% translate "Lista de Notas Avulsas" %}</h5>
+            
+            {% if sales %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>{% translate "ID" %}</th>
+                                <th>{% translate "Descrição" %}</th>
+                                <th>{% translate "Cliente" %}</th>
+                                <th>{% translate "Vendedor" %}</th>
+                                <th>{% translate "Valor" %}</th>
+                                <th>{% translate "Status" %}</th>
+                                <th>{% translate "Data" %}</th>
+                                <th>{% translate "Ações" %}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for sale in sales %}
+                                <tr>
+                                    <td>{{ sale.id }}</td>
+                                    <td>{{ sale.description }}</td>
+                                    <td>{{ sale.customer_name }}</td>
+                                    <td>{{ sale.seller.get_full_name|default:sale.seller.email }}</td>
+                                    <td>R$ {{ sale.amount|floatformat:2 }}</td>
+                                    <td>
+                                        {% if sale.status == 'PAID' %}
+                                            <span class="badge bg-success">{{ sale.get_status_display }}</span>
+                                        {% elif sale.status == 'PENDING' %}
+                                            <span class="badge bg-warning text-dark">{{ sale.get_status_display }}</span>
+                                        {% elif sale.status == 'REFUNDED' %}
+                                            <span class="badge bg-info">{{ sale.get_status_display }}</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">{{ sale.get_status_display }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ sale.created_at|date:"d/m/Y H:i" }}</td>
+                                    <td>
+                                        <a href="#" class="btn btn-sm btn-outline-primary" 
+                                           data-bs-toggle="modal" data-bs-target="#saleModal{{ sale.id }}">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                
+                                <!-- Modal de Detalhes -->
+                                <div class="modal fade" id="saleModal{{ sale.id }}" tabindex="-1" aria-labelledby="saleModalLabel{{ sale.id }}" aria-hidden="true">
+                                    <div class="modal-dialog modal-lg">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title" id="saleModalLabel{{ sale.id }}">{% translate "Detalhes da Venda" %} #{{ sale.id }}</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <div class="row">
+                                                    <div class="col-md-6">
+                                                        <h6 class="fw-bold">{% translate "Informações da Venda" %}</h6>
+                                                        <dl class="row">
+                                                            <dt class="col-sm-4">{% translate "Descrição" %}</dt>
+                                                            <dd class="col-sm-8">{{ sale.description }}</dd>
+                                                            
+                                                            <dt class="col-sm-4">{% translate "Valor" %}</dt>
+                                                            <dd class="col-sm-8">R$ {{ sale.amount|floatformat:2|intcomma }}</dd>
+                                                            
+                                                            <dt class="col-sm-4">{% translate "Status" %}</dt>
+                                                            <dd class="col-sm-8">
+                                                                {% if sale.status == 'PAID' %}
+                                                                    <span class="badge bg-success">{{ sale.get_status_display }}</span>
+                                                                {% elif sale.status == 'PENDING' %}
+                                                                    <span class="badge bg-warning text-dark">{{ sale.get_status_display }}</span>
+                                                                {% elif sale.status == 'REFUNDED' %}
+                                                                    <span class="badge bg-info">{{ sale.get_status_display }}</span>
+                                                                {% else %}
+                                                                    <span class="badge bg-danger">{{ sale.get_status_display }}</span>
+                                                                {% endif %}
+                                                            </dd>
+                                                            
+                                                            <dt class="col-sm-4">{% translate "Data" %}</dt>
+                                                            <dd class="col-sm-8">{{ sale.created_at|date:"d/m/Y H:i" }}</dd>
+                                                            
+                                                            {% if sale.paid_at %}
+                                                            <dt class="col-sm-4">{% translate "Pago em" %}</dt>
+                                                            <dd class="col-sm-8">{{ sale.paid_at|date:"d/m/Y H:i" }}</dd>
+                                                            {% endif %}
+                                                            
+                                                            <dt class="col-sm-4">{% translate "Método" %}</dt>
+                                                            <dd class="col-sm-8">{{ sale.payment_method|upper }}</dd>
+                                                        </dl>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <h6 class="fw-bold">{% translate "Informações do Cliente" %}</h6>
+                                                        <dl class="row">
+                                                            <dt class="col-sm-4">{% translate "Nome" %}</dt>
+                                                            <dd class="col-sm-8">{{ sale.customer_name }}</dd>
+                                                            
+                                                            <dt class="col-sm-4">{% translate "E-mail" %}</dt>
+                                                            <dd class="col-sm-8">{{ sale.customer_email }}</dd>
+                                                            
+                                                            {% if sale.customer_cpf %}
+                                                            <dt class="col-sm-4">{% translate "CPF" %}</dt>
+                                                            <dd class="col-sm-8">{{ sale.customer_cpf }}</dd>
+                                                            {% endif %}
+                                                        </dl>
+                                                        
+                                                        <h6 class="fw-bold mt-3">{% translate "Informações do Vendedor" %}</h6>
+                                                        <dl class="row">
+                                                            <dt class="col-sm-4">{% translate "Nome" %}</dt>
+                                                            <dd class="col-sm-8">{{ sale.seller.get_full_name|default:sale.seller.email }}</dd>
+                                                            
+                                                            <dt class="col-sm-4">{% translate "E-mail" %}</dt>
+                                                            <dd class="col-sm-8">{{ sale.seller.email }}</dd>
+                                                        </dl>
+                                                    </div>
+                                                </div>
+                                                
+                                                <!-- Notas Fiscais -->
+                                                {% if sale.invoices.exists %}
+                                                <hr>
+                                                <h6 class="fw-bold">{% translate "Notas Fiscais" %}</h6>
+                                                <div class="table-responsive">
+                                                    <table class="table table-sm">
+                                                        <thead>
+                                                            <tr>
+                                                                <th>{% translate "ID" %}</th>
+                                                                <th>{% translate "Status" %}</th>
+                                                                <th>{% translate "Data" %}</th>
+                                                                <th>{% translate "Ações" %}</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {% for invoice in sale.invoices.all %}
+                                                            <tr>
+                                                                <td>{{ invoice.id }}</td>
+                                                                <td>
+                                                                    {% if invoice.status == 'approved' %}
+                                                                        <span class="badge bg-success">{{ invoice.get_status_display }}</span>
+                                                                    {% elif invoice.status == 'pending' %}
+                                                                        <span class="badge bg-warning text-dark">{{ invoice.get_status_display }}</span>
+                                                                    {% elif invoice.status == 'processing' %}
+                                                                        <span class="badge bg-info">{{ invoice.get_status_display }}</span>
+                                                                    {% elif invoice.status == 'error' %}
+                                                                        <span class="badge bg-danger">{{ invoice.get_status_display }}</span>
+                                                                    {% else %}
+                                                                        <span class="badge bg-secondary">{{ invoice.get_status_display }}</span>
+                                                                    {% endif %}
+                                                                </td>
+                                                                <td>{{ invoice.created_at|date:"d/m/Y" }}</td>
+                                                                <td>
+                                                                    {% if invoice.focus_pdf_url %}
+                                                                    <a href="{{ invoice.focus_pdf_url }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                                                        <i class="fas fa-file-pdf"></i>
+                                                                    </a>
+                                                                    {% endif %}
+                                                                    {% if invoice.focus_xml_url %}
+                                                                    <a href="{{ invoice.focus_xml_url }}" target="_blank" class="btn btn-sm btn-outline-secondary">
+                                                                        <i class="fas fa-file-code"></i>
+                                                                    </a>
+                                                                    {% endif %}
+                                                                </td>
+                                                            </tr>
+                                                            {% endfor %}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                                {% endif %}
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% translate "Fechar" %}</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Paginação -->
+                {% if is_paginated %}
+                <nav aria-label="Paginação">
+                    <ul class="pagination justify-content-center">
+                        {% if page_obj.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page=1{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" aria-label="Primeira">
+                                    <span aria-hidden="true">&laquo;&laquo;</span>
+                                </a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" aria-label="Anterior">
+                                    <span aria-hidden="true">&laquo;</span>
+                                </a>
+                            </li>
+                        {% endif %}
+                        
+                        {% for num in page_obj.paginator.page_range %}
+                            {% if page_obj.number == num %}
+                                <li class="page-item active"><a class="page-link">{{ num }}</a></li>
+                            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ num }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{{ num }}</a>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if page_obj.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" aria-label="Próxima">
+                                    <span aria-hidden="true">&raquo;</span>
+                                </a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" aria-label="Última">
+                                    <span aria-hidden="true">&raquo;&raquo;</span>
+                                </a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+            {% else %}
+                <div class="alert alert-info">
+                    {% translate "Nenhuma venda avulsa encontrada." %}
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %} 

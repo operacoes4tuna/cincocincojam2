@@ -31,9 +31,10 @@ media
 venv/
 ENV/
 
-# Environment files
-.env
+
 .venv
+.venv/ 
+
 
 # IDE
 .idea/

@@ -1,0 +1,67 @@
+databases:
+  - name: cincocincojam2_db
+    databaseName: cincocincojam2
+    user: cincocincojam2
+    plan: free
+
+services:
+  - type: web
+    name: cincocincojam2
+    runtime: python
+    plan: free
+    buildCommand: "./build.sh"
+    startCommand: "gunicorn config.wsgi:application"
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: cincocincojam2_db
+          property: connectionString
+      - key: DB_NAME
+        fromDatabase:
+          name: cincocincojam2_db
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: cincocincojam2_db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: cincocincojam2_db
+          property: password
+      - key: DB_HOST
+        fromDatabase:
+          name: cincocincojam2_db
+          property: host
+      - key: SECRET_KEY
+        generateValue: true
+      - key: RENDER
+        value: "true"
+      - key: DJANGO_ENVIRONMENT
+        value: "production"
+      - key: DEBUG_PAYMENTS
+        value: "true"
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_MODEL
+        value: "gpt-4o-mini"
+      - key: OPENAI_MAX_TOKENS
+        value: "150"
+      - key: OPENAI_TEMPERATURE
+        value: "0.7"
+      - key: OPENPIX_TOKEN
+        sync: false
+      - key: OPENPIX_WEBHOOK_SECRET
+        sync: false
+      - key: FOCUS_NFE_API_KEY
+        sync: false
+      - key: FOCUS_NFE_SANDBOX
+        value: "True"
+      - key: FOCUS_NFE_TEST_MODE
+        value: "False"
+      - key: NFEIO_API_KEY
+        sync: false
+      - key: NFEIO_COMPANY_ID
+        sync: false
+      - key: NFEIO_ENVIRONMENT
+        value: "Development"
+    autoDeploy: true 

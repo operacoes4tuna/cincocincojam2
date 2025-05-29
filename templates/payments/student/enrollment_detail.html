@@ -1,0 +1,181 @@
+{% extends 'base.html' %}
+
+{% block title %}Detalhes da Matrícula - CincoCincoJAM 2.0{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2>Detalhes da Matrícula</h2>
+        <p class="text-muted">{{ enrollment.course.title }}</p>
+    </div>
+    <div>
+        <a href="{% url 'payments:student_payments' %}" class="btn btn-outline-primary me-2">
+            <i class="fas fa-arrow-left"></i> Voltar
+        </a>
+        <a href="{% url 'courses:student:course_detail' enrollment.course.id %}" class="btn btn-primary">
+            <i class="fas fa-book"></i> Acessar Curso
+        </a>
+    </div>
+</div>
+
+<!-- Informações da Matrícula -->
+<div class="row">
+    <div class="col-md-6">
+        <div class="card shadow mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Dados da Matrícula</h5>
+            </div>
+            <div class="card-body">
+                <dl class="row">
+                    <dt class="col-sm-4">Curso:</dt>
+                    <dd class="col-sm-8">{{ enrollment.course.title }}</dd>
+                    
+                    <dt class="col-sm-4">Professor:</dt>
+                    <dd class="col-sm-8">{{ enrollment.course.professor.get_full_name|default:enrollment.course.professor.email }}</dd>
+                    
+                    <dt class="col-sm-4">Data de Matrícula:</dt>
+                    <dd class="col-sm-8">{{ enrollment.enrolled_at|date:"d/m/Y H:i" }}</dd>
+                    
+                    <dt class="col-sm-4">Status:</dt>
+                    <dd class="col-sm-8">
+                        {% if is_paid %}
+                            <span class="badge bg-success">Pago</span>
+                        {% else %}
+                            <span class="badge bg-warning text-dark">Pendente</span>
+                        {% endif %}
+                    </dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card shadow mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Dados Financeiros</h5>
+            </div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-4">Valor do Curso:</dt>
+                    <dd class="col-sm-8">R$ {{ enrollment.course.price|floatformat:2 }}</dd>
+                    
+                    {% if latest_transaction %}
+                        <dt class="col-sm-4">Última Transação:</dt>
+                        <dd class="col-sm-8">{{ latest_transaction.created_at|date:"d/m/Y H:i" }}</dd>
+                        
+                        <dt class="col-sm-4">Status:</dt>
+                        <dd class="col-sm-8">
+                            {% if latest_transaction.status == 'PAID' %}
+                                <span class="badge bg-success">Pago</span>
+                                {% if latest_transaction.payment_date %}
+                                    <small class="text-muted">em {{ latest_transaction.payment_date|date:"d/m/Y" }}</small>
+                                {% endif %}
+                            {% elif latest_transaction.status == 'PENDING' %}
+                                <span class="badge bg-warning text-dark">Pendente</span>
+                            {% elif latest_transaction.status == 'REFUNDED' %}
+                                <span class="badge bg-danger">Estornado</span>
+                            {% else %}
+                                <span class="badge bg-secondary">{{ latest_transaction.status }}</span>
+                            {% endif %}
+                        </dd>
+                    {% endif %}
+                </dl>
+                
+                <!-- Ações de Pagamento (placeholder) -->
+                {% if not is_paid %}
+                <div class="text-center mt-4">
+                    <button type="button" class="btn btn-success" disabled>
+                        <i class="fas fa-credit-card"></i> Realizar Pagamento
+                    </button>
+                    <div class="mt-2 small text-muted">
+                        <i class="fas fa-info-circle"></i> Sistema de pagamentos estará disponível em breve
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Histórico de Transações -->
+<div class="card shadow mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">Histórico de Transações</h5>
+    </div>
+    <div class="card-body">
+        {% if transactions %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Data</th>
+                            <th>ID da Transação</th>
+                            <th>Valor</th>
+                            <th>Status</th>
+                            <th>Data de Pagamento</th>
+                            <th>Método</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for transaction in transactions %}
+                        <tr>
+                            <td>{{ transaction.created_at|date:"d/m/Y H:i" }}</td>
+                            <td>{{ transaction.id }}</td>
+                            <td>R$ {{ transaction.amount|floatformat:2 }}</td>
+                            <td>
+                                {% if transaction.status == 'PAID' %}
+                                    <span class="badge bg-success">Pago</span>
+                                {% elif transaction.status == 'PENDING' %}
+                                    <span class="badge bg-warning text-dark">Pendente</span>
+                                {% elif transaction.status == 'REFUNDED' %}
+                                    <span class="badge bg-danger">Estornado</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">{{ transaction.status }}</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ transaction.payment_date|date:"d/m/Y"|default:"--" }}</td>
+                            <td>{{ transaction.payment_method|default:"--" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="alert alert-info">
+                Nenhuma transação encontrada para esta matrícula.
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Detalhes do Curso (resumido) -->
+<div class="card shadow mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">Informações do Curso</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-8">
+                <h4>{{ enrollment.course.title }}</h4>
+                <p class="text-muted">
+                    <i class="fas fa-user"></i> {{ enrollment.course.professor.get_full_name|default:enrollment.course.professor.email }}
+                </p>
+                
+                {% if enrollment.course.description %}
+                <div class="mt-3">
+                    {{ enrollment.course.description|linebreaks|truncatewords:50 }}
+                    <a href="{% url 'courses:student:course_detail' enrollment.course.id %}">Ver curso completo</a>
+                </div>
+                {% endif %}
+            </div>
+            <div class="col-md-4 text-center">
+                <div class="mt-3">
+                    <a href="{% url 'courses:student:course_detail' enrollment.course.id %}" class="btn btn-primary">
+                        <i class="fas fa-book"></i> Acessar Curso
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

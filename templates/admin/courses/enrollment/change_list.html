@@ -1,0 +1,17 @@
+{% extends "admin/change_list.html" %}
+{% load i18n admin_urls %}
+
+{% block object-tools %}
+    <ul class="object-tools">
+        {% block object-tools-items %}
+            {% if has_create_enrollment_button %}
+            <li>
+                <a href="{% url 'admin:courses_enrollment_criar_matricula' %}" class="addlink">
+                    {% trans 'Matricular aluno' %}
+                </a>
+            </li>
+            {% endif %}
+            {{ block.super }}
+        {% endblock %}
+    </ul>
+{% endblock %} 

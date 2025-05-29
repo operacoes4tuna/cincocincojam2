@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% load crispy_forms_tags %}
 
-{% block title %}Login - CincoCincoJAM 2.0{% endblock %}
+{% block title %}Login - 55Jam{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
@@ -36,8 +36,8 @@
                             <div class="d-grid gap-2">
                                 <form method="post" action="{% url 'login' %}" class="mb-2">
                                     {% csrf_token %}
-                                    <input type="hidden" name="username" value="aluno@example.com">
-                                    <input type="hidden" name="password" value="aluno123">
+                                    <input type="hidden" name="username" value="aluno@55jam.com">
+                                    <input type="hidden" name="password" value="senha123">
                                     <button type="submit" class="btn btn-outline-success w-100">
                                         <i class="fas fa-user-graduate me-2"></i> Login como Aluno
                                     </button>
@@ -45,8 +45,8 @@
                                 
                                 <form method="post" action="{% url 'login' %}" class="mb-2">
                                     {% csrf_token %}
-                                    <input type="hidden" name="username" value="professor@example.com">
-                                    <input type="hidden" name="password" value="prof123">
+                                    <input type="hidden" name="username" value="professor@55jam.com">
+                                    <input type="hidden" name="password" value="senha123">
                                     <button type="submit" class="btn btn-outline-primary w-100">
                                         <i class="fas fa-chalkboard-teacher me-2"></i> Login como Professor
                                     </button>
@@ -54,8 +54,8 @@
                                 
                                 <form method="post" action="{% url 'login' %}" class="mb-2">
                                     {% csrf_token %}
-                                    <input type="hidden" name="username" value="admin@example.com">
-                                    <input type="hidden" name="password" value="admin123">
+                                    <input type="hidden" name="username" value="admin@55jam.com">
+                                    <input type="hidden" name="password" value="senha123">
                                     <button type="submit" class="btn btn-outline-danger w-100">
                                         <i class="fas fa-user-shield me-2"></i> Login como Admin
                                     </button>

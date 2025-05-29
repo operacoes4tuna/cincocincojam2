@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Detalhes da Conversa - CincoCincoJAM{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <h1 class="mb-4">Detalhes da Conversa</h1>
+    
+    <div class="row">
+        <div class="col-md-10 mx-auto">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Sessão: {{ session.session_id }}</h5>
+                    <span class="badge {% if session.is_active %}bg-success{% else %}bg-secondary{% endif %}">
+                        {% if session.is_active %}Ativa{% else %}Inativa{% endif %}
+                    </span>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <p><strong>Data de Criação:</strong> {{ session.created_at|date:"d/m/Y H:i" }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Última Atividade:</strong> {{ session.updated_at|date:"d/m/Y H:i" }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Mensagens</h5>
+                </div>
+                <div class="card-body p-4">
+                    <div class="chat-history">
+                        {% if messages %}
+                            {% for message in messages %}
+                                <div class="message mb-3 {% if message.sender == 'user' %}text-end{% else %}text-start{% endif %}">
+                                    <div class="message-metadata small text-muted mb-1">
+                                        {{ message.get_sender_display }} • {{ message.timestamp|date:"d/m/Y H:i:s" }}
+                                    </div>
+                                    <div class="message-content d-inline-block p-3 rounded {% if message.sender == 'user' %}bg-light{% else %}bg-primary text-white{% endif %}">
+                                        {{ message.content }}
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="text-center py-4">
+                                <p class="text-muted">Não há mensagens nesta conversa.</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-3">
+                <a href="{% url 'assistant:history' %}" class="btn btn-outline-primary me-2">
+                    <i class="fas fa-arrow-left"></i> Voltar para o Histórico
+                </a>
+                <a href="{% url 'assistant:index' %}" class="btn btn-primary">
+                    Continuar Conversa
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,398 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{% trans "Participantes" %} - {{ event.title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+  .status-badge {
+    min-width: 90px;
+    text-align: center;
+  }
+  .participant-row {
+    transition: all 0.2s;
+  }
+  .participant-row:hover {
+    background-color: rgba(var(--bs-primary-rgb), 0.05);
+    cursor: pointer;
+  }
+  /* Melhora a aparência do modal */
+  .list-group-item {
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background-color: var(--bs-body-bg);
+    color: var(--bs-body-color);
+    border-color: var(--bs-border-color);
+  }
+  .list-group-item:hover {
+    background-color: var(--bs-tertiary-bg);
+    border-color: var(--bs-border-color);
+  }
+  .modal-header {
+    border-bottom: 1px solid var(--bs-border-color);
+    color: var(--bs-body-color);
+    background-color: var(--bs-body-bg);
+  }
+  .modal-footer {
+    border-top: 1px solid var(--bs-border-color);
+    background-color: var(--bs-body-bg);
+  }
+  .modal-content {
+    background-color: var(--bs-body-bg);
+    color: var(--bs-body-color);
+  }
+  .modal-body {
+    background-color: var(--bs-body-bg);
+  }
+  .list-group-item-action:focus, .list-group-item-action:hover {
+    z-index: 1;
+  }
+  .status-action-selected {
+    background-color: var(--bs-tertiary-bg) !important;
+    font-weight: bold;
+  }
+  /* Tema-compatível para o card */
+  .bg-body-tertiary {
+    background-color: var(--bs-tertiary-bg) !important;
+  }
+  /* Ocultando colunas em dispositivos móveis */
+  @media (max-width: 768px) {
+    .table-responsive th:nth-child(2),
+    .table-responsive td:nth-child(2),
+    .table-responsive th:nth-child(4),
+    .table-responsive td:nth-child(4) {
+      display: none;
+    }
+  }
+  .list-group {
+    background-color: var(--bs-body-bg);
+    color: var(--bs-body-color);
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="card shadow-sm">
+    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+      <h5 class="mb-0">{% trans "Gerenciar Participantes" %}</h5>
+      <div>
+        <a href="{% url 'scheduler:event_detail' event.id %}" class="btn btn-light btn-sm me-2">
+          <i class="fas fa-arrow-left"></i> {% trans "Voltar ao Evento" %}
+        </a>
+        <a href="{% url 'scheduler:add_participant' event.id %}" class="btn btn-light btn-sm">
+          <i class="fas fa-plus"></i> {% trans "Adicionar Participante" %}
+        </a>
+      </div>
+    </div>
+    
+    <div class="card-body">
+      <!-- Informações do evento -->
+      <div class="mb-4 p-3 bg-body-tertiary rounded border">
+        <h5>{{ event.title }}</h5>
+        <div class="row g-2">
+          <div class="col-md-4">
+            <div class="d-flex align-items-center">
+              <i class="fas fa-calendar-day text-primary me-2"></i>
+              <span>{{ event.start_time|date:"d/m/Y" }}</span>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="d-flex align-items-center">
+              <i class="fas fa-clock text-primary me-2"></i>
+              <span>{{ event.start_time|date:"H:i" }} - {{ event.end_time|date:"H:i" }}</span>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="d-flex align-items-center">
+              <i class="fas fa-map-marker-alt text-primary me-2"></i>
+              <span>{{ event.location.name }}</span>
+            </div>
+          </div>
+        </div>
+        {% if event.max_participants %}
+          <div class="mt-2">
+            <div class="d-flex align-items-center text-primary">
+              <i class="fas fa-users me-2"></i>
+              <span>{{ participants.count }} / {{ event.max_participants }} {% trans "participantes" %}</span>
+            </div>
+            <div class="progress mt-2" style="height: 6px;">
+              <div class="progress-bar" role="progressbar" 
+                  style="width: {% widthratio participants.count event.max_participants 100 %}%"
+                  aria-valuenow="{{ participants.count }}" 
+                  aria-valuemin="0" 
+                  aria-valuemax="{{ event.max_participants }}"></div>
+            </div>
+          </div>
+        {% endif %}
+      </div>
+      
+      <!-- Lista de participantes -->
+      {% if participants %}
+        <div class="table-responsive position-relative">
+          <table class="table table-hover">
+            <thead>
+              <tr>
+                <th>{% trans "Aluno" %}</th>
+                <th>{% trans "Email" %}</th>
+                <th>{% trans "Status" %}</th>
+                <th>{% trans "Data de Confirmação" %}</th>
+                <th>{% trans "Ações" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for participant in participants %}
+                <tr class="participant-row">
+                  <td>{{ participant.student.get_full_name }}</td>
+                  <td>{{ participant.student.email }}</td>
+                  <td>
+                    {% if participant.attendance_status == 'PENDING' %}
+                      <span class="badge bg-warning status-badge">{% trans "Pendente" %}</span>
+                    {% elif participant.attendance_status == 'CONFIRMED' %}
+                      <span class="badge bg-success status-badge">{% trans "Confirmado" %}</span>
+                    {% elif participant.attendance_status == 'CANCELLED' %}
+                      <span class="badge bg-danger status-badge">{% trans "Cancelado" %}</span>
+                    {% elif participant.attendance_status == 'ATTENDED' %}
+                      <span class="badge bg-primary status-badge">{% trans "Presente" %}</span>
+                    {% elif participant.attendance_status == 'MISSED' %}
+                      <span class="badge bg-secondary status-badge">{% trans "Ausente" %}</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if participant.confirmed_at %}
+                      {{ participant.confirmed_at|date:"d/m/Y H:i" }}
+                    {% else %}
+                      <span class="text-muted">-</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    <div class="d-flex flex-nowrap">
+                      <button type="button" class="btn btn-sm btn-outline-primary me-1" 
+                              data-bs-toggle="modal" data-bs-target="#statusModal{{ participant.id }}">
+                        <i class="fas fa-edit"></i> {% trans "Status" %}
+                      </button>
+                      <button type="button" class="btn btn-sm btn-outline-danger remove-participant"
+                              data-participant-id="{{ participant.id }}"
+                              data-student-id="{{ participant.student.id }}"
+                              data-participant-name="{{ participant.student.get_full_name|default:participant.student.email }}">
+                        <i class="fas fa-trash-alt"></i>
+                      </button>
+                    </div>
+                    
+                    <!-- Modal para alterar status -->
+                    <div class="modal fade" id="statusModal{{ participant.id }}" tabindex="-1" 
+                         aria-labelledby="statusModalLabel{{ participant.id }}" aria-hidden="true">
+                      <div class="modal-dialog">
+                        <div class="modal-content">
+                          <div class="modal-header">
+                            <h5 class="modal-title" id="statusModalLabel{{ participant.id }}">
+                              {% trans "Alterar Status de Participação" %}
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                          </div>
+                          <div class="modal-body">
+                            <div class="mb-3 p-3 rounded bg-body-tertiary border">
+                              <div class="d-flex align-items-center mb-2">
+                                <i class="fas fa-user-graduate text-primary me-2 fa-lg"></i>
+                                <h6 class="mb-0">{{ participant.student.get_full_name }}</h6>
+                              </div>
+                              <div class="d-flex align-items-center">
+                                <span class="me-2">{% trans "Status atual:" %}</span>
+                                {% if participant.attendance_status == 'PENDING' %}
+                                  <span class="badge bg-warning">{% trans "Pendente" %}</span>
+                                {% elif participant.attendance_status == 'CONFIRMED' %}
+                                  <span class="badge bg-success">{% trans "Confirmado" %}</span>
+                                {% elif participant.attendance_status == 'CANCELLED' %}
+                                  <span class="badge bg-danger">{% trans "Cancelado" %}</span>
+                                {% elif participant.attendance_status == 'ATTENDED' %}
+                                  <span class="badge bg-primary">{% trans "Presente" %}</span>
+                                {% elif participant.attendance_status == 'MISSED' %}
+                                  <span class="badge bg-secondary">{% trans "Ausente" %}</span>
+                                {% endif %}
+                              </div>
+                            </div>
+                            
+                            <h6 class="mb-2">{% trans "Selecione o novo status:" %}</h6>
+                            <div class="list-group mt-3">
+                              <a href="#" class="list-group-item list-group-item-action status-action" data-status="PENDING" data-participant-id="{{ participant.id }}" data-student-id="{{ participant.student.id }}">
+                                <div class="d-flex justify-content-between align-items-center">
+                                  <div>
+                                    <i class="fas fa-clock text-warning me-2"></i>
+                                    {% trans "Pendente" %}
+                                  </div>
+                                  <span class="badge bg-warning">{% trans "Aguardando" %}</span>
+                                </div>
+                              </a>
+                              <a href="#" class="list-group-item list-group-item-action status-action" data-status="CONFIRMED" data-participant-id="{{ participant.id }}" data-student-id="{{ participant.student.id }}">
+                                <div class="d-flex justify-content-between align-items-center">
+                                  <div>
+                                    <i class="fas fa-check-circle text-success me-2"></i>
+                                    {% trans "Confirmado" %}
+                                  </div>
+                                  <span class="badge bg-success">{% trans "Aluno confirmou" %}</span>
+                                </div>
+                              </a>
+                              <a href="#" class="list-group-item list-group-item-action status-action" data-status="CANCELLED" data-participant-id="{{ participant.id }}" data-student-id="{{ participant.student.id }}">
+                                <div class="d-flex justify-content-between align-items-center">
+                                  <div>
+                                    <i class="fas fa-times-circle text-danger me-2"></i>
+                                    {% trans "Cancelado" %}
+                                  </div>
+                                  <span class="badge bg-danger">{% trans "Cancelou" %}</span>
+                                </div>
+                              </a>
+                              <a href="#" class="list-group-item list-group-item-action status-action" data-status="ATTENDED" data-participant-id="{{ participant.id }}" data-student-id="{{ participant.student.id }}">
+                                <div class="d-flex justify-content-between align-items-center">
+                                  <div>
+                                    <i class="fas fa-user-check text-primary me-2"></i>
+                                    {% trans "Presente" %}
+                                  </div>
+                                  <span class="badge bg-primary">{% trans "Compareceu" %}</span>
+                                </div>
+                              </a>
+                              <a href="#" class="list-group-item list-group-item-action status-action" data-status="MISSED" data-participant-id="{{ participant.id }}" data-student-id="{{ participant.student.id }}">
+                                <div class="d-flex justify-content-between align-items-center">
+                                  <div>
+                                    <i class="fas fa-user-times text-secondary me-2"></i>
+                                    {% trans "Ausente" %}
+                                  </div>
+                                  <span class="badge bg-secondary">{% trans "Não compareceu" %}</span>
+                                </div>
+                              </a>
+                            </div>
+                          </div>
+                          <div class="modal-footer">
+                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                              <i class="fas fa-times me-1"></i> {% trans "Fechar" %}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="alert alert-info">
+          <i class="fas fa-info-circle me-2"></i>
+          {% trans "Este evento ainda não possui participantes." %}
+          <a href="{% url 'scheduler:add_participant' event.id %}" class="alert-link">
+            {% trans "Adicionar um participante" %}
+          </a>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Modal de confirmação para remover participante -->
+<div class="modal fade" id="removeModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title text-danger" id="removeModalLabel">{% trans "Remover Participante" %}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3 d-flex align-items-center">
+          <i class="fas fa-exclamation-triangle text-danger me-3 fa-2x"></i>
+          <p class="mb-0">{% trans "Tem certeza que deseja remover este participante do evento?" %}</p>
+        </div>
+        <div class="p-3 rounded bg-body-tertiary border">
+          <div class="d-flex align-items-center">
+            <i class="fas fa-user-graduate text-danger me-2"></i>
+            <p id="participantName" class="fw-bold mb-0"></p>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+          {% trans "Cancelar" %}
+        </button>
+        <form id="removeForm" method="post">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="remove">
+          <button type="submit" class="btn btn-danger">
+            <i class="fas fa-trash-alt me-1"></i> {% trans "Remover" %}
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Status update
+    document.querySelectorAll('.status-action').forEach(function(button) {
+      button.addEventListener('click', function(e) {
+        e.preventDefault();
+        
+        const participantId = this.getAttribute('data-participant-id');
+        const studentId = this.getAttribute('data-student-id');
+        const newStatus = this.getAttribute('data-status');
+        const eventId = {{ event.id }};
+        
+        fetch(`/agenda/api/events/${eventId}/participants/`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+          },
+          body: JSON.stringify({
+            participant_id: participantId,
+            student_id: studentId,
+            status: newStatus
+          })
+        })
+        .then(response => {
+          if (response.ok) {
+            return response.json();
+          }
+          throw new Error('Erro ao atualizar status');
+        })
+        .then(data => {
+          console.log('Status atualizado com sucesso:', data);
+          // Fechar o modal
+          bootstrap.Modal.getInstance(document.getElementById(`statusModal${participantId}`)).hide();
+          // Recarregar a página
+          window.location.reload();
+        })
+        .catch(error => {
+          console.error('Erro:', error);
+          alert('Ocorreu um erro ao atualizar o status.');
+        });
+      });
+    });
+    
+    // Remover participante
+    const removeButtons = document.querySelectorAll('.remove-participant');
+    const removeModal = new bootstrap.Modal(document.getElementById('removeModal'));
+    const participantNameElement = document.getElementById('participantName');
+    const removeForm = document.getElementById('removeForm');
+    
+    removeButtons.forEach(button => {
+      button.addEventListener('click', function(e) {
+        e.preventDefault();
+        
+        const participantId = this.getAttribute('data-participant-id');
+        const studentId = this.getAttribute('data-student-id');
+        const participantName = this.getAttribute('data-participant-name');
+        
+        // Atualizar o modal com os detalhes do participante
+        participantNameElement.textContent = participantName;
+        removeForm.action = `/agenda/api/events/{{ event.id }}/participants/?student_id=${studentId}`;
+        
+        // Exibir o modal
+        removeModal.show();
+      });
+    });
+  });
+</script>
+{% endblock %} 

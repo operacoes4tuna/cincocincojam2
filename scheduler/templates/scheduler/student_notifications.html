@@ -1,0 +1,552 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{% trans "Convites para Agendamentos" %}{% endblock %}
+
+{% block extra_css %}
+<style>
+  .card-invite {
+    transition: all 0.3s ease;
+  }
+  .card-invite:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+  }
+  .event-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+  }
+  .event-date {
+    font-size: 1.2rem;
+    font-weight: bold;
+  }
+  .event-time {
+    font-size: 0.9rem;
+  }
+  .btn-group-response {
+    min-width: 200px;
+  }
+  
+  /* Garante contraste adequado para o tema escuro */
+  [data-bs-theme="dark"] .modal-content {
+    background-color: #2b2b2b !important;
+    color: #ffffff !important;
+  }
+  
+  [data-bs-theme="dark"] .modal-body h5,
+  [data-bs-theme="dark"] .modal-body h6,
+  [data-bs-theme="dark"] .modal-body p,
+  [data-bs-theme="dark"] .modal-body strong,
+  [data-bs-theme="dark"] .modal-header h5 {
+    color: #ffffff !important;
+  }
+  
+  [data-bs-theme="dark"] .modal-header {
+    border-bottom-color: #444 !important;
+  }
+  
+  [data-bs-theme="dark"] .modal-footer {
+    border-top-color: #444 !important;
+  }
+  
+  [data-bs-theme="light"] .modal-content {
+    background-color: #ffffff !important;
+    color: #212529 !important;
+  }
+  
+  [data-bs-theme="light"] .modal-body h5,
+  [data-bs-theme="light"] .modal-body h6,
+  [data-bs-theme="light"] .modal-body p,
+  [data-bs-theme="light"] .modal-body strong,
+  [data-bs-theme="light"] .modal-header h5 {
+    color: #212529 !important;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>{% trans "Meus Convites" %}</h2>
+    <div>
+      <a href="{% url 'courses:student:dashboard' %}" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left"></i> {% trans "Voltar ao Dashboard" %}
+      </a>
+    </div>
+  </div>
+
+  <!-- Resumo de convites -->
+  <div class="row mb-4">
+    <div class="col-md-4">
+      <div class="card h-100">
+        <div class="card-body text-center">
+          <div class="display-4 mb-2 text-primary">{{ total_invitations }}</div>
+          <h5>{% trans "Total de Convites" %}</h5>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card h-100">
+        <div class="card-body text-center">
+          <div class="display-4 mb-2 text-warning">{{ pending_invitations }}</div>
+          <h5>{% trans "Aguardando Resposta" %}</h5>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card h-100">
+        <div class="card-body text-center">
+          <div class="display-4 mb-2 text-success">{{ confirmed_invitations }}</div>
+          <h5>{% trans "Confirmados" %}</h5>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Convites pendentes -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-header bg-warning text-dark">
+      <h5 class="mb-0">{% trans "Convites Pendentes" %}</h5>
+    </div>
+    <div class="card-body">
+      {% if pending_invitations_list %}
+        <div class="row">
+          {% for invitation in pending_invitations_list %}
+            <div class="col-md-6 col-lg-4 mb-4">
+              <div class="card card-invite h-100 position-relative">
+                {% if invitation.event.event_type == 'CLASS' %}
+                  <div class="event-badge badge bg-primary">{% trans "Aula" %}</div>
+                {% elif invitation.event.event_type == 'MEETING' %}
+                  <div class="event-badge badge bg-info">{% trans "Reunião" %}</div>
+                {% elif invitation.event.event_type == 'WORKSHOP' %}
+                  <div class="event-badge badge bg-warning">{% trans "Workshop" %}</div>
+                {% else %}
+                  <div class="event-badge badge bg-secondary">{% trans "Outro" %}</div>
+                {% endif %}
+                
+                <div class="card-body">
+                  <h5 class="card-title">{{ invitation.event.title }}</h5>
+                  
+                  <div class="mb-3">
+                    <p class="event-date">{{ invitation.event.start_time|date:"d/m/Y" }}</p>
+                    <p class="event-time">{{ invitation.event.start_time|date:"H:i" }} - {{ invitation.event.end_time|date:"H:i" }}</p>
+                  </div>
+                  
+                  <div class="mb-3">
+                    <p class="mb-1"><strong>{% trans "Professor:" %}</strong> {{ invitation.event.professor.get_full_name }}</p>
+                    <p class="mb-1"><strong>{% trans "Estúdio:" %}</strong> {{ invitation.event.location.name }}</p>
+                    {% if invitation.event.course %}
+                      <p class="mb-1"><strong>{% trans "Curso:" %}</strong> {{ invitation.event.course.title }}</p>
+                    {% endif %}
+                  </div>
+                  
+                  {% if invitation.event.description %}
+                    <p class="card-text small">{{ invitation.event.description|truncatechars:100 }}</p>
+                  {% endif %}
+                </div>
+                
+                <div class="card-footer bg-white border-top-0">
+                  <form class="d-flex justify-content-between" id="form-response-{{ invitation.id }}">
+                    {% csrf_token %}
+                    <input type="hidden" name="invitation_id" value="{{ invitation.id }}">
+                    <div class="btn-group btn-group-response">
+                      <button type="button" class="btn btn-success btn-confirm-invitation" data-id="{{ invitation.id }}">
+                        <i class="fas fa-check"></i> {% trans "Confirmar" %}
+                      </button>
+                      <button type="button" class="btn btn-danger btn-decline-invitation" data-id="{{ invitation.id }}">
+                        <i class="fas fa-times"></i> {% trans "Recusar" %}
+                      </button>
+                    </div>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" 
+                            data-bs-target="#detailsModal{{ invitation.id }}">
+                      <i class="fas fa-info-circle"></i> {% trans "Detalhes" %}
+                    </button>
+                  </form>
+                </div>
+              </div>
+              
+              <!-- Modal com detalhes do evento -->
+              <div class="modal fade" id="detailsModal{{ invitation.id }}" tabindex="-1" 
+                   aria-labelledby="detailsModalLabel{{ invitation.id }}" aria-hidden="true">
+                <div class="modal-dialog">
+                  <div class="modal-content">
+                    <div class="modal-header">
+                      <h5 class="modal-title" id="detailsModalLabel{{ invitation.id }}">
+                        {{ invitation.event.title }}
+                      </h5>
+                      <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                      <div class="mb-3">
+                        <h6>{% trans "Data e Horário" %}</h6>
+                        <p>{{ invitation.event.start_time|date:"d/m/Y" }}, {{ invitation.event.start_time|date:"H:i" }} - {{ invitation.event.end_time|date:"H:i" }}</p>
+                      </div>
+                      
+                      <div class="mb-3">
+                        <h6>{% trans "Professor" %}</h6>
+                        <p>{{ invitation.event.professor.get_full_name }}</p>
+                        {% if invitation.event.professor.phone %}
+                          <p><strong>{% trans "Telefone:" %}</strong> {{ invitation.event.professor.phone }}</p>
+                        {% endif %}
+                        {% if invitation.event.professor.email %}
+                          <p><strong>{% trans "Email:" %}</strong> {{ invitation.event.professor.email }}</p>
+                        {% endif %}
+                      </div>
+                      
+                      <div class="mb-3">
+                        <h6>{% trans "Estúdio" %}</h6>
+                        <p>
+                          {{ invitation.event.location.name }}
+                          {% if invitation.event.location.is_online %}
+                            <span class="badge bg-info">{% trans "Online" %}</span>
+                          {% endif %}
+                        </p>
+                        
+                        {% if invitation.event.location.is_online and invitation.event.location.meeting_link %}
+                          <p><strong>{% trans "Link:" %}</strong> 
+                            <a href="{{ invitation.event.location.meeting_link }}" target="_blank">
+                              {{ invitation.event.location.meeting_link }}
+                            </a>
+                          </p>
+                        {% endif %}
+                        
+                        {% if not invitation.event.location.is_online %}
+                          {% if invitation.event.location.address %}
+                            <p><strong>{% trans "Endereço:" %}</strong> {{ invitation.event.location.address }}</p>
+                          {% endif %}
+                          {% if invitation.event.location.phone %}
+                            <p><strong>{% trans "Telefone:" %}</strong> {{ invitation.event.location.phone }}</p>
+                          {% endif %}
+                        {% endif %}
+                      </div>
+                      
+                      {% if invitation.event.description %}
+                        <div class="mb-3">
+                          <h6>{% trans "Descrição" %}</h6>
+                          <p>{{ invitation.event.description|linebreaks }}</p>
+                        </div>
+                      {% endif %}
+                      
+                      {% if invitation.event.course %}
+                        <div class="mb-3">
+                          <h6>{% trans "Curso Associado" %}</h6>
+                          <p><strong>{% trans "Título:" %}</strong> {{ invitation.event.course.title }}</p>
+                          {% if invitation.event.course.description %}
+                            <p><strong>{% trans "Descrição:" %}</strong><br>{{ invitation.event.course.description|truncatewords:50 }}</p>
+                          {% endif %}
+                          {% if invitation.event.course.duration %}
+                            <p><strong>{% trans "Duração:" %}</strong> {{ invitation.event.course.duration }} {% trans "horas" %}</p>
+                          {% endif %}
+                        </div>
+                      {% endif %}
+                    </div>
+                    <div class="modal-footer">
+                      <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        {% trans "Fechar" %}
+                      </button>
+                      <div class="btn-group">
+                        <button type="button" class="btn btn-success btn-confirm-invitation" data-id="{{ invitation.id }}" data-bs-dismiss="modal">
+                          <i class="fas fa-check"></i> {% trans "Confirmar" %}
+                        </button>
+                        <button type="button" class="btn btn-danger btn-decline-invitation" data-id="{{ invitation.id }}" data-bs-dismiss="modal">
+                          <i class="fas fa-times"></i> {% trans "Recusar" %}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="alert alert-info text-center">
+          <i class="fas fa-calendar-check fa-2x mb-3"></i>
+          <p>{% trans "Você não possui convites pendentes de resposta." %}</p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Agendamentos confirmados -->
+  <div class="card shadow-sm">
+    <div class="card-header bg-success text-white">
+      <h5 class="mb-0">{% trans "Meus Agendamentos Confirmados" %}</h5>
+    </div>
+    <div class="card-body">
+      {% if confirmed_invitations_list %}
+        <div class="table-responsive">
+          <table class="table table-hover">
+            <thead>
+              <tr>
+                <th>{% trans "Data/Hora" %}</th>
+                <th>{% trans "Título" %}</th>
+                <th>{% trans "Tipo" %}</th>
+                <th>{% trans "Professor" %}</th>
+                <th>{% trans "Estúdio" %}</th>
+                <th>{% trans "Ações" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for invitation in confirmed_invitations_list %}
+                <tr>
+                  <td>
+                    <strong>{{ invitation.event.start_time|date:"d/m/Y" }}</strong><br>
+                    <small>{{ invitation.event.start_time|date:"H:i" }} - {{ invitation.event.end_time|date:"H:i" }}</small>
+                  </td>
+                  <td>{{ invitation.event.title }}</td>
+                  <td>
+                    {% if invitation.event.event_type == 'CLASS' %}
+                      <span class="badge bg-primary">{% trans "Aula" %}</span>
+                    {% elif invitation.event.event_type == 'MEETING' %}
+                      <span class="badge bg-info">{% trans "Reunião" %}</span>
+                    {% elif invitation.event.event_type == 'WORKSHOP' %}
+                      <span class="badge bg-warning">{% trans "Workshop" %}</span>
+                    {% else %}
+                      <span class="badge bg-secondary">{% trans "Outro" %}</span>
+                    {% endif %}
+                  </td>
+                  <td>{{ invitation.event.professor.get_full_name }}</td>
+                  <td>
+                    {{ invitation.event.location.name }}
+                    {% if invitation.event.location.is_online %}
+                      <span class="badge bg-info">{% trans "Online" %}</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    <div class="btn-group">
+                      <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" 
+                              data-bs-target="#confirmedDetailsModal{{ invitation.id }}">
+                        <i class="fas fa-info-circle"></i> {% trans "Detalhes" %}
+                      </button>
+                      <button type="button" class="btn btn-sm btn-outline-danger btn-cancel-confirmation" 
+                              data-id="{{ invitation.id }}">
+                        <i class="fas fa-calendar-times"></i> {% trans "Cancelar" %}
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+                
+                <!-- Modal com detalhes do evento confirmado -->
+                <div class="modal fade" id="confirmedDetailsModal{{ invitation.id }}" tabindex="-1" 
+                     aria-labelledby="confirmedDetailsModalLabel{{ invitation.id }}" aria-hidden="true">
+                  <div class="modal-dialog">
+                    <div class="modal-content">
+                      <div class="modal-header">
+                        <h5 class="modal-title" id="confirmedDetailsModalLabel{{ invitation.id }}">
+                          {{ invitation.event.title }}
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                      </div>
+                      <div class="modal-body">
+                        <div class="mb-3">
+                          <h6>{% trans "Data e Horário" %}</h6>
+                          <p>{{ invitation.event.start_time|date:"d/m/Y" }}, {{ invitation.event.start_time|date:"H:i" }} - {{ invitation.event.end_time|date:"H:i" }}</p>
+                        </div>
+                        
+                        <div class="mb-3">
+                          <h6>{% trans "Professor" %}</h6>
+                          <p>{{ invitation.event.professor.get_full_name }}</p>
+                          {% if invitation.event.professor.phone %}
+                            <p><strong>{% trans "Telefone:" %}</strong> {{ invitation.event.professor.phone }}</p>
+                          {% endif %}
+                          {% if invitation.event.professor.email %}
+                            <p><strong>{% trans "Email:" %}</strong> {{ invitation.event.professor.email }}</p>
+                          {% endif %}
+                        </div>
+                        
+                        <div class="mb-3">
+                          <h6>{% trans "Estúdio" %}</h6>
+                          <p>
+                            {{ invitation.event.location.name }}
+                            {% if invitation.event.location.is_online %}
+                              <span class="badge bg-info">{% trans "Online" %}</span>
+                            {% endif %}
+                          </p>
+                          
+                          {% if invitation.event.location.is_online and invitation.event.location.meeting_link %}
+                            <p><strong>{% trans "Link:" %}</strong> 
+                              <a href="{{ invitation.event.location.meeting_link }}" target="_blank">
+                                {{ invitation.event.location.meeting_link }}
+                              </a>
+                            </p>
+                          {% endif %}
+                          
+                          {% if not invitation.event.location.is_online %}
+                            {% if invitation.event.location.address %}
+                              <p><strong>{% trans "Endereço:" %}</strong> {{ invitation.event.location.address }}</p>
+                            {% endif %}
+                            {% if invitation.event.location.phone %}
+                              <p><strong>{% trans "Telefone:" %}</strong> {{ invitation.event.location.phone }}</p>
+                            {% endif %}
+                          {% endif %}
+                        </div>
+                        
+                        {% if invitation.event.description %}
+                          <div class="mb-3">
+                            <h6>{% trans "Descrição" %}</h6>
+                            <p>{{ invitation.event.description|linebreaks }}</p>
+                          </div>
+                        {% endif %}
+                        
+                        {% if invitation.event.course %}
+                          <div class="mb-3">
+                            <h6>{% trans "Curso Associado" %}</h6>
+                            <p><strong>{% trans "Título:" %}</strong> {{ invitation.event.course.title }}</p>
+                            {% if invitation.event.course.description %}
+                              <p><strong>{% trans "Descrição:" %}</strong><br>{{ invitation.event.course.description|truncatewords:50 }}</p>
+                            {% endif %}
+                            {% if invitation.event.course.duration %}
+                              <p><strong>{% trans "Duração:" %}</strong> {{ invitation.event.course.duration }} {% trans "horas" %}</p>
+                            {% endif %}
+                          </div>
+                        {% endif %}
+                      </div>
+                      <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                          {% trans "Fechar" %}
+                        </button>
+                        <button type="button" class="btn btn-outline-danger btn-cancel-confirmation" 
+                                data-id="{{ invitation.id }}">
+                          <i class="fas fa-calendar-times"></i> {% trans "Cancelar Participação" %}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="alert alert-info text-center">
+          <p>{% trans "Você não possui agendamentos confirmados." %}</p>
+          <a href="{% url 'courses:student:dashboard' %}" class="btn btn-outline-primary mt-2">
+            <i class="fas fa-home"></i> {% trans "Ir para o Dashboard" %}
+          </a>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Função para confirmar participação
+    const confirmButtons = document.querySelectorAll('.btn-confirm-invitation');
+    confirmButtons.forEach(button => {
+      button.addEventListener('click', function() {
+        const invitationId = this.getAttribute('data-id');
+        
+        // Fazer requisição AJAX para confirmar participação
+        fetch(`/agenda/api/events/${invitationId}/confirm/`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+          },
+          body: JSON.stringify({
+            status: 'CONFIRMED'
+          })
+        })
+        .then(response => {
+          if (!response.ok) {
+            throw new Error('Erro ao confirmar participação');
+          }
+          return response.json();
+        })
+        .then(data => {
+          // Exibir mensagem de sucesso
+          alert('Participação confirmada com sucesso!');
+          // Recarregar a página
+          window.location.reload();
+        })
+        .catch(error => {
+          console.error('Erro:', error);
+          alert('Ocorreu um erro ao confirmar sua participação. Tente novamente.');
+        });
+      });
+    });
+    
+    // Função para recusar participação
+    const declineButtons = document.querySelectorAll('.btn-decline-invitation');
+    declineButtons.forEach(button => {
+      button.addEventListener('click', function() {
+        if (confirm('Tem certeza que deseja recusar este convite?')) {
+          const invitationId = this.getAttribute('data-id');
+          
+          // Fazer requisição AJAX para recusar participação
+          fetch(`/agenda/api/events/${invitationId}/confirm/`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            },
+            body: JSON.stringify({
+              status: 'CANCELLED'
+            })
+          })
+          .then(response => {
+            if (!response.ok) {
+              throw new Error('Erro ao recusar participação');
+            }
+            return response.json();
+          })
+          .then(data => {
+            // Exibir mensagem de sucesso
+            alert('Convite recusado com sucesso!');
+            // Recarregar a página
+            window.location.reload();
+          })
+          .catch(error => {
+            console.error('Erro:', error);
+            alert('Ocorreu um erro ao recusar o convite. Tente novamente.');
+          });
+        }
+      });
+    });
+    
+    // Função para cancelar confirmação
+    const cancelButtons = document.querySelectorAll('.btn-cancel-confirmation');
+    cancelButtons.forEach(button => {
+      button.addEventListener('click', function() {
+        if (confirm('Tem certeza que deseja cancelar sua participação neste evento?')) {
+          const invitationId = this.getAttribute('data-id');
+          
+          // Fazer requisição AJAX para cancelar participação
+          fetch(`/agenda/api/events/${invitationId}/confirm/`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            },
+            body: JSON.stringify({
+              status: 'CANCELLED'
+            })
+          })
+          .then(response => {
+            if (!response.ok) {
+              throw new Error('Erro ao cancelar participação');
+            }
+            return response.json();
+          })
+          .then(data => {
+            // Exibir mensagem de sucesso
+            alert('Participação cancelada com sucesso!');
+            // Recarregar a página
+            window.location.reload();
+          })
+          .catch(error => {
+            console.error('Erro:', error);
+            alert('Ocorreu um erro ao cancelar sua participação. Tente novamente.');
+          });
+        }
+      });
+    });
+  });
+</script>
+{% endblock %} 

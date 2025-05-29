@@ -1,0 +1,31 @@
+/* Placeholders para ícones de pagamento */
+
+.payment-icon {
+    display: inline-block;
+    width: 80px;
+    height: 40px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: bold;
+    text-transform: uppercase;
+    font-size: 12px;
+}
+
+.payment-icon.pix {
+    background-color: #32BCAD;
+}
+
+.payment-icon.visa {
+    background-color: #172B85;
+}
+
+.payment-icon.mastercard {
+    background-color: #EB001B;
+}
+
+.payment-icon.elo {
+    background-color: #00A4E0;
+} 

@@ -1,0 +1,575 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{% trans "Pagamento via Pix" %} - {{ course.title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .pix-container {
+        padding: 20px;
+        background-color: rgba(50, 55, 65, 0.8);
+        border-radius: 10px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+    
+    .pix-title {
+        font-size: 24px;
+        font-weight: 600;
+        margin-bottom: 20px;
+        color: #f0f0f0;
+        text-align: center;
+    }
+    
+    .qrcode-container {
+        text-align: center;
+        padding: 20px;
+        background-color: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        margin-bottom: 20px;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .qrcode-container::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, #3498db, #2ecc71);
+    }
+    
+    .qrcode-container img {
+        max-width: 220px !important;
+        margin: 0 auto;
+        border: 1px solid #eaeaea;
+        padding: 10px;
+        background-color: white;
+        border-radius: 8px;
+    }
+    
+    .brcode-input {
+        background-color: rgba(240, 240, 240, 0.9);
+        border: 1px solid #555;
+        color: #333;
+        font-family: monospace;
+        font-size: 0.9rem;
+    }
+    
+    .form-text {
+        color: #adb5bd;
+    }
+    
+    .payment-info {
+        margin-top: 20px;
+    }
+    
+    .payment-info-item {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 10px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid rgba(233, 236, 239, 0.2);
+    }
+    
+    .payment-info-item:last-child {
+        border-bottom: none;
+    }
+    
+    .payment-status {
+        padding: 15px;
+        margin-top: 20px;
+        border-radius: 8px;
+        background-color: rgba(255, 249, 230, 0.1);
+        border-left: 4px solid #ffc107;
+    }
+    
+    .payment-status.completed {
+        background-color: rgba(230, 255, 242, 0.1);
+        border-left: 4px solid #28a745;
+    }
+    
+    .payment-status.expired {
+        background-color: rgba(255, 235, 238, 0.1);
+        border-left: 4px solid #dc3545;
+    }
+    
+    .copy-btn {
+        background-color: #3498db;
+        color: white;
+        border: none;
+        transition: all 0.3s ease;
+    }
+    
+    .copy-btn:hover {
+        background-color: #2980b9;
+        color: white;
+    }
+    
+    /* Modal de simulação de pagamento */
+    .payment-simulation-modal {
+        display: none; 
+        position: fixed;
+        z-index: 1050;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        overflow: auto;
+        background-color: rgba(0,0,0,0.6);
+        animation: fadeIn 0.3s;
+    }
+    
+    .payment-simulation-content {
+        position: relative;
+        background-color: #212529;
+        margin: 15% auto;
+        padding: 20px 30px;
+        border-radius: 12px;
+        max-width: 500px;
+        box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+        animation: slideIn 0.4s;
+        text-align: center;
+    }
+    
+    @keyframes slideIn {
+        from {transform: translateY(-50px); opacity: 0;}
+        to {transform: translateY(0); opacity: 1;}
+    }
+    
+    @keyframes fadeIn {
+        from {opacity: 0;}
+        to {opacity: 1;}
+    }
+    
+    .loader {
+        border: 5px solid #f3f3f3;
+        border-radius: 50%;
+        border-top: 5px solid #3498db;
+        width: 70px;
+        height: 70px;
+        animation: spin 1s linear infinite;
+        margin: 30px auto;
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    
+    .simulation-message {
+        margin-top: 20px;
+        color: #f0f0f0;
+        font-size: 16px;
+    }
+    
+    .simulation-btn {
+        background: linear-gradient(145deg, #ff9800, #f57c00);
+        border: none;
+        box-shadow: 0 4px 12px rgba(255, 152, 0, 0.3);
+    }
+    
+    .simulation-btn:hover {
+        background: linear-gradient(145deg, #f57c00, #e65100);
+        box-shadow: 0 6px 16px rgba(255, 152, 0, 0.4);
+    }
+    
+    @media (prefers-color-scheme: dark) {
+        .qrcode-container {
+            background-color: #f8f8f8;
+        }
+        
+        .brcode-input {
+            background-color: #e8e8e8;
+            color: #222;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4 mb-5">
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <div class="card border-0 shadow">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">{% trans "Pagamento via Pix" %}</h5>
+                </div>
+                <div class="card-body">
+                    <!-- Informações do curso -->
+                    <div class="d-flex align-items-center mb-4">
+                        <div class="flex-shrink-0">
+                            {% if course.cover_image %}
+                                <img src="{{ course.cover_image.url }}" alt="{{ course.title }}" class="img-thumbnail" style="width: 100px;">
+                            {% else %}
+                                <div class="bg-light rounded text-center p-3" style="width: 100px; height: 100px;">
+                                    <i class="fas fa-book fa-3x text-muted"></i>
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div class="ms-3">
+                            <h5 class="mb-1">{{ course.title }}</h5>
+                            <p class="text-muted mb-1">{% trans "Professor" %}: {{ course.professor.get_full_name }}</p>
+                            <p class="text-primary fw-bold mb-0">R$ {{ payment.amount }}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <!-- QR Code e códigos -->
+                        <div class="col-md-6">
+                            <div class="pix-container">
+                                <h6 class="pix-title">{% trans "Pague com Pix" %}</h6>
+                                
+                                {% if payment.status == 'PENDING' %}
+                                    <div class="qrcode-container mb-4">
+                                        {% if payment.qrcode_image %}
+                                            <img src="{{ payment.qrcode_image }}" alt="QR Code Pix" class="img-fluid mb-2">
+                                            <p class="small text-dark fw-bold mt-2 mb-0">
+                                                {% trans "Escaneie o código com o aplicativo do seu banco" %}
+                                            </p>
+                                        {% else %}
+                                            <div class="alert alert-warning">
+                                                {% trans "QR Code não disponível" %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    {% if payment.brcode %}
+                                        <div class="mb-4">
+                                            <label class="form-label fw-bold text-light">{% trans "Ou copie o código Pix" %}</label>
+                                            <div class="input-group">
+                                                <input type="text" class="form-control brcode-input" id="brcode" value="{{ payment.brcode }}" readonly>
+                                                <button class="btn copy-btn" type="button" onclick="copyPixCode()">
+                                                    <i class="fas fa-copy"></i>
+                                                </button>
+                                            </div>
+                                            <div class="form-text mt-2">{% trans "Cole este código no app do seu banco" %}</div>
+                                        </div>
+                                    {% endif %}
+                                    
+                                    <!-- Botão de simulação de pagamento -->
+                                    <div class="d-grid mt-4">
+                                        <button id="simulate-payment-btn" class="btn simulation-btn text-white">
+                                            <i class="fas fa-money-bill-wave me-2"></i>{% trans "Simular pagamento" %}
+                                        </button>
+                                        <div class="form-text text-center mt-2">
+                                            <small>{% trans "Apenas para demonstração e testes" %}</small>
+                                        </div>
+                                    </div>
+                                {% else %}
+                                    <div class="alert alert-info">
+                                        {% trans "Pagamento já processado" %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <!-- Detalhes e status -->
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">{% trans "Detalhes do pagamento" %}</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="payment-info">
+                                        <div class="payment-info-item">
+                                            <span>{% trans "ID do Pagamento" %}</span>
+                                            <strong>{{ payment.id }}</strong>
+                                        </div>
+                                        <div class="payment-info-item">
+                                            <span>{% trans "Data" %}</span>
+                                            <strong>{{ payment.created_at|date:"d/m/Y H:i" }}</strong>
+                                        </div>
+                                        <div class="payment-info-item">
+                                            <span>{% trans "Método" %}</span>
+                                            <strong>Pix</strong>
+                                        </div>
+                                        <div class="payment-info-item">
+                                            <span>{% trans "Valor" %}</span>
+                                            <strong>R$ {{ payment.amount }}</strong>
+                                        </div>
+                                        <div class="payment-info-item">
+                                            <span>{% trans "Status" %}</span>
+                                            <strong>
+                                                {% if payment.status == 'PENDING' %}
+                                                    <span class="badge bg-warning">{% trans "Pendente" %}</span>
+                                                {% elif payment.status == 'PAID' %}
+                                                    <span class="badge bg-success">{% trans "Pago" %}</span>
+                                                {% elif payment.status == 'REFUNDED' %}
+                                                    <span class="badge bg-info">{% trans "Estornado" %}</span>
+                                                {% elif payment.status == 'FAILED' %}
+                                                    <span class="badge bg-danger">{% trans "Falhou" %}</span>
+                                                {% endif %}
+                                            </strong>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Status e próximos passos -->
+                                    <div class="payment-status {% if payment.status == 'PAID' %}completed{% elif payment.status == 'FAILED' %}expired{% endif %}">
+                                        {% if payment.status == 'PENDING' %}
+                                            <h6><i class="fas fa-info-circle me-2"></i>{% trans "Aguardando pagamento" %}</h6>
+                                            <p class="mb-0 small">{% trans "Após o pagamento, você será automaticamente matriculado no curso." %}</p>
+                                        {% elif payment.status == 'PAID' %}
+                                            <h6><i class="fas fa-check-circle me-2"></i>{% trans "Pagamento confirmado!" %}</h6>
+                                            <p class="mb-0 small">{% trans "Você já está matriculado no curso e pode começar a estudar agora mesmo." %}</p>
+                                        {% elif payment.status == 'REFUNDED' %}
+                                            <h6><i class="fas fa-undo me-2"></i>{% trans "Pagamento estornado" %}</h6>
+                                            <p class="mb-0 small">{% trans "Este pagamento foi estornado e sua matrícula foi cancelada." %}</p>
+                                        {% elif payment.status == 'FAILED' %}
+                                            <h6><i class="fas fa-times-circle me-2"></i>{% trans "Pagamento não realizado" %}</h6>
+                                            <p class="mb-0 small">{% trans "Houve um problema com este pagamento. Tente novamente ou use outro método." %}</p>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Ações -->
+                            <div class="mt-4 d-grid gap-2">
+                                {% if payment.status == 'PENDING' %}
+                                    <button class="btn btn-primary" id="check-payment-btn">
+                                        <i class="fas fa-sync-alt me-2"></i>{% trans "Verificar pagamento" %}
+                                    </button>
+                                    
+                                    {% if debug or debug_payments %}
+                                    <!-- Botão de simulação alternativo (apenas ambiente de desenvolvimento) -->
+                                    <a href="{% url 'payments:simulate_pix_payment' payment.id %}" class="btn btn-warning mt-2">
+                                        <i class="fas fa-flask me-2"></i>{% trans "Simular pagamento (redirecionamento)" %}
+                                    </a>
+                                    {% endif %}
+                                    
+                                    <a href="{% url 'courses:student:course_detail' course.id %}" class="btn btn-outline-secondary mt-2">
+                                        <i class="fas fa-arrow-left me-2"></i>{% trans "Voltar para o curso" %}
+                                    </a>
+                                {% elif payment.status == 'PAID' %}
+                                    <a href="{% url 'courses:student:course_learn' payment.enrollment.course.id %}" class="btn btn-success">
+                                        <i class="fas fa-play-circle me-2"></i>{% trans "Ir para o curso" %}
+                                    </a>
+                                {% else %}
+                                    <a href="{% url 'courses:student:course_detail' course.id %}" class="btn btn-primary">
+                                        <i class="fas fa-arrow-left me-2"></i>{% trans "Voltar para o curso" %}
+                                    </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de simulação de pagamento -->
+<div id="simulationModal" class="payment-simulation-modal">
+    <div class="payment-simulation-content">
+        <h4 class="text-white mb-3">{% trans "Simulando pagamento..." %}</h4>
+        <div class="loader"></div>
+        <div id="simulationMessage" class="simulation-message">
+            {% trans "Processando seu pagamento..." %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% if payment.status == 'PENDING' %}
+<script>
+    // Dados da página para JavaScript
+    const pixConfig = {
+        checkStatusUrl: "{% url 'payments:check_pix_status' payment.id %}",
+        simulateUrl: "{% url 'payments:simulate_pix_payment' payment.id %}",
+        checkPaymentText: "{% trans 'Verificar pagamento' %}",
+        verifyingText: "{% trans 'Verificando...' %}",
+        courseLearnUrl: "{% url 'courses:student:course_learn' payment.enrollment.course.id %}"
+    };
+    
+    // Função para copiar o código Pix
+    function copyPixCode() {
+        const pixCodeInput = document.getElementById('brcode');
+        pixCodeInput.select();
+        document.execCommand('copy');
+        
+        // Visual feedback
+        const copyBtn = pixCodeInput.nextElementSibling;
+        const originalText = copyBtn.innerHTML;
+        
+        // Change button appearance
+        copyBtn.innerHTML = '<i class="fas fa-check"></i>';
+        copyBtn.classList.add('bg-success');
+        
+        // Create temporary tooltip
+        const notification = document.createElement('div');
+        notification.textContent = "{% trans 'Código copiado!' %}";
+        notification.style.position = 'absolute';
+        notification.style.right = '0';
+        notification.style.top = '-40px';
+        notification.style.background = 'rgba(40, 167, 69, 0.9)';
+        notification.style.color = 'white';
+        notification.style.padding = '8px 12px';
+        notification.style.borderRadius = '4px';
+        notification.style.fontSize = '14px';
+        notification.style.opacity = '0';
+        notification.style.transition = 'opacity 0.3s ease';
+        
+        // Add tooltip to DOM
+        copyBtn.style.position = 'relative';
+        copyBtn.appendChild(notification);
+        
+        // Animate tooltip
+        setTimeout(() => {
+            notification.style.opacity = '1';
+        }, 10);
+        
+        // Reset button after delay
+        setTimeout(() => {
+            notification.style.opacity = '0';
+            copyBtn.classList.remove('bg-success');
+            copyBtn.innerHTML = originalText;
+            
+            // Remove tooltip after fade out
+            setTimeout(() => {
+                copyBtn.removeChild(notification);
+            }, 300);
+        }, 2000);
+    }
+    
+    // Função para verificar o status do pagamento periodicamente
+    document.addEventListener('DOMContentLoaded', function() {
+        const checkPaymentBtn = document.getElementById('check-payment-btn');
+        const simulatePaymentBtn = document.getElementById('simulate-payment-btn');
+        const simulationModal = document.getElementById('simulationModal');
+        const simulationMessage = document.getElementById('simulationMessage');
+        let checkInterval = null;
+        
+        // Função para verificar o status do pagamento
+        async function checkPaymentStatus() {
+            try {
+                const response = await fetch(pixConfig.checkStatusUrl);
+                const data = await response.json();
+                
+                if (data.status === 'PAID') {
+                    // Se pago, redireciona para a URL fornecida
+                    clearInterval(checkInterval);
+                    window.location.href = data.redirect_url;
+                }
+                
+                return data.status;
+            } catch (error) {
+                console.error('Erro ao verificar status:', error);
+                return null;
+            }
+        }
+        
+        // Função para simular o pagamento via AJAX
+        async function simulatePayment() {
+            try {
+                // Mostrar o modal
+                simulationModal.style.display = 'block';
+                
+                // Etapa 1: Processando pagamento
+                console.log('Simulação: Iniciando processo');
+                simulationMessage.textContent = "{% trans 'Conectando ao sistema de pagamento...' %}";
+                await new Promise(resolve => setTimeout(resolve, 1500));
+                
+                // Etapa 2: Verificando dados
+                console.log('Simulação: Verificando dados');
+                simulationMessage.textContent = "{% trans 'Verificando os dados da transação...' %}";
+                await new Promise(resolve => setTimeout(resolve, 1500));
+                
+                // Etapa 3: Confirmando pagamento
+                console.log('Simulação: Confirmando pagamento');
+                simulationMessage.textContent = "{% trans 'Confirmando pagamento...' %}";
+                
+                // Chamada real para simular o pagamento via GET (não POST)
+                console.log('Simulação: Enviando solicitação para', pixConfig.simulateUrl);
+                const response = await fetch(pixConfig.simulateUrl, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    credentials: 'same-origin'
+                });
+                
+                console.log('Simulação: Resposta recebida', response.status);
+                
+                // Verificar se houve erro na resposta
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('Erro na resposta:', errorText);
+                    throw new Error(`Erro na resposta: ${response.status} ${errorText}`);
+                }
+                
+                // Etapa 4: Finalizando
+                console.log('Simulação: Pagamento confirmado');
+                simulationMessage.textContent = "{% trans 'Pagamento confirmado! Redirecionando...' %}";
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                // Redirecionar para a página do curso
+                console.log('Simulação: Redirecionando para', pixConfig.courseLearnUrl);
+                window.location.href = pixConfig.courseLearnUrl;
+                
+            } catch (error) {
+                console.error('Erro ao simular pagamento:', error);
+                simulationMessage.innerHTML = `<span class="text-danger">{% trans 'Erro ao processar pagamento.' %}</span><br><small>${error.message}</small>`;
+                
+                // Fechar modal após um tempo
+                setTimeout(() => {
+                    simulationModal.style.display = 'none';
+                }, 5000);
+            }
+        }
+        
+        // Verifica a cada 30 segundos
+        checkInterval = setInterval(checkPaymentStatus, 30000);
+        
+        // Evento de clique no botão de verificar
+        if (checkPaymentBtn) {
+            checkPaymentBtn.addEventListener('click', async function() {
+                const btn = this;
+                const originalText = btn.innerHTML;
+                
+                // Altera o texto do botão e desabilita durante a verificação
+                btn.innerHTML = `<i class="fas fa-spinner fa-spin me-2"></i>${pixConfig.verifyingText}`;
+                btn.disabled = true;
+                
+                // Verifica o status
+                const status = await checkPaymentStatus();
+                
+                // Se não foi redirecionado (ou seja, ainda não foi pago), restaura o botão
+                setTimeout(() => {
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                }, 1000);
+            });
+        }
+        
+        // Evento de clique no botão de simulação de pagamento
+        if (simulatePaymentBtn) {
+            simulatePaymentBtn.addEventListener('click', function() {
+                simulatePayment();
+            });
+        }
+        
+        // Fechamento do modal ao clicar fora dele
+        window.addEventListener('click', function(event) {
+            if (event.target === simulationModal) {
+                simulationModal.style.display = 'none';
+            }
+        });
+    });
+</script>
+{% else %}
+<script>
+    // Função para copiar o código Pix
+    function copyPixCode() {
+        const pixCodeInput = document.getElementById('brcode');
+        pixCodeInput.select();
+        document.execCommand('copy');
+        alert("{% trans 'Código Pix copiado!' %}");
+    }
+</script>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,8 @@
+# Dependências adicionais necessárias para rodar o projeto localmente
+# Essas dependências não estavam listadas no requirements.txt original
+whitenoise==6.9.0
+openai==1.69.0
+
+# Bibliotecas do Django usadas no projeto
+django-environ==0.12.0
+dj-database-url==2.3.0 

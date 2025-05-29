@@ -1,0 +1,574 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load crispy_forms_tags %}
+
+{% block title %}
+    {% if object %}
+        {% translate "Editar Venda" %} #{{ object.id }}
+    {% else %}
+        {% translate "Nova nota avulsa" %}
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>
+            {% if object %}
+                {% translate "Editar Venda" %} #{{ object.id }}
+            {% else %}
+                {% translate "Nova nota avulsa" %}
+            {% endif %}
+        </h1>
+        <a href="{% url 'payments:singlesale_list' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i> {% translate "Voltar" %}
+        </a>
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+        
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">{% translate "Informações do Cliente" %}</h5>
+                
+                <div class="d-flex gap-2">
+                    <!-- Only display client selection dropdowns on the creation page, not the edit page -->
+                    {% if not object %}
+                    <!-- Select a company client dropdown -->
+                    {% if company_clients %}
+                    <div>
+                        <select id="company-client-select" class="form-select">
+                            <option value="">{% translate "Selecionar empresa cadastrada" %}</option>
+                            {% for company in company_clients %}
+                                <option value="{{ company.id }}" 
+                                    data-name="{{ company.company_name }}"
+                                    data-email="{{ company.client.email }}"
+                                    data-cnpj="{{ company.cnpj }}"
+                                    data-address="{{ company.client.address }}"
+                                    data-number="{{ company.client.address_number }}"
+                                    data-complement="{{ company.client.address_complement|default:'' }}"
+                                    data-neighborhood="{{ company.client.neighborhood }}"
+                                    data-city="{{ company.client.city }}"
+                                    data-state="{{ company.client.state }}"
+                                    data-zipcode="{{ company.client.zipcode }}"
+                                    data-phone="{{ company.client.phone }}"
+                                >
+                                    {{ company.company_name }} ({{ company.cnpj }})
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Select an individual client dropdown -->
+                    {% if individual_clients %}
+                    <div>
+                        <select id="individual-client-select" class="form-select">
+                            <option value="">{% translate "Selecionar aluno/pessoa física" %}</option>
+                            {% for individual in individual_clients %}
+                                <option value="{{ individual.id }}" 
+                                    data-name="{{ individual.full_name }}"
+                                    data-email="{{ individual.client.email }}"
+                                    data-cpf="{{ individual.cpf }}"
+                                    data-address="{{ individual.client.address }}"
+                                    data-number="{{ individual.client.address_number }}"
+                                    data-complement="{{ individual.client.address_complement|default:'' }}"
+                                    data-neighborhood="{{ individual.client.neighborhood }}"
+                                    data-city="{{ individual.client.city }}"
+                                    data-state="{{ individual.client.state }}"
+                                    data-zipcode="{{ individual.client.zipcode }}"
+                                    data-phone="{{ individual.client.phone }}"
+                                >
+                                    {{ individual.full_name }} ({{ individual.cpf }})
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        {{ form.customer_name|as_crispy_field }}
+                    </div>
+                    <div class="col-md-3">
+                        {{ form.customer_email|as_crispy_field }}
+                    </div>
+                    <div class="col-md-3">
+                        {{ form.customer_cpf|as_crispy_field }}
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        {{ form.customer_address|as_crispy_field }}
+                    </div>
+                    <div class="col-md-2">
+                        {{ form.customer_address_number|as_crispy_field }}
+                    </div>
+                    <div class="col-md-4">
+                        {{ form.customer_address_complement|as_crispy_field }}
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-3">
+                        {{ form.customer_neighborhood|as_crispy_field }}
+                    </div>
+                    <div class="col-md-3">
+                        {{ form.customer_city|as_crispy_field }}
+                    </div>
+                    <div class="col-md-2">
+                        {{ form.customer_state|as_crispy_field }}
+                    </div>
+                    <div class="col-md-2">
+                        {{ form.customer_zipcode|as_crispy_field }}
+                    </div>
+                    <div class="col-md-2">
+                        {{ form.customer_phone|as_crispy_field }}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">{% translate "Informações da Nota" %}</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-5">
+                        {{ form.description|as_crispy_field }}
+                    </div>
+                    <div class="col-md-2">
+                        {{ form.amount|as_crispy_field }}
+                    </div>
+                    <div class="col-md-2">
+                        {% if object %}
+                            {{ form.status|as_crispy_field }}
+                        {% else %}
+                            <div class="form-group">
+                                {{ form.status|as_crispy_field }}
+                            </div>
+                        {% endif %}
+                    </div>
+                    {% if not object %}
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="form-label">{% translate "Gerar boleto" %}</label>
+                            <div class="d-flex align-items-center border rounded p-2 bg-light" style="height: 38px;">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="generate_boleto" name="generate_boleto" style="transform: scale(1.3); cursor: pointer; margin-left: 0.5rem;">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                {% if object %}
+                <!-- Adicionar campos de boleto também na edição -->
+                <div class="row mt-3">
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label for="emission_date" class="form-label">{% translate "Data de emissão" %}</label>
+                            <input type="date" class="form-control" id="emission_date" name="emission_date" value="{{ emission_date|default:'' }}">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label for="due_date" class="form-label">{% translate "Vencimento do boleto" %}</label>
+                            <input type="date" class="form-control" id="due_date" name="due_date" value="{{ due_date|default:'' }}">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label for="recurrence_count" class="form-label">{% translate "Quantidade de recorrências" %}</label>
+                            <select class="form-select" id="recurrence_count" name="recurrence_count">
+                                <option value="0" {% if recurrence_count == 0 %}selected{% endif %}>{% translate "Sem recorrência" %}</option>
+                                <option value="2" {% if recurrence_count == 2 %}selected{% endif %}>2</option>
+                                <option value="3" {% if recurrence_count == 3 %}selected{% endif %}>3</option>
+                                <option value="4" {% if recurrence_count == 4 %}selected{% endif %}>4</option>
+                                <option value="5" {% if recurrence_count == 5 %}selected{% endif %}>5</option>
+                                <option value="6" {% if recurrence_count == 6 %}selected{% endif %}>6</option>
+                                <option value="7" {% if recurrence_count == 7 %}selected{% endif %}>7</option>
+                                <option value="8" {% if recurrence_count == 8 %}selected{% endif %}>8</option>
+                                <option value="9" {% if recurrence_count == 9 %}selected{% endif %}>9</option>
+                                <option value="10" {% if recurrence_count == 10 %}selected{% endif %}>10</option>
+                                <option value="11" {% if recurrence_count == 11 %}selected{% endif %}>11</option>
+                                <option value="12" {% if recurrence_count == 12 %}selected{% endif %}>12</option>
+                                <option value="13" {% if recurrence_count == 13 %}selected{% endif %}>13</option>
+                                <option value="14" {% if recurrence_count == 14 %}selected{% endif %}>14</option>
+                                <option value="15" {% if recurrence_count == 15 %}selected{% endif %}>15</option>
+                                <option value="16" {% if recurrence_count == 16 %}selected{% endif %}>16</option>
+                                <option value="17" {% if recurrence_count == 17 %}selected{% endif %}>17</option>
+                                <option value="18" {% if recurrence_count == 18 %}selected{% endif %}>18</option>
+                                <option value="19" {% if recurrence_count == 19 %}selected{% endif %}>19</option>
+                                <option value="20" {% if recurrence_count == 20 %}selected{% endif %}>20</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label for="has_boleto" class="form-label">{% translate "Possui boleto" %}</label>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="has_boleto" name="has_boleto" {% if has_boleto %}checked{% endif %} style="transform: scale(1.5); cursor: pointer;">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <!-- Campos condicionais que só aparecem quando o checkbox de boleto está marcado -->
+                <div id="boleto_options" class="row mt-3" style="display: none;">
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label for="emission_date" class="form-label">{% translate "Data de emissão" %}</label>
+                            <input type="date" class="form-control" id="emission_date" name="emission_date">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label for="due_date" class="form-label">{% translate "Vencimento do boleto" %}</label>
+                            <input type="date" class="form-control" id="due_date" name="due_date">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label for="recurrence_count" class="form-label">{% translate "Quantidade de recorrências" %}</label>
+                            <select class="form-select" id="recurrence_count" name="recurrence_count">
+                                <option value="0" {% if recurrence_count == 0 %}selected{% endif %}>{% translate "Sem recorrência" %}</option>
+                                <option value="2" {% if recurrence_count == 2 %}selected{% endif %}>2</option>
+                                <option value="3" {% if recurrence_count == 3 %}selected{% endif %}>3</option>
+                                <option value="4" {% if recurrence_count == 4 %}selected{% endif %}>4</option>
+                                <option value="5" {% if recurrence_count == 5 %}selected{% endif %}>5</option>
+                                <option value="6" {% if recurrence_count == 6 %}selected{% endif %}>6</option>
+                                <option value="7" {% if recurrence_count == 7 %}selected{% endif %}>7</option>
+                                <option value="8" {% if recurrence_count == 8 %}selected{% endif %}>8</option>
+                                <option value="9" {% if recurrence_count == 9 %}selected{% endif %}>9</option>
+                                <option value="10" {% if recurrence_count == 10 %}selected{% endif %}>10</option>
+                                <option value="11" {% if recurrence_count == 11 %}selected{% endif %}>11</option>
+                                <option value="12" {% if recurrence_count == 12 %}selected{% endif %}>12</option>
+                                <option value="13" {% if recurrence_count == 13 %}selected{% endif %}>13</option>
+                                <option value="14" {% if recurrence_count == 14 %}selected{% endif %}>14</option>
+                                <option value="15" {% if recurrence_count == 15 %}selected{% endif %}>15</option>
+                                <option value="16" {% if recurrence_count == 16 %}selected{% endif %}>16</option>
+                                <option value="17" {% if recurrence_count == 17 %}selected{% endif %}>17</option>
+                                <option value="18" {% if recurrence_count == 18 %}selected{% endif %}>18</option>
+                                <option value="19" {% if recurrence_count == 19 %}selected{% endif %}>19</option>
+                                <option value="20" {% if recurrence_count == 20 %}selected{% endif %}>20</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="d-flex justify-content-end">
+            <button type="submit" class="btn btn-primary">
+                {% if object %}
+                    <i class="fas fa-save me-1"></i> {% translate "Salvar Alterações" %}
+                {% else %}
+                    <i class="fas fa-plus me-1"></i> {% translate "Criar Venda" %}
+                {% endif %}
+            </button>
+        </div>
+    </form>
+</div>
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Definir data atual para o campo de emissão apenas se estivermos criando (não editando)
+    {% if not object %}
+    const today = new Date();
+    const formattedDate = today.toISOString().split('T')[0]; // Formato YYYY-MM-DD
+    
+    const emissionDateField = document.getElementById('emission_date');
+    if (emissionDateField && !emissionDateField.value) {
+        emissionDateField.value = formattedDate;
+    }
+    
+    // Controle de visibilidade dos campos de boleto
+    const generateBoletoCheckbox = document.getElementById('generate_boleto');
+    const boletoOptions = document.getElementById('boleto_options');
+    
+    // Função para mostrar/esconder campos do boleto
+    function toggleBoletoOptions() {
+        if (generateBoletoCheckbox.checked) {
+            boletoOptions.style.display = 'flex';
+        } else {
+            boletoOptions.style.display = 'none';
+        }
+    }
+    
+    // Verificar o estado inicial
+    toggleBoletoOptions();
+    
+    // Adicionar evento para alteração do checkbox
+    generateBoletoCheckbox.addEventListener('change', toggleBoletoOptions);
+    {% endif %}
+    
+    // Get client select elements
+    const companySelect = document.getElementById('company-client-select');
+    const individualSelect = document.getElementById('individual-client-select');
+    
+    // Função global para limpar documentos (CPF/CNPJ)
+    function cleanDocumentValue(value) {
+        if (value) {
+            return value.replace(/[^\d]/g, ''); // Strip all non-digit characters
+        }
+        return value;
+    }
+    
+    // Gerar um ID único para cada sessão de envio
+    const sessionId = Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+    
+    // Helper function to fill form fields
+    function fillFormFields(selectedOption, isCompany) {
+        // Define the highlight color
+        const highlightColor = "#e6f7ff"; // Light blue background color
+        
+        // Helper function to set value and highlight field
+        function setFieldValue(fieldId, value) {
+            const field = document.getElementById(fieldId);
+            field.value = value;
+            
+            // Add highlight to indicate the field was auto-filled
+            if (value) {
+                field.style.backgroundColor = highlightColor;
+            }
+        }
+        
+        // Fill all form fields and highlight them
+        setFieldValue('id_customer_name', selectedOption.getAttribute('data-name'));
+        setFieldValue('id_customer_email', selectedOption.getAttribute('data-email'));
+        setFieldValue('id_customer_cpf', isCompany ? 
+            cleanDocumentValue(selectedOption.getAttribute('data-cnpj')) : 
+            cleanDocumentValue(selectedOption.getAttribute('data-cpf')));
+        setFieldValue('id_customer_address', selectedOption.getAttribute('data-address'));
+        setFieldValue('id_customer_address_number', selectedOption.getAttribute('data-number'));
+        setFieldValue('id_customer_address_complement', selectedOption.getAttribute('data-complement'));
+        setFieldValue('id_customer_neighborhood', selectedOption.getAttribute('data-neighborhood'));
+        setFieldValue('id_customer_city', selectedOption.getAttribute('data-city'));
+        setFieldValue('id_customer_state', selectedOption.getAttribute('data-state'));
+        setFieldValue('id_customer_zipcode', selectedOption.getAttribute('data-zipcode'));
+        setFieldValue('id_customer_phone', selectedOption.getAttribute('data-phone'));
+        
+        // Set invoice flag to true by default when selecting a client
+        document.getElementById('id_generate_invoice').checked = true;
+    }
+    
+    // Add input event listeners to all customer fields to remove highlight on manual edit
+    const customerFields = [
+        'id_customer_name', 'id_customer_email', 'id_customer_cpf',
+        'id_customer_address', 'id_customer_address_number', 'id_customer_address_complement',
+        'id_customer_neighborhood', 'id_customer_city', 'id_customer_state', 
+        'id_customer_zipcode', 'id_customer_phone'
+    ];
+    
+    customerFields.forEach(fieldId => {
+        const field = document.getElementById(fieldId);
+        if (field) {
+            field.addEventListener('input', function() {
+                // Remove background color when user manually edits the field
+                this.style.backgroundColor = '';
+            });
+        }
+    });
+    
+    // Add event listener for company client selection
+    if (companySelect) {
+        companySelect.addEventListener('change', function() {
+            const selectedOption = this.options[this.selectedIndex];
+            if (this.value) {
+                // Reset individual client selector
+                if (individualSelect) {
+                    individualSelect.value = '';
+                }
+                fillFormFields(selectedOption, true);
+            }
+        });
+    }
+    
+    // Add event listener for individual client selection
+    if (individualSelect) {
+        individualSelect.addEventListener('change', function() {
+            const selectedOption = this.options[this.selectedIndex];
+            if (this.value) {
+                // Reset company client selector
+                if (companySelect) {
+                    companySelect.value = '';
+                }
+                fillFormFields(selectedOption, false);
+            }
+        });
+    }
+    
+    // Add form submission handler to clean CPF/CNPJ field
+    const form = document.querySelector('form');
+    if (form) {
+        console.log('Form encontrado, adicionando evento de submit');
+        
+        // Flag para controlar se o formulário já foi enviado
+        let isSubmitting = false;
+        
+        // Substituir o botão de envio original para evitar problemas de eventos duplicados
+        const originalSubmitBtn = form.querySelector('button[type="submit"]');
+        if (originalSubmitBtn) {
+            const newBtn = originalSubmitBtn.cloneNode(true);
+            originalSubmitBtn.parentNode.replaceChild(newBtn, originalSubmitBtn);
+            
+            // Verificar se é um formulário de edição ou criação
+            const isEditForm = {% if object %}true{% else %}false{% endif %};
+            
+            // Adicionar evento de clique no novo botão
+            newBtn.addEventListener('click', function(e) {
+                // Se for formulário de edição, deixar o envio normal do formulário acontecer
+                if (isEditForm) {
+                    console.log('Formulário de edição, enviando normalmente');
+                    // Não prevenir o comportamento padrão para edição
+                    return true;
+                }
+                
+                // A partir daqui, só executa se for formulário de criação
+                
+                // Impedir a propagação e comportamento padrão
+                e.preventDefault();
+                e.stopPropagation();
+                
+                // Verificar se já está em processo de envio
+                if (isSubmitting) {
+                    console.log('Formulário já está sendo enviado, ignorando clique duplicado');
+                    return false;
+                }
+                
+                // Marcar como em processo de envio IMEDIATAMENTE
+                isSubmitting = true;
+                
+                // Mostrar indicador de carregamento imediatamente para feedback visual
+                const submitBtn = newBtn;
+                const originalBtnText = submitBtn.innerHTML;
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Enviando...';
+                
+                try {
+                    console.log('Formulário sendo enviado via AJAX com ID de sessão: ' + sessionId);
+                    
+                    // Obter todos os dados do formulário
+                    const formData = new FormData(form);
+                    
+                    // Adicionar ID de sessão único para evitar processamento duplicado no backend
+                    formData.append('session_id', sessionId);
+                    
+                    // Garantir que o status está sendo enviado
+                    const statusField = document.getElementById('id_status');
+                    if (statusField) {
+                        console.log(`Status selecionado: ${statusField.value}`);
+                        formData.set('status', statusField.value);
+                    }
+                    
+                    // Log de todos os dados sendo enviados
+                    console.log('Dados do formulário:');
+                    for (let pair of formData.entries()) {
+                        console.log(pair[0] + ': ' + pair[1]);
+                    }
+                    
+                    // Get the CPF/CNPJ field and clean it
+                    const cpfField = document.getElementById('id_customer_cpf');
+                    if (cpfField && cpfField.value) {
+                        const originalValue = cpfField.value;
+                        const cleanedValue = cleanDocumentValue(cpfField.value);
+                        console.log(`CPF/CNPJ limpo: de [${originalValue}] para [${cleanedValue}]`);
+                        formData.set('customer_cpf', cleanedValue);
+                    } else {
+                        console.log('Campo CPF/CNPJ não encontrado ou vazio');
+                    }
+                    
+                    // Enviar dados via fetch para a API
+                    fetch('{% url "payments:create_singlesale_api" %}', {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                        }
+                    })
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        console.log('Resposta da API:', data);
+                        
+                        if (data.success) {
+                            // Mostrar mensagem de sucesso
+                            alert('Venda criada com sucesso!');
+                            
+                            // Redirecionar para a lista de vendas
+                            window.location.href = data.redirect_url;
+                        } else {
+                            // Mostrar erro
+                            alert('Erro: ' + (data.error || 'Erro desconhecido ao processar a venda.'));
+                            
+                            // Restaurar botão apenas em caso de erro
+                            submitBtn.disabled = false;
+                            submitBtn.innerHTML = originalBtnText;
+                            isSubmitting = false; // Resetar flag
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Erro ao enviar formulário:', error);
+                        
+                        // Restaurar botão
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = originalBtnText;
+                        isSubmitting = false; // Resetar flag
+                        
+                        // Mostrar erro
+                        alert('Erro ao processar: ' + error.message);
+                    });
+                    
+                } catch (error) {
+                    console.error('Erro no processamento do formulário:', error);
+                    
+                    // Restaurar botão
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalBtnText;
+                    isSubmitting = false; // Resetar flag
+                    
+                    alert('Erro inesperado: ' + error.message);
+                }
+                
+                // Impedir o envio tradicional do formulário
+                return false;
+            });
+            
+            // Remover o evento de submit padrão do formulário
+            form.addEventListener('submit', function(e) {
+                const isEditForm = {% if object %}true{% else %}false{% endif %};
+                
+                // Bloquear submit apenas para formulários de criação
+                if (!isEditForm) {
+                    e.preventDefault();
+                    console.log('Formulário de criação, prevenindo envio padrão');
+                    return false;
+                }
+                
+                console.log('Formulário de edição, permitindo envio padrão');
+                // Para formulários de edição, permitir o submit normal
+                return true;
+            });
+        } else {
+            console.warn('Botão de envio não encontrado!');
+        }
+    }
+});
+</script>
+{% endblock %}
+{% endblock %} 

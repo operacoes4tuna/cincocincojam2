@@ -29,32 +29,32 @@
         </div>
     </div>
 
-    <!-- Card de Alunos (placeholder para etapa futura) -->
+    <!-- Card de Alunos -->
     <div class="col-md-4">
         <div class="card shadow mb-4">
             <div class="card-body text-center">
-                <div class="display-4 text-primary mb-2">0</div>
+                <div class="display-4 text-primary mb-2">{{ total_students }}</div>
                 <h4>Alunos</h4>
                 <div class="small text-muted">
-                    <span class="badge bg-info">Funcionalidade em breve</span>
+                    <span class="badge bg-info">{{ recent_students }} novos em 30 dias</span>
                 </div>
                 <hr>
-                <button disabled class="btn btn-sm btn-outline-primary">Ver Todos</button>
+                <a href="{% url 'payments:professor_students' %}" class="btn btn-sm btn-outline-primary">Ver Todos</a>
             </div>
         </div>
     </div>
 
-    <!-- Card de Ganhos (placeholder para etapa futura) -->
+    <!-- Card de Ganhos -->
     <div class="col-md-4">
         <div class="card shadow mb-4">
             <div class="card-body text-center">
-                <div class="display-4 text-primary mb-2">R$ 0,00</div>
+                <div class="display-4 text-success mb-2">R$ {{ total_revenue|floatformat:2 }}</div>
                 <h4>Ganhos</h4>
                 <div class="small text-muted">
-                    <span class="badge bg-info">Funcionalidade em breve</span>
+                    <span class="badge bg-success">Pagamentos recebidos</span>
                 </div>
                 <hr>
-                <button disabled class="btn btn-sm btn-outline-primary">Ver Relatório</button>
+                <a href="{% url 'payments:professor_dashboard' %}" class="btn btn-sm btn-outline-success">Ver Relatório</a>
             </div>
         </div>
     </div>

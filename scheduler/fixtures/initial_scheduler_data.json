@@ -1,0 +1,171 @@
+[
+  {
+    "model": "scheduler.eventlocation",
+    "pk": 1,
+    "fields": {
+      "name": "Sala de Aula Principal",
+      "address": "Av. Exemplo, 123 - Sala 201",
+      "is_online": false,
+      "meeting_link": null,
+      "is_active": true,
+      "created_by": 2,
+      "created_at": "2025-03-30T14:00:00Z",
+      "updated_at": "2025-03-30T14:00:00Z"
+    }
+  },
+  {
+    "model": "scheduler.eventlocation",
+    "pk": 2,
+    "fields": {
+      "name": "Sala de Música",
+      "address": "Av. Exemplo, 123 - Sala 305",
+      "is_online": false,
+      "meeting_link": null,
+      "is_active": true,
+      "created_by": 2,
+      "created_at": "2025-03-30T14:00:00Z",
+      "updated_at": "2025-03-30T14:00:00Z"
+    }
+  },
+  {
+    "model": "scheduler.eventlocation",
+    "pk": 3,
+    "fields": {
+      "name": "Aula Online",
+      "address": null,
+      "is_online": true,
+      "meeting_link": "https://meet.example.com/aula-musica",
+      "is_active": true,
+      "created_by": 2,
+      "created_at": "2025-03-30T14:00:00Z",
+      "updated_at": "2025-03-30T14:00:00Z"
+    }
+  },
+  {
+    "model": "scheduler.event",
+    "pk": 1,
+    "fields": {
+      "title": "Aula de Fundamentos da Notação Musical",
+      "description": "Primeira aula do curso de Teoria Musical para Iniciantes. Vamos abordar os conceitos básicos de leitura e escrita musical.",
+      "start_time": "2025-04-01T14:00:00Z",
+      "end_time": "2025-04-01T15:30:00Z",
+      "all_day": false,
+      "location": 1,
+      "professor": 2,
+      "course": 1,
+      "event_type": "CLASS",
+      "status": "SCHEDULED",
+      "color": "#3788d8",
+      "max_participants": 15,
+      "is_recurring": true,
+      "recurrence_rule": "FREQ=WEEKLY;COUNT=4",
+      "created_at": "2025-03-30T14:00:00Z",
+      "updated_at": "2025-03-30T14:00:00Z"
+    }
+  },
+  {
+    "model": "scheduler.event",
+    "pk": 2,
+    "fields": {
+      "title": "Aula de Introdução ao Piano",
+      "description": "Primeira aula do curso de Piano para Iniciantes. Vamos conhecer o instrumento e aprender as primeiras notas.",
+      "start_time": "2025-04-02T10:00:00Z",
+      "end_time": "2025-04-02T11:30:00Z",
+      "all_day": false,
+      "location": 2,
+      "professor": 2,
+      "course": 2,
+      "event_type": "CLASS",
+      "status": "SCHEDULED",
+      "color": "#3788d8",
+      "max_participants": 8,
+      "is_recurring": false,
+      "recurrence_rule": null,
+      "created_at": "2025-03-30T14:00:00Z",
+      "updated_at": "2025-03-30T14:00:00Z"
+    }
+  },
+  {
+    "model": "scheduler.event",
+    "pk": 3,
+    "fields": {
+      "title": "Workshop de Produção Musical",
+      "description": "Workshop especial para alunos interessados em produção musical. Traremos um produtor convidado para demonstrações práticas.",
+      "start_time": "2025-04-05T13:00:00Z",
+      "end_time": "2025-04-05T17:00:00Z",
+      "all_day": false,
+      "location": 3,
+      "professor": 2,
+      "course": 3,
+      "event_type": "WORKSHOP",
+      "status": "CONFIRMED",
+      "color": "#9900ff",
+      "max_participants": 20,
+      "is_recurring": false,
+      "recurrence_rule": null,
+      "created_at": "2025-03-30T14:00:00Z",
+      "updated_at": "2025-03-30T14:00:00Z"
+    }
+  },
+  {
+    "model": "scheduler.event",
+    "pk": 4,
+    "fields": {
+      "title": "Reunião com Pais e Alunos",
+      "description": "Reunião semestral para feedback e planejamento de atividades.",
+      "start_time": "2025-04-10T18:00:00Z",
+      "end_time": "2025-04-10T19:30:00Z",
+      "all_day": false,
+      "location": 3,
+      "professor": 2,
+      "course": null,
+      "event_type": "MEETING",
+      "status": "SCHEDULED",
+      "color": "#6aa84f",
+      "max_participants": 30,
+      "is_recurring": false,
+      "recurrence_rule": null,
+      "created_at": "2025-03-30T14:00:00Z",
+      "updated_at": "2025-03-30T14:00:00Z"
+    }
+  },
+  {
+    "model": "scheduler.eventparticipant",
+    "pk": 1,
+    "fields": {
+      "event": 1,
+      "student": 3,
+      "attendance_status": "CONFIRMED",
+      "confirmed_at": "2025-03-31T08:00:00Z",
+      "notes": "",
+      "created_at": "2025-03-30T14:00:00Z",
+      "updated_at": "2025-03-31T08:00:00Z"
+    }
+  },
+  {
+    "model": "scheduler.eventparticipant",
+    "pk": 2,
+    "fields": {
+      "event": 2,
+      "student": 3,
+      "attendance_status": "PENDING",
+      "confirmed_at": null,
+      "notes": "",
+      "created_at": "2025-03-30T14:00:00Z",
+      "updated_at": "2025-03-30T14:00:00Z"
+    }
+  },
+  {
+    "model": "scheduler.eventparticipant",
+    "pk": 3,
+    "fields": {
+      "event": 3,
+      "student": 3,
+      "attendance_status": "CONFIRMED",
+      "confirmed_at": "2025-03-31T09:15:00Z",
+      "notes": "Aluno solicitou material extra",
+      "created_at": "2025-03-30T14:00:00Z",
+      "updated_at": "2025-03-31T09:15:00Z"
+    }
+  }
+]

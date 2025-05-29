@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Assistente Virtual - CincoCincoJAM{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <h1 class="mb-4">Assistente Virtual</h1>
+    
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Chat com o Assistente</h5>
+                </div>
+                <div class="card-body">
+                    <div id="chat-messages" class="chat-container mb-3" style="height: 350px; overflow-y: auto;">
+                        <div class="text-center text-muted py-5">
+                            <p>Seu assistente virtual está pronto para ajudar.</p>
+                            <p>Envie uma mensagem para começar a conversa.</p>
+                        </div>
+                    </div>
+                    <form id="chat-form" class="d-flex">
+                        <input type="text" id="user-message" class="form-control me-2" placeholder="Digite sua mensagem aqui...">
+                        <button type="submit" class="btn btn-primary">Enviar</button>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="mt-3 text-center">
+                <p class="text-muted small">Este é um assistente em desenvolvimento. Em breve estará integrado com recursos avançados de IA.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        let sessionId = localStorage.getItem('chat_session_id');
+        const chatForm = document.getElementById('chat-form');
+        const userMessageInput = document.getElementById('user-message');
+        const chatMessagesContainer = document.getElementById('chat-messages');
+        
+        // Cria uma nova sessão se não existir
+        if (!sessionId) {
+            createNewSession();
+        }
+        
+        // Função para criar uma nova sessão
+        function createNewSession() {
+            fetch('/assistant/api/session/create/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    sessionId = data.session_id;
+                    localStorage.setItem('chat_session_id', sessionId);
+                }
+            })
+            .catch(error => {
+                console.error('Erro ao criar sessão:', error);
+            });
+        }
+        
+        // Envia a mensagem do usuário
+        chatForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const messageText = userMessageInput.value.trim();
+            if (!messageText) return;
+            
+            // Adiciona a mensagem do usuário à interface
+            addMessageToChat('user', messageText);
+            
+            // Limpa o campo de entrada
+            userMessageInput.value = '';
+            
+            // Envia a mensagem para o servidor
+            sendMessageToServer(messageText);
+        });
+        
+        // Função para enviar mensagem para o servidor
+        function sendMessageToServer(message) {
+            fetch('/assistant/api/message/send/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    session_id: sessionId,
+                    message: message
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Adiciona a resposta do bot à interface
+                    addMessageToChat('bot', data.response);
+                }
+            })
+            .catch(error => {
+                console.error('Erro ao enviar mensagem:', error);
+                addMessageToChat('bot', 'Desculpe, ocorreu um erro na comunicação. Por favor, tente novamente mais tarde.');
+            });
+        }
+        
+        // Função para adicionar mensagem ao chat
+        function addMessageToChat(sender, content) {
+            // Remove a mensagem inicial se existir
+            const initialMessage = chatMessagesContainer.querySelector('.text-center.text-muted.py-5');
+            if (initialMessage) {
+                chatMessagesContainer.innerHTML = '';
+            }
+            
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('message', sender === 'user' ? 'user-message' : 'bot-message', 'mb-2', 'p-2');
+            
+            if (sender === 'user') {
+                messageElement.classList.add('text-end');
+                messageElement.innerHTML = `
+                    <div class="d-inline-block bg-light rounded p-2 px-3">
+                        <div class="message-content">${content}</div>
+                    </div>
+                `;
+            } else {
+                messageElement.classList.add('text-start');
+                messageElement.innerHTML = `
+                    <div class="d-inline-block bg-primary text-white rounded p-2 px-3">
+                        <div class="message-content">${content}</div>
+                    </div>
+                `;
+            }
+            
+            chatMessagesContainer.appendChild(messageElement);
+            
+            // Rola para o final do container de mensagens
+            chatMessagesContainer.scrollTop = chatMessagesContainer.scrollHeight;
+        }
+    });
+</script>
+{% endblock %}

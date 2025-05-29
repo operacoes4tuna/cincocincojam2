@@ -1,0 +1,239 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{{ event.title }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4 mb-5">
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">{{ event.title }}</h5>
+            <div>
+                <a href="{% url 'scheduler:event_list' %}" class="btn btn-outline-secondary btn-sm me-2">
+                    <i class="fas fa-arrow-left"></i> {% trans "Voltar para a lista" %}
+                </a>
+                <a href="{% url 'scheduler:event_edit' event.id %}" class="btn btn-outline-primary btn-sm">
+                    <i class="fas fa-edit"></i> {% trans "Editar" %}
+                </a>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="mb-4">
+                        <h6 class="mb-3 fw-bold">{% trans "Informações Básicas" %}</h6>
+                        
+                        <div class="row mb-2">
+                            <div class="col-md-4 text-muted">{% trans "Tipo" %}</div>
+                            <div class="col-md-8">
+                                {% if event.event_type == 'CLASS' %}
+                                    <span class="badge bg-primary">{% trans "Aula" %}</span>
+                                {% elif event.event_type == 'MEETING' %}
+                                    <span class="badge bg-success">{% trans "Reunião" %}</span>
+                                {% elif event.event_type == 'WORKSHOP' %}
+                                    <span class="badge bg-purple">{% trans "Workshop" %}</span>
+                                {% else %}
+                                    <span class="badge bg-warning">{% trans "Outro" %}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-2">
+                            <div class="col-md-4 text-muted">{% trans "Status" %}</div>
+                            <div class="col-md-8">
+                                {% if event.status == 'SCHEDULED' %}
+                                    <span class="badge bg-info">{% trans "Agendado" %}</span>
+                                {% elif event.status == 'CONFIRMED' %}
+                                    <span class="badge bg-success">{% trans "Confirmado" %}</span>
+                                {% elif event.status == 'CANCELLED' %}
+                                    <span class="badge bg-danger">{% trans "Cancelado" %}</span>
+                                {% elif event.status == 'COMPLETED' %}
+                                    <span class="badge bg-secondary">{% trans "Concluído" %}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-2">
+                            <div class="col-md-4 text-muted">{% trans "Descrição" %}</div>
+                            <div class="col-md-8">
+                                {{ event.description|linebreaks|default:"Sem descrição" }}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <h6 class="mb-3 fw-bold">{% trans "Horário" %}</h6>
+                        
+                        <div class="row mb-2">
+                            <div class="col-md-4 text-muted">{% trans "Data" %}</div>
+                            <div class="col-md-8">
+                                {{ event.start_time|date:"d/m/Y" }}
+                                {% if event.all_day %}
+                                    <span class="badge bg-light text-dark">{% trans "Dia inteiro" %}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        {% if not event.all_day %}
+                        <div class="row mb-2">
+                            <div class="col-md-4 text-muted">{% trans "Horário" %}</div>
+                            <div class="col-md-8">
+                                {{ event.start_time|date:"H:i" }} - {{ event.end_time|date:"H:i" }}
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="row mb-2">
+                            <div class="col-md-4 text-muted">{% trans "Duração" %}</div>
+                            <div class="col-md-8">
+                                {{ event.duration_minutes }} {% trans "minutos" %}
+                            </div>
+                        </div>
+                        
+                        {% if event.is_recurring %}
+                        <div class="row mb-2">
+                            <div class="col-md-4 text-muted">{% trans "Recorrência" %}</div>
+                            <div class="col-md-8">
+                                <span class="badge bg-primary">{% trans "Evento recorrente" %}</span>
+                                {% if event.recurrence_rule %}
+                                <br><small class="text-muted">{{ event.recurrence_rule }}</small>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mb-4">
+                        <h6 class="mb-3 fw-bold">{% trans "Estúdio" %}</h6>
+                        
+                        {% if event.location %}
+                            <div class="row mb-2">
+                                <div class="col-md-4 text-muted">{% trans "Estúdio" %}</div>
+                                <div class="col-md-8">
+                                    {{ event.location.name }}
+                                    {% if event.location.is_online %}
+                                        <span class="badge bg-info">{% trans "Online" %}</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            {% if not event.location.is_online %}
+                            <div class="row mb-2">
+                                <div class="col-md-4 text-muted">{% trans "Endereço" %}</div>
+                                <div class="col-md-8">
+                                    {{ event.location.address|default:"Endereço não especificado" }}
+                                </div>
+                            </div>
+                            {% endif %}
+                            
+                            {% if event.location.is_online and event.location.meeting_link %}
+                            <div class="row mb-2">
+                                <div class="col-md-4 text-muted">{% trans "Link" %}</div>
+                                <div class="col-md-8">
+                                    <a href="{{ event.location.meeting_link }}" target="_blank">
+                                        {{ event.location.meeting_link }}
+                                    </a>
+                                </div>
+                            </div>
+                            {% endif %}
+                        {% else %}
+                            <div class="alert alert-light">
+                                {% trans "Nenhum estúdio especificado para este evento." %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    {% if event.course %}
+                    <div class="mb-4">
+                        <h6 class="mb-3 fw-bold">{% trans "Curso Associado" %}</h6>
+                        
+                        <div class="row mb-2">
+                            <div class="col-md-4 text-muted">{% trans "Curso" %}</div>
+                            <div class="col-md-8">
+                                <a href="#" class="text-decoration-none">{{ event.course.title }}</a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <div class="col-md-4">
+                    <div class="card mb-4">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0">{% trans "Participantes" %}</h6>
+                            <a href="{% url 'scheduler:add_participant' event.id %}" class="btn btn-primary btn-sm">
+                                <i class="fas fa-plus"></i> {% trans "Adicionar" %}
+                            </a>
+                        </div>
+                        <div class="card-body">
+                            {% if participants %}
+                                <ul class="list-group">
+                                    {% for participant in participants %}
+                                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                                            {{ participant.student.get_full_name }}
+                                            
+                                            {% if participant.attendance_status == 'PENDING' %}
+                                                <span class="badge bg-warning">{% trans "Pendente" %}</span>
+                                            {% elif participant.attendance_status == 'CONFIRMED' %}
+                                                <span class="badge bg-primary">{% trans "Confirmado" %}</span>
+                                            {% elif participant.attendance_status == 'ATTENDED' %}
+                                                <span class="badge bg-success">{% trans "Presente" %}</span>
+                                            {% elif participant.attendance_status == 'MISSED' %}
+                                                <span class="badge bg-danger">{% trans "Ausente" %}</span>
+                                            {% endif %}
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+                                
+                                <div class="mt-3 text-end">
+                                    <a href="{% url 'scheduler:participant_list' event.id %}" class="btn btn-sm btn-outline-primary">
+                                        {% trans "Ver todos" %}
+                                    </a>
+                                </div>
+                            {% else %}
+                                <div class="alert alert-light">
+                                    {% trans "Nenhum participante registrado para este evento." %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div class="card-footer text-center">
+                            <small class="text-muted">
+                                {{ participants|length }} / 
+                                {% if event.max_participants %}
+                                    {{ event.max_participants }}
+                                {% else %}
+                                    ∞
+                                {% endif %}
+                                {% trans "participantes" %}
+                            </small>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0">{% trans "Informações do Sistema" %}</h6>
+                        </div>
+                        <div class="card-body">
+                            <ul class="list-group list-group-flush">
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span>{% trans "Criado em" %}</span>
+                                    <span>{{ event.created_at|date:"d/m/Y H:i" }}</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span>{% trans "Última atualização" %}</span>
+                                    <span>{{ event.updated_at|date:"d/m/Y H:i" }}</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span>{% trans "Professor" %}</span>
+                                    <span>{{ event.professor.get_full_name }}</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

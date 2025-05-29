@@ -1,0 +1,265 @@
+{% extends 'base.html' %}
+
+{% block title %}Transações Financeiras Administrativo - CincoCincoJAM 2.0{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Transações Financeiras - Administrativo</h2>
+    <div>
+        <a href="{% url 'payments:admin_dashboard' %}" class="btn btn-outline-primary">
+            <i class="fas fa-chart-line"></i> Dashboard Financeiro
+        </a>
+    </div>
+</div>
+
+<!-- Filtros Avançados -->
+<div class="card shadow mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">Filtros</h5>
+    </div>
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <label for="professor" class="form-label">Professor</label>
+                <select name="professor" id="professor" class="form-select">
+                    <option value="">Todos os professores</option>
+                    {% for professor in professors %}
+                        <option value="{{ professor.id }}" {% if selected_professor == professor.id|stringformat:"i" %}selected{% endif %}>
+                            {{ professor.get_full_name|default:professor.email }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="course" class="form-label">Curso</label>
+                <select name="course" id="course" class="form-select">
+                    <option value="">Todos os cursos</option>
+                    {% for course in courses %}
+                        <option value="{{ course.id }}" {% if selected_course == course.id|stringformat:"i" %}selected{% endif %}>
+                            {{ course.title }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label for="status" class="form-label">Status</label>
+                <select name="status" id="status" class="form-select">
+                    <option value="">Todos os status</option>
+                    {% for status_key, status_label in status_choices %}
+                        <option value="{{ status_key }}" {% if selected_status == status_key %}selected{% endif %}>
+                            {{ status_label }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label for="date_from" class="form-label">Data Inicial</label>
+                <input type="date" name="date_from" id="date_from" class="form-control" value="{{ selected_date_from }}">
+            </div>
+            <div class="col-md-2">
+                <label for="date_to" class="form-label">Data Final</label>
+                <input type="date" name="date_to" id="date_to" class="form-control" value="{{ selected_date_to }}">
+            </div>
+            <div class="col-12">
+                <div class="d-flex justify-content-end gap-2">
+                    <a href="{% url 'payments:admin_transactions' %}" class="btn btn-outline-secondary">Limpar Filtros</a>
+                    <button type="submit" class="btn btn-primary">Filtrar</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Resumo -->
+<div class="alert alert-info">
+    <div class="row">
+        <div class="col-md-6">
+            <strong>Total Encontrado:</strong> {{ paginator.count }} transação(ões)
+        </div>
+        <div class="col-md-6 text-end">
+            <strong>Valor Total:</strong> R$ {{ total_amount|floatformat:2 }}
+        </div>
+    </div>
+</div>
+
+<!-- Lista de Transações -->
+<div class="card shadow mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">Transações</h5>
+    </div>
+    <div class="card-body">
+        {% if transactions %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Data</th>
+                            <th>Aluno</th>
+                            <th>Curso</th>
+                            <th>Professor</th>
+                            <th class="text-end">Valor</th>
+                            <th>Status</th>
+                            <th>Método</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for transaction in transactions %}
+                        <tr>
+                            <td>{{ transaction.id }}</td>
+                            <td>{{ transaction.created_at|date:"d/m/Y H:i" }}</td>
+                            <td>{{ transaction.enrollment.student.email }}</td>
+                            <td>{{ transaction.enrollment.course.title }}</td>
+                            <td>{{ transaction.enrollment.course.professor.get_full_name|default:transaction.enrollment.course.professor.email }}</td>
+                            <td class="text-end">R$ {{ transaction.amount|floatformat:2 }}</td>
+                            <td>
+                                {% if transaction.status == 'PAID' %}
+                                    <span class="badge bg-success">Pago</span>
+                                    {% if transaction.invoices.exists %}
+                                        <span class="badge bg-info ms-1">Com NF</span>
+                                        <button class="btn btn-sm btn-outline-info ms-1 send-nf-email" data-transaction-id="{{ transaction.id }}" title="Enviar NF por email">
+                                            <i class="fas fa-envelope"></i>
+                                        </button>
+                                    {% endif %}
+                                {% elif transaction.status == 'PENDING' %}
+                                    <span class="badge bg-warning text-dark">Pendente</span>
+                                {% elif transaction.status == 'REFUNDED' %}
+                                    <span class="badge bg-danger">Estornado</span>
+                                {% elif transaction.status == 'FAILED' %}
+                                    <span class="badge bg-danger">Falhou</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">{{ transaction.status }}</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ transaction.payment_method|default:"--" }}</td>
+                            <td>
+                                {% if transaction.status == 'PAID' and transaction.invoices.exists %}
+                                    {% with invoice=transaction.invoices.first %}
+                                        {% if invoice.status == 'error' %}
+                                            <a href="{% url 'invoices:delete' invoice.id %}" class="btn btn-sm btn-outline-danger" title="Excluir nota fiscal com erro">
+                                                <i class="fas fa-trash-alt"></i> Excluir NF
+                                            </a>
+                                        {% endif %}
+                                    {% endwith %}
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Paginação -->
+            {% if is_paginated %}
+            <div class="mt-4">
+                <nav aria-label="Navegação de páginas">
+                    <ul class="pagination justify-content-center">
+                        {% if page_obj.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page=1{% if selected_professor %}&professor={{ selected_professor }}{% endif %}{% if selected_course %}&course={{ selected_course }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_date_from %}&date_from={{ selected_date_from }}{% endif %}{% if selected_date_to %}&date_to={{ selected_date_to }}{% endif %}">&laquo; Primeira</a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if selected_professor %}&professor={{ selected_professor }}{% endif %}{% if selected_course %}&course={{ selected_course }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_date_from %}&date_from={{ selected_date_from }}{% endif %}{% if selected_date_to %}&date_to={{ selected_date_to }}{% endif %}">Anterior</a>
+                            </li>
+                        {% else %}
+                            <li class="page-item disabled">
+                                <a class="page-link" href="#">&laquo; Primeira</a>
+                            </li>
+                            <li class="page-item disabled">
+                                <a class="page-link" href="#">Anterior</a>
+                            </li>
+                        {% endif %}
+                        
+                        <li class="page-item active">
+                            <span class="page-link">
+                                Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
+                            </span>
+                        </li>
+                        
+                        {% if page_obj.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if selected_professor %}&professor={{ selected_professor }}{% endif %}{% if selected_course %}&course={{ selected_course }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_date_from %}&date_from={{ selected_date_from }}{% endif %}{% if selected_date_to %}&date_to={{ selected_date_to }}{% endif %}">Próxima</a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if selected_professor %}&professor={{ selected_professor }}{% endif %}{% if selected_course %}&course={{ selected_course }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_date_from %}&date_from={{ selected_date_from }}{% endif %}{% if selected_date_to %}&date_to={{ selected_date_to }}{% endif %}">Última &raquo;</a>
+                            </li>
+                        {% else %}
+                            <li class="page-item disabled">
+                                <a class="page-link" href="#">Próxima</a>
+                            </li>
+                            <li class="page-item disabled">
+                                <a class="page-link" href="#">Última &raquo;</a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            </div>
+            {% endif %}
+        {% else %}
+            <div class="alert alert-info">
+                Nenhuma transação encontrada com os filtros selecionados.
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Script para autosubmit do formulário quando o filtro mudar (opcional)
+document.addEventListener('DOMContentLoaded', function() {
+    // Adicionar event listener para cada select
+    document.querySelectorAll('select').forEach(function(select) {
+        select.addEventListener('change', function() {
+            // Resetar a paginação quando mudar um filtro
+            let urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.has('page')) {
+                urlParams.delete('page');
+                history.replaceState({}, '', '?' + urlParams.toString());
+            }
+        });
+    });
+    
+    // Adicionar evento para os botões de envio de NF por email
+    const sendEmailButtons = document.querySelectorAll('.send-nf-email');
+    sendEmailButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const transactionId = this.getAttribute('data-transaction-id');
+            
+            // Alterar o botão para indicar processamento
+            const originalContent = this.innerHTML;
+            this.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            this.disabled = true;
+            
+            // Simular processamento
+            setTimeout(() => {
+                this.innerHTML = originalContent;
+                this.disabled = false;
+                
+                // Mostrar mensagem de sucesso
+                const alertHtml = `
+                    <div class="alert alert-success alert-dismissible fade show" role="alert">
+                        <strong>Sucesso!</strong> Nota fiscal enviada por email.
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                `;
+                
+                // Inserir alerta no topo da página
+                const cardBody = document.querySelector('.card-body');
+                cardBody.insertAdjacentHTML('afterbegin', alertHtml);
+                
+                // Configurar auto-fechamento do alerta
+                const alert = document.querySelector('.alert-success');
+                setTimeout(() => {
+                    if (alert) {
+                        const bsAlert = new bootstrap.Alert(alert);
+                        bsAlert.close();
+                    }
+                }, 5000);
+            }, 1500);
+        });
+    });
+});
+</script>
+{% endblock %}

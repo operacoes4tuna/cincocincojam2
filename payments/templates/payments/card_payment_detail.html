@@ -1,0 +1,380 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{% trans "Pagamento via Cartão" %} - {{ course.title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .card-payment-status {
+        padding: 30px;
+        border-radius: 10px;
+        box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+        background-color: #fff;
+        margin-bottom: 30px;
+    }
+    
+    .status-icon {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 20px;
+        font-size: 2.5rem;
+    }
+    
+    .status-icon.pending {
+        background-color: #ffeeba;
+        color: #856404;
+    }
+    
+    .status-icon.success {
+        background-color: #d4edda;
+        color: #155724;
+    }
+    
+    .status-icon.failed {
+        background-color: #f8d7da;
+        color: #721c24;
+    }
+    
+    .payment-details {
+        padding: 20px;
+        border-radius: 10px;
+        background-color: #f8f9fa;
+        margin-bottom: 20px;
+    }
+    
+    .payment-info-item {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 10px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #eee;
+    }
+    
+    .payment-info-item:last-child {
+        border-bottom: none;
+        margin-bottom: 0;
+        padding-bottom: 0;
+    }
+    
+    .card-icon {
+        font-size: 2rem;
+        margin-right: 15px;
+        color: #6c63ff;
+    }
+    
+    .card-info {
+        display: flex;
+        align-items: center;
+        padding: 15px;
+        border-radius: 8px;
+        background-color: #f1f1f1;
+        margin-bottom: 20px;
+    }
+    
+    .card-brand {
+        text-transform: uppercase;
+        font-weight: bold;
+    }
+    
+    @media (max-width: 767px) {
+        .card-payment-status {
+            padding: 20px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+    <div class="row">
+        <div class="col-12">
+            <h3 class="mb-4">{% trans "Pagamento do Curso" %}</h3>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'home' %}">{% trans "Início" %}</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'courses:student:course_detail' course.id %}">{{ course.title }}</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">{% trans "Pagamento via Cartão" %}</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card-payment-status text-center">
+                <!-- Status pendente -->
+                {% if is_pending %}
+                <div class="status-icon pending">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <h4 class="mb-3">{% trans "Processando Pagamento" %}</h4>
+                <p class="text-muted mb-4">{% trans "Estamos processando seu pagamento. Por favor, aguarde alguns instantes." %}</p>
+                <div class="d-flex justify-content-center">
+                    <div class="spinner-border text-warning me-2" role="status">
+                        <span class="visually-hidden">{% trans "Carregando..." %}</span>
+                    </div>
+                    <span>{% trans "Verificando status..." %}</span>
+                </div>
+                {% endif %}
+                
+                <!-- Status aprovado -->
+                {% if is_paid %}
+                <div class="status-icon success">
+                    <i class="fas fa-check"></i>
+                </div>
+                <h4 class="mb-3">{% trans "Pagamento Aprovado!" %}</h4>
+                <p class="text-success font-weight-bold">{% trans "Sua inscrição no curso foi confirmada." %}</p>
+                <p class="text-muted mb-4">{% trans "O valor de" %} R$ {{ payment.amount|floatformat:2 }} {% trans "foi aprovado." %}</p>
+                <div class="alert alert-success d-inline-block">
+                    <i class="fas fa-calendar-check me-2"></i> 
+                    {% trans "Pagamento aprovado em" %} {{ payment.paid_at|date:"d/m/Y" }} {% trans "às" %} {{ payment.paid_at|date:"H:i" }}
+                </div>
+                {% endif %}
+                
+                <!-- Status recusado -->
+                {% if is_failed %}
+                <div class="status-icon failed">
+                    <i class="fas fa-times"></i>
+                </div>
+                <h4 class="mb-3">{% trans "Pagamento Não Aprovado" %}</h4>
+                <p class="text-danger">{% trans "Não foi possível processar seu pagamento." %}</p>
+                <p class="text-muted mb-4">{% trans "Por favor, verifique os dados do cartão ou tente outro método de pagamento." %}</p>
+                {% endif %}
+                
+                <!-- Ações -->
+                <div class="mt-4">
+                    {% if is_paid %}
+                    <a href="{% url 'courses:student:dashboard' %}" class="btn btn-primary">
+                        <i class="fas fa-play-circle me-2"></i> {% trans "Acessar Meus Cursos" %}
+                    </a>
+                    {% elif is_failed %}
+                    <a href="{% url 'payments:create_card_payment' course.id %}" class="btn btn-primary">
+                        <i class="fas fa-credit-card me-2"></i> {% trans "Tentar Novamente" %}
+                    </a>
+                    <a href="{% url 'payments:create_pix_payment' course.id %}" class="btn btn-outline-primary ms-2">
+                        <i class="fas fa-qrcode me-2"></i> {% trans "Pagar com PIX" %}
+                    </a>
+                    {% elif is_pending %}
+                    <a href="javascript:location.reload();" class="btn btn-primary">
+                        <i class="fas fa-sync-alt me-2"></i> {% trans "Atualizar Status" %}
+                    </a>
+                    
+                    {% if payment.payment_method == "CREDIT_CARD" %}
+                    <span class="d-block text-muted small mt-3">
+                        {% trans "As transações com cartão geralmente são processadas em poucos minutos. Se o status não atualizar, entre em contato conosco." %}
+                    </span>
+                    {% endif %}
+                    {% endif %}
+                    
+                    {% if is_pending and user.is_superuser %}
+                    <a href="{% url 'payments:simulate_card_payment' payment.id %}" class="btn btn-sm btn-warning mt-3">
+                        <i class="fas fa-magic me-1"></i> {% trans "Simular Pagamento (Admin)" %}
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="mb-0">{% trans "Informações do Pagamento" %}</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="card-info">
+                                <i class="fas fa-credit-card card-icon"></i>
+                                <div>
+                                    <div class="card-brand">CARTÃO</div>
+                                    <div>•••• •••• •••• 1234</div>
+                                </div>
+                            </div>
+                            
+                            <div class="payment-info-item">
+                                <span>{% trans "Método:" %}</span>
+                                <span>
+                                    {% if payment.payment_method == "CREDIT_CARD" %}
+                                    {% trans "Cartão de Crédito" %}
+                                    {% elif payment.payment_method == "DEBIT_CARD" %}
+                                    {% trans "Cartão de Débito" %}
+                                    {% else %}
+                                    {% trans "Cartão" %}
+                                    {% endif %}
+                                </span>
+                            </div>
+                            
+                            <div class="payment-info-item">
+                                <span>{% trans "Status:" %}</span>
+                                <span>
+                                    {% if is_paid %}
+                                    <span class="badge bg-success">{% trans "Aprovado" %}</span>
+                                    {% elif is_pending %}
+                                    <span class="badge bg-warning text-dark">{% trans "Processando" %}</span>
+                                    {% elif is_failed %}
+                                    <span class="badge bg-danger">{% trans "Recusado" %}</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">{{ payment.status }}</span>
+                                    {% endif %}
+                                </span>
+                            </div>
+                            
+                            <div class="payment-info-item">
+                                <span>{% trans "Número:" %}</span>
+                                <span>{{ payment.id }}</span>
+                            </div>
+                            
+                            <div class="payment-info-item">
+                                <span>{% trans "Data:" %}</span>
+                                <span>{{ payment.created_at|date:"d/m/Y H:i" }}</span>
+                            </div>
+                            
+                            {% if payment.paid_at %}
+                            <div class="payment-info-item">
+                                <span>{% trans "Aprovado em:" %}</span>
+                                <span>{{ payment.paid_at|date:"d/m/Y H:i" }}</span>
+                            </div>
+                            {% endif %}
+                            
+                            <div class="payment-info-item">
+                                <span>{% trans "Total:" %}</span>
+                                <strong>R$ {{ payment.amount|floatformat:2 }}</strong>
+                            </div>
+                            
+                            <div class="payment-info-item">
+                                <span>{% trans "Parcelamento:" %}</span>
+                                <span>1x {% trans "de" %} R$ {{ payment.amount|floatformat:2 }}</span>
+                            </div>
+                            
+                            <div class="payment-info-item">
+                                <span>{% trans "Instrutor:" %}</span>
+                                <span>{{ course.professor.get_full_name }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="mb-0">{% trans "Informações do Curso" %}</h5>
+                        </div>
+                        <div class="card-body">
+                            <h5 class="mb-3">{{ course.title }}</h5>
+                            <p class="text-muted mb-3">{{ course.short_description|truncatechars:150 }}</p>
+                            
+                            <div class="payment-info-item">
+                                <span>{% trans "Instrutor:" %}</span>
+                                <span>{{ course.professor.get_full_name }}</span>
+                            </div>
+                            
+                            <div class="payment-info-item">
+                                <span>{% trans "Valor:" %}</span>
+                                <strong>R$ {{ course.price|floatformat:2 }}</strong>
+                            </div>
+                        </div>
+                        <div class="card-footer bg-transparent">
+                            <a href="{% url 'courses:student:course_detail' course.id %}" class="btn btn-outline-primary btn-sm w-100">
+                                <i class="fas fa-external-link-alt me-2"></i> {% trans "Ver Detalhes do Curso" %}
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">{% trans "Suporte ao Cliente" %}</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-3">
+                        <i class="fas fa-headset text-primary me-3 fs-4"></i>
+                        <div>
+                            <h6 class="mb-0">{% trans "Precisa de ajuda?" %}</h6>
+                            <p class="text-muted small mb-0">{% trans "Entre em contato com nosso suporte" %}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex align-items-center mb-3">
+                        <i class="fas fa-envelope text-primary me-3 fs-4"></i>
+                        <div>
+                            <h6 class="mb-0">contato@cincocincojam.com.br</h6>
+                            <p class="text-muted small mb-0">{% trans "Nossa equipe responde em até 24h" %}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-phone-alt text-primary me-3 fs-4"></i>
+                        <div>
+                            <h6 class="mb-0">(11) 5555-5555</h6>
+                            <p class="text-muted small mb-0">{% trans "Seg-Sex: 9h às 18h" %}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">{% trans "Perguntas Frequentes" %}</h5>
+                </div>
+                <div class="card-body">
+                    <div class="accordion" id="faqAccordion">
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="faqHeading1">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faqCollapse1" aria-expanded="false" aria-controls="faqCollapse1">
+                                    {% trans "Quanto tempo leva para confirmar o pagamento?" %}
+                                </button>
+                            </h2>
+                            <div id="faqCollapse1" class="accordion-collapse collapse" aria-labelledby="faqHeading1" data-bs-parent="#faqAccordion">
+                                <div class="accordion-body">
+                                    {% trans "Pagamentos com cartão de crédito são confirmados geralmente em poucos minutos. Em alguns casos, pode levar até 24 horas." %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="faqHeading2">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faqCollapse2" aria-expanded="false" aria-controls="faqCollapse2">
+                                    {% trans "O que fazer se meu pagamento foi recusado?" %}
+                                </button>
+                            </h2>
+                            <div id="faqCollapse2" class="accordion-collapse collapse" aria-labelledby="faqHeading2" data-bs-parent="#faqAccordion">
+                                <div class="accordion-body">
+                                    {% trans "Verifique se os dados do cartão estão corretos e se há limite disponível. Você também pode tentar outro cartão ou método de pagamento, como PIX." %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="faqHeading3">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faqCollapse3" aria-expanded="false" aria-controls="faqCollapse3">
+                                    {% trans "Como acessar o curso após o pagamento?" %}
+                                </button>
+                            </h2>
+                            <div id="faqCollapse3" class="accordion-collapse collapse" aria-labelledby="faqHeading3" data-bs-parent="#faqAccordion">
+                                <div class="accordion-body">
+                                    {% trans "Após a confirmação do pagamento, seu acesso será liberado automaticamente. Basta acessar a seção 'Meus Cursos' no seu painel de aluno." %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if is_pending %}
+<script>
+    // Atualizar a página a cada 30 segundos para verificar o status do pagamento
+    setTimeout(function() {
+        location.reload();
+    }, 30000);
+</script>
+{% endif %}
+{% endblock %} 

@@ -1,6 +1,118 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block title %}{% if current_lesson %}{{ current_lesson.title }} - {% endif %}{{ course.title }} - CincoCincoJAM 2.0{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/custom.css' %}">
+<style>
+    /* Prevent video download/right-click */
+    iframe[src*="youtube.com"],
+    iframe[src*="play.giancorrea.55jam.com.br"] {
+        pointer-events: none !important; /* Disables all interactions including download */
+    }
+    
+    /* Container needs click events for player controls */
+    .video-container, .ratio {
+        pointer-events: auto !important;
+    }
+    
+    /* Esconder elementos específicos de download do player de vídeo */
+    video::-webkit-media-controls-enclosure {
+        overflow: hidden !important;
+    }
+    
+    video::-webkit-media-controls-panel {
+        width: calc(100% + 30px) !important;
+    }
+    
+    /* Hide download button in browser context menu */
+    @media screen and (-webkit-min-device-pixel-ratio:0) {
+        video::-internal-media-controls-download-button {
+            display: none !important;
+        }
+    }
+    
+    /* Anti-piracy message */
+    .anti-piracy-message {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.8);
+        color: white;
+        display: none;
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+        z-index: 100;
+        text-align: center;
+        padding: 20px;
+    }
+    
+    .anti-piracy-message h3 {
+        color: #ff4444;
+        margin-bottom: 10px;
+    }
+    
+    /* Estilos para mensagem de aula agendada */
+    .scheduled-lesson-message {
+        background-color: #f8f9fa;
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+        padding: 2rem;
+        text-align: center;
+        margin-bottom: 20px;
+        min-height: 250px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+    }
+    
+    .scheduled-lesson-message i.fa-clock {
+        font-size: 3rem;
+        color: #ffc107;
+        margin-bottom: 1rem;
+    }
+    
+    .scheduled-lesson-message h4 {
+        color: #495057;
+        margin-bottom: 1rem;
+    }
+    
+    .scheduled-lesson-message .release-date {
+        font-size: 1.2rem;
+        font-weight: bold;
+        color: #6c757d;
+        margin-bottom: 1rem;
+    }
+    
+    .scheduled-lesson-message p {
+        color: #6c757d;
+    }
+    
+    /* Estilos para aulas bloqueadas */
+    .list-group-item.disabled {
+        background-color: #f8f9fa;
+        border-color: #e9ecef;
+    }
+    
+    .list-group-item.disabled .fa-lock {
+        color: #adb5bd;
+        font-size: 0.9rem;
+    }
+    
+    .list-group-item.disabled h6 {
+        color: #adb5bd;
+    }
+    
+    .list-group-item.disabled:hover {
+        background-color: #f1f3f5;
+    }
+</style>
+{% endblock %}
 
 {% block content %}
 <div class="row">
@@ -14,29 +126,44 @@
             <div class="card-body p-0">
                 <div class="list-group list-group-flush">
                     {% for lesson in lessons %}
-                        <a href="{% url 'courses:student:course_learn' course.id %}?lesson_id={{ lesson.id }}" 
-                           class="list-group-item list-group-item-action {% if lesson.id == current_lesson.id %}active{% endif %}">
-                            <div class="d-flex w-100 justify-content-between align-items-center">
-                                <div>
-                                    <div class="d-flex align-items-center">
-                                        <span class="badge 
-                                        {% if lesson.id in completed_lessons %}
-                                            bg-success
-                                        {% elif lesson.id == current_lesson.id %}
-                                            bg-primary
-                                        {% else %}
-                                            bg-secondary
-                                        {% endif %} rounded-circle me-2">
-                                            {{ lesson.order }}
-                                        </span>
-                                        <h6 class="mb-0">{{ lesson.title }}</h6>
+                        {% if not has_lesson_releases or lesson.id in released_lessons or lesson.id in completed_lessons or is_professor or is_admin %}
+                            <a href="{% url 'courses:student:course_learn' course.id %}?lesson_id={{ lesson.id }}" 
+                               class="list-group-item list-group-item-action {% if lesson.id == current_lesson.id %}active{% endif %}">
+                                <div class="d-flex w-100 justify-content-between align-items-center">
+                                    <div>
+                                        <div class="d-flex align-items-center">
+                                            <span class="badge 
+                                            {% if lesson.id in completed_lessons %}
+                                                bg-success
+                                            {% elif lesson.id == current_lesson.id %}
+                                                bg-primary
+                                            {% else %}
+                                                bg-secondary
+                                            {% endif %} rounded-circle me-2">
+                                                {{ lesson.order }}
+                                            </span>
+                                            <h6 class="mb-0">{{ lesson.title }}</h6>
+                                        </div>
                                     </div>
+                                    {% if lesson.id in completed_lessons %}
+                                        <i class="fas fa-check-circle text-success"></i>
+                                    {% endif %}
                                 </div>
-                                {% if lesson.id in completed_lessons %}
-                                    <i class="fas fa-check-circle text-success"></i>
-                                {% endif %}
+                            </a>
+                        {% else %}
+                            <!-- Aulas não liberadas aparecem bloqueadas -->
+                            <div class="list-group-item list-group-item-action disabled">
+                                <div class="d-flex w-100 justify-content-between align-items-center">
+                                    <div>
+                                        <div class="d-flex align-items-center">
+                                            <span class="badge bg-secondary rounded-circle me-2">{{ lesson.order }}</span>
+                                            <h6 class="mb-0 text-muted">{{ lesson.title }}</h6>
+                                        </div>
+                                    </div>
+                                    <i class="fas fa-lock text-muted"></i>
+                                </div>
                             </div>
-                        </a>
+                        {% endif %}
                     {% endfor %}
                 </div>
             </div>
@@ -80,25 +207,118 @@
                 </div>
                 <div class="card-body">
                     {% if current_lesson.video_url %}
-                        <div class="ratio ratio-16x9 mb-4">
-                            {% if "youtube.com" in current_lesson.video_url or "youtu.be" in current_lesson.video_url %}
-                                {% if youtube_video_id %}
-                                    <iframe src="https://www.youtube.com/embed/{{ youtube_video_id }}?rel=0" 
-                                            title="{{ current_lesson.title }}" 
-                                            allowfullscreen></iframe>
-                                {% else %}
-                                    <div class="d-flex justify-content-center align-items-center bg-light">
-                                        <a href="{{ current_lesson.video_url }}" target="_blank" class="btn btn-primary">
-                                            <i class="fas fa-external-link-alt me-2"></i> Abrir Vídeo
-                                        </a>
-                                    </div>
-                                {% endif %}
-                            {% else %}
-                                <div class="d-flex justify-content-center align-items-center bg-light">
-                                    <a href="{{ current_lesson.video_url }}" target="_blank" class="btn btn-primary">
-                                        <i class="fas fa-external-link-alt me-2"></i> Abrir Vídeo
-                                    </a>
+                        <div class="video-container">
+                            {% if current_lesson.id in completed_lessons %}
+                                <div class="lesson-completed-badge">
+                                    <i class="fas fa-check-circle"></i> Concluída
                                 </div>
+                            {% endif %}
+                            
+                            {% if not is_lesson_released %}
+                                <div class="scheduled-lesson-message">
+                                    <i class="fas fa-clock fa-3x"></i>
+                                    <h4>Aula agendada</h4>
+                                    <p class="release-date">
+                                        Esta aula será liberada em {{ release_date|date:"d/m/Y \à\s H:i" }}.
+                                    </p>
+                                    <p>Entre em contato com seu professor para mais informações.</p>
+                                </div>
+                            {% elif is_lesson_released and private_video_url and "s3.amazonaws.com" in private_video_url %}
+                                <div class="video-wrapper mb-2">
+                                    <video id="custom-video-{{ current_lesson.id }}"
+                                        controls
+                                        playsinline
+                                        autoplay
+                                        class="video-js"
+                                        controlsList="nodownload noremoteplayback" 
+                                        disablePictureInPicture
+                                        oncontextmenu="return false;"
+                                        style="background-color: #000;">
+                                        <source src="{{ private_video_url }}" type="video/mp4">
+                                        Seu navegador não suporta a tag de vídeo.
+                                    </video>
+                                </div>
+                            {% elif is_lesson_released and "s3.amazonaws.com" in current_lesson.video_url %}
+                                <div class="video-wrapper mb-2">
+                                    <video id="custom-video-{{ current_lesson.id }}"
+                                        controls
+                                        playsinline
+                                        autoplay
+                                        class="video-js"
+                                        controlsList="nodownload noremoteplayback" 
+                                        disablePictureInPicture
+                                        oncontextmenu="return false;"
+                                        style="background-color: #000;">
+                                        <source src="{{ current_lesson.video_url }}" type="video/mp4">
+                                        Seu navegador não suporta a tag de vídeo.
+                                    </video>
+                                </div>
+                            {% elif is_lesson_released and "play.giancorrea.55jam.com.br" in current_lesson.video_url or "55jam.com.br" in current_lesson.video_url %}
+                                <div class="video-wrapper mb-2">
+                                    <video id="custom-video-{{ current_lesson.id }}"
+                                        controls
+                                        playsinline
+                                        autoplay
+                                        class="video-js"
+                                        controlsList="nodownload noremoteplayback" 
+                                        disablePictureInPicture
+                                        oncontextmenu="return false;"
+                                        style="background-color: #000;">
+                                        <source src="{{ current_lesson.video_url }}" type="video/mp4">
+                                        Seu navegador não suporta a tag de vídeo.
+                                    </video>
+                                </div>
+                            {% elif is_lesson_released %}
+                                <!-- Para iframes usamos a classe ratio -->
+                                <div class="ratio" style="--bs-aspect-ratio: 56.25%;">
+                                    {% if private_video_url %}
+                                        <!-- Player para vídeos privados -->
+                                        <iframe id="custom-video-{{ current_lesson.id }}" 
+                                                src="{{ private_video_url }}" 
+                                                title="{{ current_lesson.title }}" 
+                                                style="width:100%; height:100%; position:absolute; top:0; left:0; border:0; object-fit:fill;"
+                                                frameborder="0"
+                                                allow="autoplay; fullscreen"
+                                                allowfullscreen></iframe>
+                                    {% elif "youtube.com" in current_lesson.video_url or "youtu.be" in current_lesson.video_url %}
+                                        {% if youtube_video_id %}
+                                            <iframe id="youtube-video-{{ current_lesson.id }}" 
+                                                    src="https://www.youtube.com/embed/{{ youtube_video_id }}?rel=0&enablejsapi=1" 
+                                                    title="{{ current_lesson.title }}" 
+                                                    style="width:100%; height:100%; position:absolute; top:0; left:0; border:0;"
+                                                    frameborder="0"
+                                                    allowfullscreen></iframe>
+                                        {% else %}
+                                            <div class="d-flex justify-content-center align-items-center bg-light">
+                                                <a href="{{ current_lesson.video_url }}" target="_blank" class="btn btn-primary">
+                                                    <i class="fas fa-external-link-alt me-2"></i> Abrir Vídeo
+                                                </a>
+                                            </div>
+                                        {% endif %}
+                                    {% else %}
+                                        <div class="d-flex justify-content-center align-items-center bg-light">
+                                            <a href="{{ current_lesson.video_url }}" target="_blank" class="btn btn-primary">
+                                                <i class="fas fa-external-link-alt me-2"></i> Abrir Vídeo
+                                            </a>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            {% endif %}
+                            
+                            {% if is_lesson_released %}
+                            <div class="progress-container">
+                                <div id="video-progress-bar-{{ current_lesson.id }}" 
+                                    class="video-progress-bar" 
+                                    role="progressbar" 
+                                    aria-valuenow="0" 
+                                    aria-valuemin="0" 
+                                    aria-valuemax="100"></div>
+                            </div>
+                            
+                            <div class="d-flex justify-content-between">
+                                <span class="small">Progresso:</span>
+                                <span class="small" id="video-progress-bar-{{ current_lesson.id }}-text">0%</span>
+                            </div>
                             {% endif %}
                         </div>
                     {% else %}
@@ -108,6 +328,7 @@
                         </div>
                     {% endif %}
                     
+                    {% if is_lesson_released %}
                     <h4>Descrição da Aula</h4>
                     <div class="mb-4">
                         {% if current_lesson.description %}
@@ -147,6 +368,7 @@
                             </button>
                         {% endif %}
                     </div>
+                    {% endif %}
                 </div>
             </div>
             
@@ -175,10 +397,233 @@
         {% else %}
             <div class="alert alert-warning">
                 <i class="fas fa-exclamation-triangle me-2"></i>
-                Nenhuma aula disponível para este curso.
+                {% if has_lesson_releases and pending_releases %}
+                    Não há aulas liberadas no momento. A primeira aula será liberada em {{ pending_releases.0.release_date|date:"d/m/Y \à\s H:i" }}.
+                {% else %}
+                    Nenhuma aula disponível para este curso.
+                {% endif %}
             </div>
         {% endif %}
     </div>
 </div>
 
+{% if has_lesson_releases and pending_releases %}
+<div class="card shadow mt-4">
+    <div class="card-header bg-warning text-dark">
+        <h5 class="mb-0"><i class="fas fa-clock me-2"></i> Próximas Aulas a Serem Liberadas</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Aula</th>
+                        <th>Data de Liberação</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for release in pending_releases %}
+                    <tr>
+                        <td>{{ release.lesson.title }}</td>
+                        <td>{{ release.release_date|date:"d/m/Y H:i" }}</td>
+                        <td>
+                            <span class="badge bg-warning text-dark">
+                                <i class="fas fa-clock me-1"></i> Aguardando liberação
+                            </span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/video-player.js' %}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Adicionar mensagem anti-pirataria
+        const videoContainer = document.querySelector('.video-container');
+        
+        if (videoContainer) {
+            // Função para remover opções de download do player
+            const removeDownloadOptions = function() {
+                // Encontrar todos os vídeos
+                const videos = document.querySelectorAll('video');
+                
+                videos.forEach(function(video) {
+                    // Forçar a remoção do botão de download programaticamente
+                    if (video.controlsList) {
+                        video.controlsList.add('nodownload');
+                    }
+                    
+                    // Desativar menu de contexto específico para vídeo
+                    video.addEventListener('contextmenu', function(e) {
+                        e.preventDefault();
+                        antiPiracyMessage.style.display = 'flex';
+                        return false;
+                    });
+                });
+                
+                // Adicionar manipulador global para teclas que podem ser usadas para download
+                document.addEventListener('keydown', function(e) {
+                    // Prevenir Ctrl+S, Ctrl+U, Ctrl+Shift+I
+                    if (
+                        (e.ctrlKey && e.keyCode === 83) || // Ctrl+S
+                        (e.ctrlKey && e.keyCode === 85) || // Ctrl+U
+                        (e.ctrlKey && e.shiftKey && e.keyCode === 73) // Ctrl+Shift+I
+                    ) {
+                        e.preventDefault();
+                        return false;
+                    }
+                });
+            };
+            
+            // Executar ao carregar e após um curto delay para garantir
+            removeDownloadOptions();
+            setTimeout(removeDownloadOptions, 1000);
+            
+            // Criar elemento de mensagem anti-pirataria
+            const antiPiracyMessage = document.createElement('div');
+            antiPiracyMessage.className = 'anti-piracy-message';
+            antiPiracyMessage.innerHTML = `
+                <h3><i class="fas fa-exclamation-triangle me-2"></i>Conteúdo Protegido</h3>
+                <p>Este conteúdo é de uso exclusivo para alunos matriculados.</p>
+                <p>A cópia, download ou distribuição não autorizada é proibida por lei.</p>
+                <p>O uso indevido pode resultar em penalidades legais.</p>
+                <button class="btn btn-sm btn-light mt-3">Fechar</button>
+            `;
+            
+            videoContainer.appendChild(antiPiracyMessage);
+            
+            // Evento de clique com botão direito no vídeo
+            videoContainer.addEventListener('contextmenu', function(e) {
+                e.preventDefault();
+                antiPiracyMessage.style.display = 'flex';
+                return false;
+            });
+            
+            // Manipulador do botão fechar
+            const closeButton = antiPiracyMessage.querySelector('button');
+            closeButton.addEventListener('click', function() {
+                antiPiracyMessage.style.display = 'none';
+            });
+        }
+    
+        {% if current_lesson and current_lesson.video_url and is_lesson_released %}
+            // Verificar primeiro os casos de vídeo HTML5 direto (MP4)
+            {% if private_video_url and "s3.amazonaws.com" in private_video_url %}
+                // Inicializar para vídeos HTML5 diretos
+                const videoTracker = new VideoProgressTracker({
+                    videoElementId: 'custom-video-{{ current_lesson.id }}',
+                    progressBarId: 'video-progress-bar-{{ current_lesson.id }}',
+                    lessonId: {{ current_lesson.id }},
+                    csrfToken: '{{ csrf_token }}',
+                    autoMarkComplete: true,
+                    completionThreshold: 90,
+                    debug: true,
+                    isHtml5Video: true
+                });
+            {% elif "s3.amazonaws.com" in current_lesson.video_url or "play.giancorrea.55jam.com.br" in current_lesson.video_url or "55jam.com.br" in current_lesson.video_url %}
+                // Inicializar para vídeos HTML5 diretos (incluindo 55Jam)
+                const videoTracker = new VideoProgressTracker({
+                    videoElementId: 'custom-video-{{ current_lesson.id }}',
+                    progressBarId: 'video-progress-bar-{{ current_lesson.id }}',
+                    lessonId: {{ current_lesson.id }},
+                    csrfToken: '{{ csrf_token }}',
+                    autoMarkComplete: true,
+                    completionThreshold: 90,
+                    debug: true,
+                    isHtml5Video: true
+                });
+            // Depois lidar com outros casos
+            {% elif private_video_url %}
+                // Inicializar para vídeos privados via iframe
+                const videoTracker = new VideoProgressTracker({
+                    videoElementId: 'custom-video-{{ current_lesson.id }}',
+                    progressBarId: 'video-progress-bar-{{ current_lesson.id }}',
+                    lessonId: {{ current_lesson.id }},
+                    csrfToken: '{{ csrf_token }}',
+                    autoMarkComplete: true,
+                    completionThreshold: 90,
+                    debug: true
+                });
+            {% elif youtube_video_id %}
+                // Inicializar o rastreador de progresso do vídeo do YouTube
+                const videoTracker = new VideoProgressTracker({
+                    videoElementId: 'youtube-video-{{ current_lesson.id }}',
+                    progressBarId: 'video-progress-bar-{{ current_lesson.id }}',
+                    lessonId: {{ current_lesson.id }},
+                    csrfToken: '{{ csrf_token }}',
+                    autoMarkComplete: true,
+                    completionThreshold: 90,
+                    debug: true
+                });
+            {% endif %}
+        
+        // Evento para marcar a aula como concluída automaticamente
+        document.addEventListener('lessonCompleted', function(e) {
+            const lessonId = e.detail.lessonId;
+            const percentage = e.detail.percentage;
+            
+            // Atualiza a interface se a aula atual foi concluída
+            if (lessonId === {{ current_lesson.id }} && !document.querySelector('.lesson-completed-badge')) {
+                // Adiciona o emblema de conclusão
+                const videoContainer = document.querySelector('.video-container');
+                if (videoContainer) {
+                    const badge = document.createElement('div');
+                    badge.className = 'lesson-completed-badge';
+                    badge.innerHTML = '<i class="fas fa-check-circle"></i> Concluída';
+                    videoContainer.appendChild(badge);
+                }
+                
+                // Atualiza o botão de conclusão
+                const completeButton = document.querySelector('button[type="submit"].btn-success');
+                if (completeButton) {
+                    completeButton.disabled = true;
+                    completeButton.innerHTML = '<i class="fas fa-check-circle me-1"></i> Aula Concluída';
+                }
+                
+                // Atualiza a lista de aulas
+                const lessonItem = document.querySelector(`.list-group-item.active`);
+                if (lessonItem) {
+                    const iconContainer = document.createElement('i');
+                    iconContainer.className = 'fas fa-check-circle text-success';
+                    lessonItem.querySelector('.d-flex.w-100').appendChild(iconContainer);
+                    
+                    // Atualiza a badge da aula na lista
+                    const badge = lessonItem.querySelector('.badge');
+                    if (badge) {
+                        badge.classList.remove('bg-primary');
+                        badge.classList.add('bg-success');
+                    }
+                }
+                
+                // Atualiza a barra de progresso do curso
+                const progressBar = document.querySelector('.progress-bar');
+                if (progressBar) {
+                    // Incrementa em 1/total_lessons * 100
+                    const totalLessons = {{ lessons|length }};
+                    const currentProgress = parseInt(progressBar.getAttribute('aria-valuenow'));
+                    const newProgress = currentProgress + (1 / totalLessons * 100);
+                    progressBar.style.width = newProgress + '%';
+                    progressBar.setAttribute('aria-valuenow', newProgress);
+                    progressBar.textContent = Math.round(newProgress) + '%';
+                    
+                    // Atualiza também o indicador principal de progresso
+                    const progressBadge = document.querySelector('.card-header .badge');
+                    if (progressBadge) {
+                        progressBadge.textContent = Math.round(newProgress) + '% Concluído';
+                    }
+                }
+            }
+        });
+        {% endif %}
+    });
+</script>
 {% endblock %}

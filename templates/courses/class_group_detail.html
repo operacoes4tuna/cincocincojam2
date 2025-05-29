@@ -1,0 +1,182 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{{ class_group.name }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h1>{{ class_group.name }}</h1>
+            <p class="lead">
+                {% if class_group.description %}
+                    {{ class_group.description }}
+                {% else %}
+                    <span class="text-muted">{% trans "Sem descrição" %}</span>
+                {% endif %}
+            </p>
+            <p>
+                <span class="badge bg-primary">{{ students_count }} {% trans "alunos" %}</span>
+                <span class="badge bg-secondary">{{ courses_count }} {% trans "cursos" %}</span>
+                <span class="badge bg-info">{{ class_group.professor }}</span>
+            </p>
+        </div>
+        <div class="col-md-4 text-end">
+            <a href="{% url 'courses:class_group_update' class_group.id %}" class="btn btn-primary">
+                <i class="fas fa-edit"></i> {% trans "Editar Turma" %}
+            </a>
+            <a href="{% url 'courses:class_group_list' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> {% trans "Voltar" %}
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-12">
+            <ul class="nav nav-tabs" id="classGroupTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="students-tab" data-bs-toggle="tab" data-bs-target="#students" type="button" role="tab" aria-controls="students" aria-selected="true">
+                        {% trans "Alunos" %}
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="courses-tab" data-bs-toggle="tab" data-bs-target="#courses" type="button" role="tab" aria-controls="courses" aria-selected="false">
+                        {% trans "Cursos" %}
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="releases-tab" data-bs-toggle="tab" data-bs-target="#releases" type="button" role="tab" aria-controls="releases" aria-selected="false">
+                        {% trans "Liberação de Aulas" %}
+                    </button>
+                </li>
+            </ul>
+            <div class="tab-content p-3 border border-top-0 rounded-bottom" id="classGroupTabsContent">
+                <!-- Tab de Alunos -->
+                <div class="tab-pane fade show active" id="students" role="tabpanel" aria-labelledby="students-tab">
+                    <div class="d-flex justify-content-between mb-3">
+                        <h3>{% trans "Alunos Matriculados" %}</h3>
+                    </div>
+                    
+                    {% if students %}
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>{% trans "Nome" %}</th>
+                                        <th>{% trans "Email" %}</th>
+                                        <th>{% trans "Status" %}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for student in students %}
+                                        <tr>
+                                            <td>{{ student.get_full_name }}</td>
+                                            <td>{{ student.email }}</td>
+                                            <td>
+                                                <span class="badge bg-success">{% trans "Ativo" %}</span>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="alert alert-info">
+                            {% trans "Nenhum aluno matriculado nesta turma." %}
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <!-- Tab de Cursos -->
+                <div class="tab-pane fade" id="courses" role="tabpanel" aria-labelledby="courses-tab">
+                    <div class="d-flex justify-content-between mb-3">
+                        <h3>{% trans "Cursos Associados" %}</h3>
+                    </div>
+                    
+                    {% if courses %}
+                        <div class="row">
+                            {% for course in courses %}
+                                <div class="col-md-6 col-lg-4 mb-4">
+                                    <div class="card h-100">
+                                        {% if course.image %}
+                                            <img src="{{ course.image.url }}" class="card-img-top" alt="{{ course.title }}">
+                                        {% endif %}
+                                        <div class="card-body">
+                                            <h5 class="card-title">{{ course.title }}</h5>
+                                            <p class="card-text">{{ course.short_description|truncatechars:100 }}</p>
+                                        </div>
+                                        <div class="card-footer bg-transparent">
+                                            <a href="{% url 'courses:course_detail' course.id %}" class="btn btn-outline-primary btn-sm">
+                                                <i class="fas fa-eye"></i> {% trans "Ver Curso" %}
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="alert alert-info">
+                            {% trans "Nenhum curso associado a esta turma." %}
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <!-- Tab de Liberações de Aulas -->
+                <div class="tab-pane fade" id="releases" role="tabpanel" aria-labelledby="releases-tab">
+                    <div class="d-flex justify-content-between mb-3">
+                        <h3>{% trans "Liberação de Aulas" %}</h3>
+                        <a href="{% url 'courses:lesson_release_create' class_group.id %}" class="btn btn-primary">
+                            <i class="fas fa-plus"></i> {% trans "Nova Liberação" %}
+                        </a>
+                    </div>
+                    
+                    {% if lesson_releases %}
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>{% trans "Aula" %}</th>
+                                        <th>{% trans "Curso" %}</th>
+                                        <th>{% trans "Data de Liberação" %}</th>
+                                        <th>{% trans "Status" %}</th>
+                                        <th>{% trans "Ações" %}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for release in lesson_releases %}
+                                        <tr>
+                                            <td>{{ release.lesson.title }}</td>
+                                            <td>{{ release.lesson.course.title }}</td>
+                                            <td>{{ release.release_date|date:"d/m/Y H:i" }}</td>
+                                            <td>
+                                                {% if release.is_released %}
+                                                    <span class="badge bg-success">{% trans "Liberada" %}</span>
+                                                {% else %}
+                                                    <span class="badge bg-warning text-dark">{% trans "Pendente" %}</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <a href="{% url 'courses:lesson_release_update' release.id %}" class="btn btn-sm btn-outline-secondary">
+                                                    <i class="fas fa-edit"></i>
+                                                </a>
+                                                <a href="{% url 'courses:lesson_release_delete' release.id %}" class="btn btn-sm btn-outline-danger">
+                                                    <i class="fas fa-trash"></i>
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="alert alert-info">
+                            {% trans "Nenhuma liberação de aula configurada para esta turma." %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

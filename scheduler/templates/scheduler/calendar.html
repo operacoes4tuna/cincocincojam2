@@ -1,0 +1,1841 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{% trans "Agenda - " %}{{ location.name }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css">
+<style>
+    .calendar-header {
+        background-color: #f8f9fa;
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }
+    
+    .calendar-container {
+        background-color: #fff;
+        border-radius: 8px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }
+    
+    .studio-info {
+        display: flex;
+        align-items: center;
+    }
+    
+    .studio-image {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        background-size: cover;
+        background-position: center;
+        margin-right: 1rem;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    
+    .btn-agenda {
+        border-radius: 20px;
+        padding: 0.5rem 1.25rem;
+    }
+    
+    .fc-event {
+        cursor: pointer;
+    }
+    
+    .fc-event.available {
+        background-color: #28a745;
+        border-color: #28a745;
+    }
+    
+    .fc-event.booked {
+        background-color: #dc3545;
+        border-color: #dc3545;
+    }
+    
+    .fc-event.my-booking {
+        background-color: #007bff;
+        border-color: #007bff;
+    }
+    
+    /* Melhorando o estilo do modal */
+    .modal-content {
+        border-radius: 8px;
+        overflow: hidden;
+        background-color: white;
+        color: #333;
+    }
+    
+    .modal-header {
+        background-color: #f8f9fa;
+        border-bottom: 1px solid #dee2e6;
+    }
+    
+    .modal-footer {
+        background-color: #f8f9fa;
+        border-top: 1px solid #dee2e6;
+    }
+    
+    .modal-body {
+        padding: 1.5rem;
+    }
+    
+    /* Garantir texto escuro nos campos de formulário */
+    .form-control, .form-select {
+        color: #333;
+        background-color: white;
+    }
+    
+    .form-label {
+        color: #333;
+        font-weight: 500;
+    }
+    
+    .time-slot {
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        padding: 0.5rem;
+        margin-bottom: 0.5rem;
+        transition: all 0.2s ease;
+        cursor: pointer;
+        background-color: white;
+        color: #333;
+    }
+    
+    .time-slot:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .time-slot.available {
+        border-left: 4px solid #28a745;
+    }
+    
+    .time-slot.booked {
+        border-left: 4px solid #dc3545;
+        opacity: 0.7;
+        cursor: not-allowed;
+    }
+    
+    .time-slot.selected {
+        background-color: #e9f5ff;
+        border-color: #007bff;
+        border-left: 4px solid #007bff;
+    }
+    
+    /* Corrigir problemas com backdrop */
+    .modal-backdrop {
+        z-index: 1040;
+    }
+    
+    .modal {
+        z-index: 1050;
+    }
+    
+    /* Garantir que todos os elementos dentro do modal sejam claros */
+    .modal-content,
+    .modal-content * {
+        color: #333 !important;
+    }
+    
+    .modal-content .form-control,
+    .modal-content .form-select,
+    .modal-content .form-check-input {
+        background-color: white !important;
+        color: #333 !important;
+    }
+    
+    .modal-content .form-check-label {
+        color: #333 !important;
+    }
+    
+    .modal-content .btn-primary {
+        background-color: #0d6efd !important;
+        color: white !important;
+    }
+    
+    .modal-content .btn-secondary {
+        background-color: #6c757d !important;
+        color: white !important;
+    }
+    
+    .modal-content .btn-danger {
+        background-color: #dc3545 !important;
+        color: white !important;
+    }
+    
+    /* Melhorar mensagens de alerta */
+    .modal-content .alert {
+        background-color: #f8f9fa !important;
+        border: 1px solid rgba(0,0,0,.125) !important;
+    }
+    
+    .modal-content .alert-info {
+        color: #055160 !important;
+        background-color: #cff4fc !important;
+        border-color: #b6effb !important;
+    }
+    
+    /* Estilo para mensagem de sucesso */
+    .success-feedback {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background-color: #28a745;
+        color: white;
+        padding: 15px 25px;
+        border-radius: 5px;
+        z-index: 2000;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        transform: translateX(110%);
+        transition: transform 0.3s ease;
+    }
+    
+    .success-feedback.show {
+        transform: translateX(0);
+    }
+    
+    /* Melhorar a aparência dos checkboxes */
+    .form-check-input {
+        width: 18px !important;
+        height: 18px !important;
+        margin-top: 0.25rem !important;
+        cursor: pointer !important;
+    }
+    
+    .form-check-input:checked {
+        background-color: #0d6efd !important;
+        border-color: #0d6efd !important;
+        box-shadow: none !important;
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3e%3cpath fill='none' stroke='%23fff' stroke-linecap='round' stroke-linejoin='round' stroke-width='3' d='M6 10l3 3l6-6'/%3e%3c/svg%3e") !important;
+    }
+    
+    .form-check-input:focus {
+        border-color: #86b7fe !important;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25) !important;
+    }
+    
+    .form-check-label {
+        cursor: pointer !important;
+        font-weight: normal !important;
+    }
+    
+    .student-checkbox:checked + .form-check-label {
+        font-weight: 500 !important;
+    }
+    
+    /* Checkboxes para alunos disponíveis */
+    .available-student-checkbox {
+        width: 18px !important;
+        height: 18px !important;
+    }
+    
+    .available-student-checkbox:checked {
+        background-color: #0d6efd !important;
+        border-color: #0d6efd !important;
+    }
+    
+    /* Estilos para o seletor de horário personalizado */
+    .custom-time-selector {
+        background-color: white;
+        border: 1px solid #dee2e6;
+        border-radius: 5px;
+        padding: 15px;
+        margin-top: 10px;
+    }
+
+    .custom-time-selector .form-label {
+        font-weight: 500;
+    }
+
+    .duration-warning {
+        color: #dc3545;
+        display: none;
+        margin-top: 5px;
+        font-size: 0.9rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+{% csrf_token %}
+<!-- Input hidden para garantir que o ID da localização esteja disponível globalmente -->
+<input type="hidden" id="current-location-id" value="{{ location.id }}">
+
+<div class="container mt-4 mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2>{{ location.name }}</h2>
+            <p class="text-muted">
+                {% if location.is_online %}
+                    <span class="badge bg-success">Online</span>
+                {% else %}
+                    <span class="badge bg-secondary">Presencial</span>
+                {% endif %}
+                {% if location.address %}
+                    - {{ location.address }}
+                {% endif %}
+            </p>
+        </div>
+        <div>
+            <a href="{% url 'scheduler:location_list' %}" class="btn btn-outline-primary me-2">
+                <i class="fas fa-arrow-left"></i> Voltar para Estúdios
+            </a>
+        </div>
+    </div>
+    
+    <!-- Cabeçalho do calendário -->
+    <div class="calendar-header">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <div class="studio-info">
+                    <div class="studio-image" 
+                        {% if location.id == 1 %}
+                            style="background-image: url('{% static 'img/studios/barra.jpg' %}');"
+                        {% elif location.id == 2 %}
+                            style="background-image: url('{% static 'img/studios/ipanema.jpg' %}');"
+                        {% elif location.id == 3 %}
+                            style="background-image: url('{% static 'img/studios/botafogo.jpg' %}');"
+                                            {% else %}
+                            style="background-image: url('{% static 'img/default-studio.jpg' %}');"
+                                            {% endif %}
+                    ></div>
+                    <div>
+                        <h4 class="mb-0">{{ location.name }}</h4>
+                        <div class="text-muted small">{{ location.address|truncatechars:60 }}</div>
+                                        </div>
+                                </div>
+                        </div>
+            <div class="col-md-6 text-md-end mt-3 mt-md-0">
+                <a href="{% url 'scheduler:location_list' %}" class="btn btn-outline-secondary btn-sm btn-agenda me-2">
+                    <i class="fas fa-building me-1"></i> {% trans "Trocar Estúdio" %}
+                </a>
+                <button type="button" class="btn btn-primary btn-agenda" data-bs-toggle="modal" data-bs-target="#booking-modal">
+                    <i class="fas fa-plus me-1"></i> {% trans "Novo Agendamento" %}
+                </button>
+            </div>
+                </div>
+            </div>
+            
+    <!-- Calendário -->
+    <div class="calendar-container">
+        <div id="calendar"></div>
+                </div>
+    
+    <!-- Mensagem de Sucesso -->
+    <div class="success-feedback" id="success-message">
+        <i class="fas fa-check-circle me-2"></i>
+        <span id="success-message-text">Agendamento criado com sucesso!</span>
+                </div>
+    
+    <!-- Modal de Agendamento -->
+    <div class="modal fade" id="booking-modal" tabindex="-1" aria-labelledby="booking-modal-label" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="booking-modal-label">{% trans "Novo Agendamento" %}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="booking-form" method="post" action="{% url 'scheduler:event_create' %}">
+                        {% csrf_token %}
+                        <!-- Campo para identificar que a requisição vem do modal -->
+                        <input type="hidden" name="from_modal" value="true" />
+                        <input type="hidden" name="location" id="booking-location" />
+                        <input type="hidden" id="booking-date" name="date" />
+                        <input type="hidden" name="start_time" id="booking-start-time" />
+                        <input type="hidden" name="end_time" id="booking-end-time" />
+                        <input type="hidden" name="selected_students" id="selected-students-input" />
+                        
+                        <div class="mb-3" id="time-slots-container">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <label class="form-label">{% trans "Horários Disponíveis" %}</label>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="custom-time-toggle">
+                                    <label class="form-check-label" for="custom-time-toggle">{% trans "Horário Personalizado" %}</label>
+                                </div>
+                            </div>
+                            
+                            <div id="predefined-slots">
+                                <div id="time-slots" class="row">
+                                    <!-- Os slots de tempo serão carregados dinamicamente via JS -->
+                                </div>
+                                
+                                <div class="alert alert-info mt-3" id="no-slots-message" style="display: none;">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    {% trans "Não há horários disponíveis para a data selecionada. Por favor, escolha outra data." %}
+                                </div>
+                            </div>
+                            
+                            <div id="custom-time-selector" class="custom-time-selector" style="display: none;">
+                                <div class="row">
+                                    <div class="col-md-6 mb-2">
+                                        <label for="custom-start-time" class="form-label">{% trans "Horário de Início" %}</label>
+                                        <input type="time" class="form-control" id="custom-start-time" min="08:00" max="20:00" step="900">
+                                        <small class="text-muted">{% trans "Horário de funcionamento: 8h às 20h" %}</small>
+                                    </div>
+                                    <div class="col-md-6 mb-2">
+                                        <label for="custom-end-time" class="form-label">{% trans "Horário de Término" %}</label>
+                                        <input type="time" class="form-control" id="custom-end-time" min="09:00" max="21:00" step="900">
+                                    </div>
+                                </div>
+                                <div class="duration-warning" id="duration-warning">
+                                    <i class="fas fa-exclamation-triangle me-1"></i>
+                                    {% trans "A duração máxima permitida é de 3 horas." %}
+                                </div>
+                                <div class="duration-warning" id="overlap-warning">
+                                    <i class="fas fa-exclamation-triangle me-1"></i>
+                                    {% trans "Este horário não está disponível pois conflita com outro agendamento." %}
+                                </div>
+                                <div class="mt-2">
+                                    <button type="button" class="btn btn-sm btn-primary" id="apply-custom-time">
+                                        {% trans "Aplicar Horário" %}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div id="booking-details" style="display: none;">
+                            <div class="mb-3">
+                                <label for="booking-title" class="form-label">{% trans "Título da Aula/Evento" %}</label>
+                                <input type="text" class="form-control" id="booking-title" name="title" required
+                                       placeholder="{% trans 'Ex: Aula de Bateria, Ensaio da Banda, etc.' %}">
+                            </div>
+                            
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="booking-type" class="form-label">{% trans "Tipo de Evento" %}</label>
+                                    <select class="form-select" id="booking-type" name="event_type" required>
+                                        <option value="CLASS">{% trans "Aula" %}</option>
+                                        <option value="WORKSHOP">{% trans "Workshop" %}</option>
+                                        <option value="PRACTICE">{% trans "Prática" %}</option>
+                                        <option value="EXAM">{% trans "Avaliação" %}</option>
+                                        <option value="OTHER">{% trans "Outro" %}</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6" id="other-type-container" style="display: none;">
+                                    <label for="booking-other-type" class="form-label">{% trans "Especifique" %}</label>
+                                    <input type="text" class="form-control" id="booking-other-type" name="other_type"
+                                           placeholder="{% trans 'Ex: Ensaio para apresentação' %}">
+                                </div>
+                            </div>
+                            
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="booking-course" class="form-label">{% trans "Curso Relacionado" %}</label>
+                                    <select class="form-select" id="booking-course" name="course">
+                                        <option value="">{% trans "Nenhum (aula particular/evento especial)" %}</option>
+                                        <!-- Os cursos serão carregados dinamicamente via JS -->
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="booking-max-participants" class="form-label">{% trans "Máximo de Participantes" %}</label>
+                                    <input type="number" class="form-control" id="booking-max-participants" 
+                                           name="max_participants" min="1" max="50" value="10">
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="booking-description" class="form-label">{% trans "Descrição (opcional)" %}</label>
+                                <textarea class="form-control" id="booking-description" name="description" rows="3"
+                                          placeholder="{% trans 'Detalhes adicionais sobre o evento...' %}"></textarea>
+                            </div>
+                            
+                            <!-- Lista de alunos para seleção -->
+                            <div id="participants-container" style="display: none;">
+                                <hr>
+                                <h6>{% trans "Participantes" %}</h6>
+                                
+                                <div class="mb-3">
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <div>
+                                            <button type="button" class="btn btn-sm btn-outline-primary" id="select-all-students">
+                                                {% trans "Selecionar Todos" %}
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-outline-secondary" id="unselect-all-students">
+                                                {% trans "Limpar Seleção" %}
+                                            </button>
+                                        </div>
+                                        <div class="text-muted small">
+                                            <span id="selected-count">0</span> {% trans "de" %} <span id="total-count">0</span> {% trans "selecionados" %}
+                                        </div>
+                                    </div>
+                                    
+                                    <div id="student-list" class="border rounded p-3" style="max-height: 200px; overflow-y: auto;">
+                                        <div class="alert alert-info text-center" id="no-students-message">
+                                            {% trans "Selecione um curso para ver os alunos matriculados." %}
+                                        </div>
+                                        <div id="students-checkboxes" style="display: none;">
+                                            <!-- Checkboxes para seleção dos alunos serão inseridos aqui via JS -->
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% trans "Cancelar" %}</button>
+                    <button type="button" class="btn btn-primary" id="submit-booking" disabled>{% trans "Confirmar Agendamento" %}</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal de Detalhes do Evento -->
+    <div class="modal fade" id="event-details-modal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="event-title"></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="fw-bold">{% trans "Data e Horário:" %}</label>
+                        <div id="event-datetime"></div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="fw-bold">{% trans "Tipo:" %}</label>
+                        <div id="event-type"></div>
+                    </div>
+                    <div class="mb-3" id="event-description-container">
+                        <label class="fw-bold">{% trans "Descrição:" %}</label>
+                        <div id="event-description"></div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="fw-bold">{% trans "Responsável:" %}</label>
+                        <div id="event-professor"></div>
+                    </div>
+                    <div class="mb-3" id="event-participants-container">
+                        <label class="fw-bold">{% trans "Participantes:" %}</label>
+                        <div id="event-participants"></div>
+                    </div>
+                </div>
+                <div class="modal-footer" id="event-actions">
+                    <!-- Botões de ação serão adicionados dinamicamente -->
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal de Gerenciamento de Participantes -->
+    <div class="modal fade" id="manage-participants-modal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">{% trans "Gerenciar Participantes" %}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="participants-management">
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6>{% trans "Participantes Atuais" %}</h6>
+                                <div>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" id="add-participants-btn">
+                                        <i class="fas fa-plus me-1"></i> {% trans "Adicionar Participantes" %}
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div id="current-participants-container" class="border rounded p-3 mt-2">
+                                <div class="text-center p-3">
+                                    <i class="fas fa-spinner fa-spin me-2"></i> {% trans "Carregando participantes..." %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div id="add-participants-container" style="display: none;">
+                            <hr>
+                            <h6>{% trans "Adicionar Novos Participantes" %}</h6>
+                            
+                            <div class="mb-3">
+                                <label for="add-course-filter" class="form-label">{% trans "Filtrar por Curso" %}</label>
+                                <select class="form-select" id="add-course-filter">
+                                    <option value="">{% trans "Todos os Alunos" %}</option>
+                                    <!-- Cursos serão carregados via JS -->
+                                </select>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <div class="input-group w-75">
+                                        <span class="input-group-text">
+                                            <i class="fas fa-search"></i>
+                                        </span>
+                                        <input type="text" class="form-control" id="student-search" 
+                                               placeholder="{% trans 'Buscar aluno por nome ou email...' %}">
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-primary" id="confirm-add-participants">
+                                        <i class="fas fa-user-plus me-1"></i> {% trans "Adicionar Selecionados" %}
+                                    </button>
+                                </div>
+                                
+                                <div id="available-students-container" class="border rounded p-3" style="max-height: 300px; overflow-y: auto;">
+                                    <div class="alert alert-info">
+                                        {% trans "Carregando alunos disponíveis..." %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% trans "Fechar" %}</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/locales-all.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Verificar se o Bootstrap está disponível
+        if (typeof bootstrap === 'undefined') {
+            alert('Erro ao carregar bibliotecas necessárias. Por favor, atualize a página.');
+            return;
+        }
+        
+        // Elementos do DOM
+        const calendarEl = document.getElementById('calendar');
+        const bookingDateInput = document.getElementById('booking-date');
+        const timeSlotsContainer = document.getElementById('time-slots-container');
+        const timeSlotsDiv = document.getElementById('time-slots');
+        const noSlotsMessage = document.getElementById('no-slots-message');
+        const bookingDetails = document.getElementById('booking-details');
+        const submitBookingBtn = document.getElementById('submit-booking');
+        const startTimeInput = document.getElementById('booking-start-time');
+        const endTimeInput = document.getElementById('booking-end-time');
+        const courseSelect = document.getElementById('booking-course');
+        const bookingType = document.getElementById('booking-type');
+        const otherTypeContainer = document.getElementById('other-type-container');
+        const participantsContainer = document.getElementById('participants-container');
+        const selectAllBtn = document.getElementById('select-all-students');
+        const unselectAllBtn = document.getElementById('unselect-all-students');
+        const selectedCountEl = document.getElementById('selected-count');
+        const totalCountEl = document.getElementById('total-count');
+        const noStudentsMessage = document.getElementById('no-students-message');
+        const studentsCheckboxes = document.getElementById('students-checkboxes');
+        const selectedStudentsInput = document.getElementById('selected-students-input');
+
+        // Horários de início e fim pré-definidos
+        const businessHours = {
+            start: '08:00',
+            end: '20:00'
+        };
+        
+        // Configurar valores iniciais para horário personalizado
+        const customStartTime = document.getElementById('custom-start-time');
+        const customEndTime = document.getElementById('custom-end-time');
+        customStartTime.value = '09:00';
+        customEndTime.value = '10:00';
+        
+        // Alternância entre slots pré-definidos e horário personalizado
+        const customTimeToggle = document.getElementById('custom-time-toggle');
+        const predefinedSlots = document.getElementById('predefined-slots');
+        const customTimeSelector = document.getElementById('custom-time-selector');
+        const durationWarning = document.getElementById('duration-warning');
+        const overlapWarning = document.getElementById('overlap-warning');
+        const applyCustomTimeBtn = document.getElementById('apply-custom-time');
+        
+        customTimeToggle.addEventListener('change', function() {
+            if (this.checked) {
+                predefinedSlots.style.display = 'none';
+                customTimeSelector.style.display = 'block';
+                validateCustomTimeRange();
+            } else {
+                predefinedSlots.style.display = 'block';
+                customTimeSelector.style.display = 'none';
+                durationWarning.style.display = 'none';
+                overlapWarning.style.display = 'none';
+            }
+        });
+        
+        // Validar duração quando os horários são alterados
+        customStartTime.addEventListener('change', validateCustomTimeRange);
+        customEndTime.addEventListener('change', validateCustomTimeRange);
+        
+        // Função para validar a duração do horário personalizado
+        function validateCustomTimeRange() {
+            const startTime = customStartTime.value;
+            const endTime = customEndTime.value;
+            
+            if (!startTime || !endTime) return;
+            
+            const start = new Date(`2000-01-01T${startTime}`);
+            const end = new Date(`2000-01-01T${endTime}`);
+            
+            // Verificar se a hora de término é posterior à hora de início
+            if (end <= start) {
+                customEndTime.value = startTime;
+                end.setHours(start.getHours() + 1);
+                customEndTime.value = end.toTimeString().substring(0, 5);
+            }
+            
+            // Calcular duração em minutos
+            const durationMs = end - start;
+            const durationMinutes = durationMs / (1000 * 60);
+            
+            // Verificar se a duração é maior que 3 horas (180 minutos)
+            if (durationMinutes > 180) {
+                durationWarning.style.display = 'block';
+                applyCustomTimeBtn.disabled = true;
+            } else {
+                durationWarning.style.display = 'none';
+                applyCustomTimeBtn.disabled = false;
+            }
+            
+            // Verificar se o horário está dentro do horário de funcionamento
+            const businessStart = new Date(`2000-01-01T${businessHours.start}`);
+            const businessEnd = new Date(`2000-01-01T${businessHours.end}`);
+            
+            if (start < businessStart) {
+                customStartTime.value = businessHours.start;
+            }
+            
+            if (end > businessEnd) {
+                customEndTime.value = businessHours.end;
+            }
+        }
+        
+        // Função para aplicar o horário personalizado
+        applyCustomTimeBtn.addEventListener('click', function() {
+            const startTime = customStartTime.value;
+            const endTime = customEndTime.value;
+            const currentDate = bookingDateInput.value;
+            
+            if (!startTime || !endTime || !currentDate) return;
+            
+            const locationId = document.getElementById('booking-location').value;
+            
+            // Verificar se este horário está disponível
+            checkTimeSlotAvailability(currentDate, startTime, endTime, locationId).then(isAvailable => {
+                if (isAvailable) {
+                    // Converter para formato ISO
+                    const startISO = `${currentDate}T${startTime}:00`;
+                    const endISO = `${currentDate}T${endTime}:00`;
+                    
+                    // Definir os valores nos campos ocultos
+                    startTimeInput.value = startISO;
+                    endTimeInput.value = endISO;
+                    
+                    // Mostrar detalhes do agendamento
+                    bookingDetails.style.display = 'block';
+                    
+                    // Habilitar botão de confirmação
+                    submitBookingBtn.disabled = false;
+                    
+                    // Esconder aviso de conflito
+                    overlapWarning.style.display = 'none';
+                    
+                    // Adicionar texto de confirmação visual
+                    const timeRangeDisplay = document.createElement('div');
+                    timeRangeDisplay.className = 'alert alert-success mt-2';
+                    timeRangeDisplay.innerHTML = `<i class="fas fa-check-circle me-2"></i> Horário personalizado selecionado: <strong>${startTime} - ${endTime}</strong>`;
+                    
+                    // Substituir qualquer mensagem anterior
+                    const existingMessage = document.querySelector('.alert-success');
+                    if (existingMessage) {
+                        existingMessage.remove();
+                    }
+                    
+                    customTimeSelector.appendChild(timeRangeDisplay);
+                } else {
+                    // Mostrar aviso de conflito
+                    overlapWarning.style.display = 'block';
+                    submitBookingBtn.disabled = true;
+                }
+            });
+        });
+        
+        // Função para verificar se um horário personalizado está disponível
+        async function checkTimeSlotAvailability(date, startTime, endTime, locationId) {
+            try {
+                // Garantir que o locationId não esteja vazio
+                if (!locationId) {
+                    console.error('ID do estúdio não encontrado em checkTimeSlotAvailability');
+                    return false;
+                }
+                
+                // Usar a API atualizada para verificação de horário personalizado
+                const response = await fetch(`{% url 'scheduler:api_available_slots' %}?date=${date}&location=${locationId}&custom_check=true&start_time=${startTime}&end_time=${endTime}`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    return data.available; // Retorna true se estiver disponível
+                } else {
+                    // Se houver um erro específico sobre duração ou horário de funcionamento, exibir mensagem adequada
+                    if (data.reason === 'outside_hours') {
+                        overlapWarning.textContent = data.message || 'Este horário está fora do horário de funcionamento.';
+                    }
+                    return false;
+                }
+            } catch (error) {
+                return false; // Em caso de erro, assumir que não está disponível
+            }
+        }
+        
+        // Inicializar o calendário
+        const calendar = new FullCalendar.Calendar(calendarEl, {
+            initialView: 'dayGridMonth',
+            headerToolbar: {
+                left: 'prev,next today',
+                center: 'title',
+                right: 'dayGridMonth,timeGridWeek,timeGridDay'
+            },
+            locale: 'pt-br',
+            buttonText: {
+                today: 'Hoje',
+                month: 'Mês',
+                week: 'Semana',
+                day: 'Dia'
+            },
+            events: function(info, successCallback, failureCallback) {
+                // Tentar obter o locationId de várias formas
+                let locationId = "";
+                
+                // 1. Tentar obter do elemento hidden
+                const locationEl = document.getElementById('current-location-id');
+                if (locationEl && locationEl.value) {
+                    locationId = locationEl.value;
+                }
+                
+                // 2. Se não encontrou, extrair da URL
+                if (!locationId) {
+                    const pathParts = window.location.pathname.split('/');
+                    // URL deve ser algo como /agenda/locations/1/calendar/
+                    const locationIdIndex = pathParts.indexOf('locations') + 1;
+                    if (locationIdIndex > 0 && locationIdIndex < pathParts.length) {
+                        locationId = pathParts[locationIdIndex];
+                    }
+                }
+                
+                // 3. Se ainda não encontrou, usar o valor do Django
+                if (!locationId) {
+                    locationId = "{{ location.id }}";
+                }
+                
+                console.log("LocationID encontrado:", locationId);
+                
+                // Verificar se o locationId está definido
+                if (!locationId) {
+                    console.error('locationId não encontrado');
+                    // Retornar lista vazia de eventos em vez de falhar
+                    successCallback([]);
+                    return;
+                }
+                
+                fetch(`{% url 'scheduler:api_events' %}?location=${locationId}&start=${info.startStr}&end=${info.endStr}`)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Falha ao carregar eventos: ' + response.status);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        successCallback(data);
+                    })
+                    .catch(error => {
+                        console.error('Erro ao carregar eventos:', error);
+                        failureCallback(error);
+                    });
+            },
+            eventClick: function(info) {
+                showEventDetails(info.event);
+            },
+            dateClick: function(info) {
+                openBookingModal(info.dateStr);
+            },
+            selectable: true,
+            select: function(info) {
+                openBookingModal(info.startStr.substring(0, 10)); // Pegar apenas a data (YYYY-MM-DD)
+            },
+            // Configurações adicionais para melhorar a interatividade
+            fixedWeekCount: false,
+            showNonCurrentDates: true,
+            dayMaxEvents: true,
+            height: 'auto'
+        });
+        
+        calendar.render();
+        
+        // Adicionar tratamento para remover backdrop ao fechar modal
+        const modals = document.querySelectorAll('.modal');
+        modals.forEach(modalEl => {
+            modalEl.addEventListener('hidden.bs.modal', function (event) {
+                // Verificar se há outros modais abertos antes de remover todos os backdrops
+                const openModals = document.querySelectorAll('.modal.show');
+                if (openModals.length === 0) {
+                    // Remover todos os backdrops
+                    const backdrops = document.querySelectorAll('.modal-backdrop');
+                    backdrops.forEach(backdrop => {
+                        backdrop.remove();
+                    });
+                    // Garantir que o body não tenha a classe modal-open
+                    document.body.classList.remove('modal-open');
+                    document.body.style.overflow = '';
+                    document.body.style.paddingRight = '';
+                }
+            });
+        });
+        
+        // Função para mostrar mensagem de sucesso
+        function showSuccessMessage(message) {
+            const successMessage = document.getElementById('success-message');
+            const successMessageText = document.getElementById('success-message-text');
+            
+            successMessageText.textContent = message;
+            successMessage.classList.add('show');
+            
+            // Esconder após 3 segundos
+            setTimeout(() => {
+                successMessage.classList.remove('show');
+            }, 3000);
+        }
+        
+        // Verificar se há uma mensagem de sucesso na URL
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('success')) {
+            showSuccessMessage('Agendamento criado com sucesso!');
+        }
+        
+        // Função para abrir o modal de agendamento com a data selecionada
+        function openBookingModal(dateStr) {
+            bookingDateInput.value = dateStr;
+            
+            // Tentar obter o locationId de várias formas
+            let locationId = "";
+            
+            // 1. Tentar obter do elemento hidden
+            const locationEl = document.getElementById('current-location-id');
+            if (locationEl && locationEl.value) {
+                locationId = locationEl.value;
+            }
+            
+            // 2. Se não encontrou, extrair da URL
+            if (!locationId) {
+                const pathParts = window.location.pathname.split('/');
+                // URL deve ser algo como /agenda/locations/1/calendar/
+                const locationIdIndex = pathParts.indexOf('locations') + 1;
+                if (locationIdIndex > 0 && locationIdIndex < pathParts.length) {
+                    locationId = pathParts[locationIdIndex];
+                }
+            }
+            
+            // 3. Se ainda não encontrou, usar o valor do Django
+            if (!locationId) {
+                locationId = "{{ location.id }}";
+            }
+            
+            console.log("LocationID para booking:", locationId);
+            
+            // Garantir que o locationId não esteja vazio
+            if (!locationId) {
+                console.error('ID do estúdio não encontrado');
+                alert('Erro: ID do estúdio não encontrado. Por favor, recarregue a página.');
+                return;
+            }
+            
+            document.getElementById('booking-location').value = locationId;
+            
+            // Limpar qualquer backdrop residual e preparar o body
+            cleanupModal();
+            
+            // Garantir que o modal seja inicializado corretamente
+            const modalElement = document.getElementById('booking-modal');
+            const modal = new bootstrap.Modal(modalElement);
+            modal.show();
+            
+            loadAvailableTimeSlots(dateStr);
+            loadProfessorCoursesForBooking();
+            resetBookingForm();
+        }
+        
+        // Função para limpar backdrop e restaurar o body
+        function cleanupModal() {
+            // Remover backdrops residuais
+            document.querySelectorAll('.modal-backdrop').forEach(backdrop => {
+                backdrop.remove();
+            });
+            
+            // Restaurar propriedades do body
+            document.body.classList.remove('modal-open');
+            document.body.style.overflow = '';
+            document.body.style.paddingRight = '';
+        }
+        
+        // Resetar formulário de agendamento
+        function resetBookingForm() {
+            document.getElementById('booking-form').reset();
+            bookingDetails.style.display = 'none';
+            participantsContainer.style.display = 'none';
+            submitBookingBtn.disabled = true;
+            otherTypeContainer.style.display = 'none';
+            document.querySelectorAll('.time-slot.selected').forEach(el => {
+                el.classList.remove('selected');
+            });
+            studentsCheckboxes.innerHTML = '';
+            studentsCheckboxes.style.display = 'none';
+            noStudentsMessage.style.display = 'block';
+            selectedCountEl.textContent = '0';
+            totalCountEl.textContent = '0';
+            selectedStudentsInput.value = '';
+        }
+        
+        // Carregar slots de horário disponíveis
+        function loadAvailableTimeSlots(date) {
+            const locationId = document.getElementById('booking-location').value;
+            
+            if (!locationId) {
+                console.error('ID do estúdio não encontrado em loadAvailableTimeSlots');
+                noSlotsMessage.style.display = 'block';
+                noSlotsMessage.textContent = 'Erro ao carregar horários: ID do estúdio não encontrado.';
+                timeSlotsContainer.style.display = 'block';
+                bookingDetails.style.display = 'none';
+                
+                // Tentar obter o locationId da URL como fallback
+                let locationIdFromUrl = "";
+                const pathParts = window.location.pathname.split('/');
+                const locationIdIndex = pathParts.indexOf('locations') + 1;
+                if (locationIdIndex > 0 && locationIdIndex < pathParts.length) {
+                    locationIdFromUrl = pathParts[locationIdIndex];
+                    
+                    if (locationIdFromUrl) {
+                        console.log("Usando locationId obtido da URL:", locationIdFromUrl);
+                        document.getElementById('booking-location').value = locationIdFromUrl;
+                        
+                        // Tentar novamente com o locationId da URL
+                        fetchAvailableSlots(date, locationIdFromUrl);
+                        return;
+                    }
+                }
+                
+                return;
+            }
+            
+            fetchAvailableSlots(date, locationId);
+        }
+        
+        // Função para buscar os slots disponíveis da API
+        function fetchAvailableSlots(date, locationId) {
+            console.log('Buscando slots para a data:', date, 'no estúdio ID:', locationId);
+            
+            fetch(`{% url 'scheduler:api_available_slots' %}?date=${date}&location=${locationId}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Erro ${response.status}: ${response.statusText}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    timeSlotsDiv.innerHTML = '';
+                    
+                    if (data.available_slots && data.available_slots.length > 0) {
+                        data.available_slots.forEach(slot => {
+                            const col = document.createElement('div');
+                            col.className = 'col-md-4 mb-2';
+                            
+                            const timeSlot = document.createElement('div');
+                            timeSlot.className = `time-slot ${slot.available ? 'available' : 'booked'}`;
+                            timeSlot.innerHTML = `<i class="fas ${slot.available ? 'fa-clock' : 'fa-lock'} me-2"></i> ${slot.start_time} - ${slot.end_time}`;
+                            
+                            if (slot.available) {
+                                timeSlot.setAttribute('data-start', slot.start_time_raw);
+                                timeSlot.setAttribute('data-end', slot.end_time_raw);
+                                
+                                timeSlot.addEventListener('click', function() {
+                                    // Remover seleção anterior
+                                    document.querySelectorAll('.time-slot.selected').forEach(el => {
+                                        el.classList.remove('selected');
+                                    });
+                                    
+                                    // Adicionar seleção atual
+                                    this.classList.add('selected');
+                                    
+                                    // Mostrar detalhes do agendamento
+                                    bookingDetails.style.display = 'block';
+                                    
+                                    // Habilitar botão de confirmação
+                                    submitBookingBtn.disabled = false;
+                                    
+                                    // Atualizar campos ocultos
+                                    startTimeInput.value = this.getAttribute('data-start');
+                                    endTimeInput.value = this.getAttribute('data-end');
+                                });
+                            }
+                            
+                            col.appendChild(timeSlot);
+                            timeSlotsDiv.appendChild(col);
+                        });
+                        
+                        timeSlotsContainer.style.display = 'block';
+                        noSlotsMessage.style.display = 'none';
+                    } else {
+                        timeSlotsContainer.style.display = 'block';
+                        noSlotsMessage.style.display = 'block';
+                        bookingDetails.style.display = 'none';
+                        submitBookingBtn.disabled = true;
+                    }
+                })
+                .catch(error => {
+                    noSlotsMessage.style.display = 'block';
+                    noSlotsMessage.textContent = `Erro ao carregar horários: ${error.message}`;
+                    timeSlotsContainer.style.display = 'block';
+                    bookingDetails.style.display = 'none';
+                });
+        }
+        
+        // Buscar cursos do professor para o agendamento
+        function loadProfessorCoursesForBooking() {
+            courseSelect.innerHTML = '<option value="">{% trans "Nenhum (aula particular/evento especial)" %}</option>';
+            
+            fetch('{% url "courses:api_professor_courses" %}', {
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                credentials: 'same-origin'
+            })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Erro ${response.status}: ${response.statusText}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.courses && data.courses.length > 0) {
+                        data.courses.forEach(course => {
+                            const option = document.createElement('option');
+                            option.value = course.id;
+                            option.textContent = course.title;
+                            courseSelect.appendChild(option);
+                        });
+                        console.log(`Carregados ${data.courses.length} cursos do professor`);
+                    } else {
+                        console.log("Nenhum curso encontrado para o professor");
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro ao carregar cursos:', error);
+                });
+        }
+        
+        // Carregar alunos quando um curso for selecionado
+        courseSelect.addEventListener('change', function() {
+            const courseId = this.value;
+            
+            if (courseId) {
+                participantsContainer.style.display = 'block';
+                loadCourseStudents(courseId);
+            } else {
+                participantsContainer.style.display = 'none';
+                selectedStudentsInput.value = '';
+            }
+        });
+        
+        // Mostrar/esconder campo de especificação quando "Outro" for selecionado
+        bookingType.addEventListener('change', function() {
+            if (this.value === 'OTHER') {
+                otherTypeContainer.style.display = 'block';
+            } else {
+                otherTypeContainer.style.display = 'none';
+            }
+        });
+        
+        // Buscar alunos de um curso
+        function loadCourseStudents(courseId) {
+            fetch(`{% url 'scheduler:api_course_students' %}?course_id=${courseId}`)
+                .then(response => response.json())
+                .then(data => {
+                    studentsCheckboxes.innerHTML = '';
+                    
+                    if (data.students && data.students.length > 0) {
+                        noStudentsMessage.style.display = 'none';
+                        studentsCheckboxes.style.display = 'block';
+                        
+                        totalCountEl.textContent = data.students.length;
+                        selectedCountEl.textContent = '0';
+                        
+                        data.students.forEach(student => {
+                            const checkboxDiv = document.createElement('div');
+                            checkboxDiv.className = 'form-check mb-2';
+                            
+                            const checkbox = document.createElement('input');
+                            checkbox.type = 'checkbox';
+                            checkbox.className = 'form-check-input student-checkbox';
+                            checkbox.id = `student-${student.id}`;
+                            checkbox.value = student.id;
+                            checkbox.setAttribute('data-name', student.name);
+                            
+                            const label = document.createElement('label');
+                            label.className = 'form-check-label';
+                            label.htmlFor = `student-${student.id}`;
+                            label.textContent = student.name;
+                            
+                            // Adicionar progresso do aluno
+                            if (student.progress !== undefined) {
+                                const progress = document.createElement('span');
+                                progress.className = 'badge bg-info ms-2';
+                                progress.textContent = `${student.progress}%`;
+                                label.appendChild(progress);
+                            }
+                            
+                            // Adicionar email como texto pequeno
+                            const emailText = document.createElement('small');
+                            emailText.className = 'd-block text-muted';
+                            emailText.textContent = student.email;
+                            label.appendChild(emailText);
+                            
+                            checkboxDiv.appendChild(checkbox);
+                            checkboxDiv.appendChild(label);
+                            studentsCheckboxes.appendChild(checkboxDiv);
+                            
+                            // Evento para atualizar contagem
+                            checkbox.addEventListener('change', updateSelectedStudentsCount);
+                        });
+                    } else {
+                        noStudentsMessage.style.display = 'block';
+                        studentsCheckboxes.style.display = 'none';
+                        noStudentsMessage.textContent = 'Nenhum aluno matriculado neste curso.';
+                        totalCountEl.textContent = '0';
+                        selectedCountEl.textContent = '0';
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro ao carregar alunos:', error);
+                    noStudentsMessage.style.display = 'block';
+                    studentsCheckboxes.style.display = 'none';
+                    noStudentsMessage.textContent = 'Erro ao carregar alunos. Por favor, tente novamente.';
+                });
+        }
+        
+        // Atualizar contagem de alunos selecionados
+        function updateSelectedStudentsCount() {
+            const checkboxes = document.querySelectorAll('.student-checkbox');
+            const selectedCheckboxes = document.querySelectorAll('.student-checkbox:checked');
+            
+            selectedCountEl.textContent = selectedCheckboxes.length;
+            
+            // Atualizar input oculto com os IDs dos alunos selecionados
+            const selectedIds = Array.from(selectedCheckboxes).map(cb => cb.value);
+            selectedStudentsInput.value = selectedIds.join(',');
+        }
+        
+        // Botão para selecionar todos os alunos
+        selectAllBtn.addEventListener('click', function() {
+            document.querySelectorAll('.student-checkbox').forEach(cb => {
+                cb.checked = true;
+            });
+            updateSelectedStudentsCount();
+        });
+        
+        // Botão para desmarcar todos os alunos
+        unselectAllBtn.addEventListener('click', function() {
+            document.querySelectorAll('.student-checkbox').forEach(cb => {
+                cb.checked = false;
+            });
+            updateSelectedStudentsCount();
+        });
+        
+        // Função para mostrar detalhes do evento
+        function showEventDetails(event) {
+            // Limpar qualquer backdrop residual e preparar o body
+            cleanupModal();
+            
+            const modal = document.getElementById('event-details-modal');
+            const title = document.getElementById('event-title');
+            const datetime = document.getElementById('event-datetime');
+            const type = document.getElementById('event-type');
+            const description = document.getElementById('event-description');
+            const descriptionContainer = document.getElementById('event-description-container');
+            const professor = document.getElementById('event-professor');
+            const participants = document.getElementById('event-participants');
+            const participantsContainer = document.getElementById('event-participants-container');
+            const actions = document.getElementById('event-actions');
+            
+            // Preencher detalhes
+            title.textContent = event.title;
+            
+            const start = new Date(event.start);
+            const end = new Date(event.end);
+            const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            const timeOptions = { hour: '2-digit', minute: '2-digit' };
+            
+            datetime.textContent = `${start.toLocaleDateString('pt-BR', dateOptions)} - ${start.toLocaleTimeString('pt-BR', timeOptions)} até ${end.toLocaleTimeString('pt-BR', timeOptions)}`;
+            
+            // Mapear tipo de evento
+            let eventType = '';
+            switch(event.extendedProps.event_type) {
+                case 'CLASS':
+                    eventType = 'Aula';
+                    break;
+                case 'PRACTICE':
+                    eventType = 'Prática';
+                    break;
+                case 'WORKSHOP':
+                    eventType = 'Workshop';
+                    break;
+                case 'EXAM':
+                    eventType = 'Avaliação';
+                    break;
+                default:
+                    eventType = 'Outro';
+            }
+            type.textContent = eventType;
+            
+            // Descrição (se existir)
+            if (event.extendedProps.description && event.extendedProps.description.trim() !== '') {
+                description.textContent = event.extendedProps.description;
+                descriptionContainer.style.display = 'block';
+            } else {
+                descriptionContainer.style.display = 'none';
+            }
+            
+            // Professor
+            professor.textContent = event.extendedProps.professor_name || 'Não especificado';
+            
+            // Participantes - vamos carregar de forma dinâmica para mostrar status atual
+            loadEventParticipants(event.id, participantsContainer, participants);
+            
+            // Ações
+            actions.innerHTML = '';
+            
+            // Verificar se o usuário é o criador do evento ou admin
+            if (event.extendedProps.can_edit) {
+                const editBtn = document.createElement('a');
+                editBtn.href = `{% url 'scheduler:event_list' %}${event.id}/edit/`;
+                editBtn.className = 'btn btn-outline-primary me-2';
+                editBtn.innerHTML = '<i class="fas fa-edit me-1"></i> Editar';
+                actions.appendChild(editBtn);
+                
+                const manageParticipantsBtn = document.createElement('button');
+                manageParticipantsBtn.type = 'button';
+                manageParticipantsBtn.className = 'btn btn-outline-info me-2';
+                manageParticipantsBtn.innerHTML = '<i class="fas fa-users me-1"></i> Gerenciar Participantes';
+                manageParticipantsBtn.addEventListener('click', function() {
+                    // Aqui você pode implementar a lógica para abrir o modal de gerenciamento de participantes
+                    openManageParticipantsModal(event.id);
+                });
+                actions.appendChild(manageParticipantsBtn);
+                
+                const deleteBtn = document.createElement('button');
+                deleteBtn.type = 'button';
+                deleteBtn.className = 'btn btn-outline-danger';
+                deleteBtn.innerHTML = '<i class="fas fa-trash me-1"></i> Cancelar';
+                deleteBtn.addEventListener('click', function() {
+                    if (confirm('Tem certeza que deseja cancelar este agendamento?')) {
+                        window.location.href = `{% url 'scheduler:event_list' %}${event.id}/delete/`;
+                    }
+                });
+                actions.appendChild(deleteBtn);
+            }
+            
+            // Mostrar modal
+            const bsModal = new bootstrap.Modal(modal);
+            bsModal.show();
+        }
+        
+        // Carregar participantes de um evento
+        function loadEventParticipants(eventId, container, targetElement) {
+            container.style.display = 'block';
+            targetElement.innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Carregando participantes...</div>';
+            
+            fetch(`{% url 'scheduler:api_manage_participants' event_id=0 %}`.replace('0', eventId))
+                .then(response => response.json())
+                .then(data => {
+                    if (data.participants && data.participants.length > 0) {
+                        const table = document.createElement('table');
+                        table.className = 'table table-sm table-hover';
+                        
+                        // Adicionar cabeçalho
+                        const thead = document.createElement('thead');
+                        thead.innerHTML = `
+                            <tr>
+                                <th>Aluno</th>
+                                <th>Status</th>
+                                <th>Confirmado em</th>
+                            </tr>
+                        `;
+                        table.appendChild(thead);
+                        
+                        // Adicionar corpo da tabela
+                        const tbody = document.createElement('tbody');
+                        
+                        data.participants.forEach(participant => {
+                            const tr = document.createElement('tr');
+                            
+                            // Status em formato de badge
+                            let statusBadge = '';
+                            switch(participant.status) {
+                                case 'CONFIRMED':
+                                    statusBadge = '<span class="badge bg-success">Confirmado</span>';
+                                    break;
+                                case 'PENDING':
+                                    statusBadge = '<span class="badge bg-warning text-dark">Pendente</span>';
+                                    break;
+                                case 'CANCELLED':
+                                    statusBadge = '<span class="badge bg-danger">Cancelado</span>';
+                                    break;
+                                case 'ATTENDED':
+                                    statusBadge = '<span class="badge bg-primary">Compareceu</span>';
+                                    break;
+                                case 'MISSED':
+                                    statusBadge = '<span class="badge bg-secondary">Faltou</span>';
+                                    break;
+                            }
+                            
+                            // Formatar data/hora de confirmação
+                            let confirmedAt = 'Não confirmado';
+                            if (participant.confirmed_at) {
+                                const date = new Date(participant.confirmed_at);
+                                confirmedAt = date.toLocaleString('pt-BR');
+                            }
+                            
+                            tr.innerHTML = `
+                                <td>${participant.name}</td>
+                                <td>${statusBadge}</td>
+                                <td><small>${confirmedAt}</small></td>
+                            `;
+                            
+                            tbody.appendChild(tr);
+                        });
+                        
+                        table.appendChild(tbody);
+                        targetElement.innerHTML = '';
+                        targetElement.appendChild(table);
+                    } else {
+                        targetElement.innerHTML = '<div class="alert alert-info">Não há participantes neste evento.</div>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro ao carregar participantes:', error);
+                    targetElement.innerHTML = '<div class="alert alert-danger">Erro ao carregar participantes.</div>';
+                });
+        }
+        
+        // Enviar formulário de agendamento
+        document.getElementById('submit-booking').addEventListener('click', function() {
+            const form = document.getElementById('booking-form');
+            
+            // Verificar se o horário foi selecionado
+            const startTime = document.getElementById('booking-start-time').value;
+            const endTime = document.getElementById('booking-end-time').value;
+            
+            if (!startTime || !endTime) {
+                alert('Por favor, selecione um horário para o agendamento.');
+                return;
+            }
+            
+            // Verificar se todos os campos obrigatórios estão preenchidos
+            if (form.checkValidity()) {
+                // Se for do tipo 'OTHER', usa o valor especificado
+                if (bookingType.value === 'OTHER') {
+                    const otherTypeInput = document.getElementById('booking-other-type');
+                    if (otherTypeInput.value.trim() === '') {
+                        alert('Por favor, especifique o tipo de evento.');
+                        otherTypeInput.focus();
+                        return;
+                    }
+                }
+                
+                // Se estiver criando para um curso, os alunos devem ser selecionados
+                if (courseSelect.value && selectedStudentsInput.value === '') {
+                    if (!confirm('Nenhum aluno foi selecionado. Deseja criar o evento sem participantes?')) {
+                        return;
+                    }
+                }
+                
+                // Adicionar título padrão se não for informado
+                if (!document.getElementById('booking-title').value) {
+                    const eventType = bookingType.options[bookingType.selectedIndex].text;
+                    document.getElementById('booking-title').value = `${eventType} - ${bookingDateInput.value}`;
+                }
+                
+                // Verificar mais uma vez se os campos obrigatórios de horário estão presentes
+                if (!form.querySelector('[name="start_time"]').value || !form.querySelector('[name="end_time"]').value) {
+                    alert('Erro: Horário não definido. Por favor, selecione um horário disponível ou defina um horário personalizado.');
+                    return;
+                }
+                
+                // Enviar formulário
+                form.submit();
+            } else {
+                // Mostrar validações nativas do navegador
+                form.reportValidity();
+            }
+        });
+        
+        // Função para abrir modal de gerenciamento de participantes
+        function openManageParticipantsModal(eventId) {
+            // Limpar qualquer backdrop residual e preparar o body
+            cleanupModal();
+            
+            // Garantir que o modal seja inicializado corretamente
+            const modal = document.getElementById('manage-participants-modal');
+            const bsModal = new bootstrap.Modal(modal);
+            modal.setAttribute('data-event-id', eventId);
+            
+            // Resetar estado
+            document.getElementById('add-participants-container').style.display = 'none';
+            document.getElementById('add-participants-btn').style.display = 'block';
+            
+            // Carregar participantes atuais
+            loadCurrentParticipants(eventId);
+            
+            // Obter o elemento do seletor de cursos antes de chamar a função
+            const courseFilterElement = document.getElementById('add-course-filter');
+            if (courseFilterElement) {
+                // Carregar cursos para o filtro apenas se o elemento existir
+                loadProfessorCoursesForFilter(courseFilterElement);
+            } else {
+                console.error('Elemento add-course-filter não encontrado no DOM');
+            }
+            
+            bsModal.show();
+        }
+        
+        // Carregar participantes atuais do evento
+        function loadCurrentParticipants(eventId) {
+            const container = document.getElementById('current-participants-container');
+            container.innerHTML = '<div class="text-center p-3"><i class="fas fa-spinner fa-spin me-2"></i> Carregando participantes...</div>';
+            
+            fetch(`{% url 'scheduler:api_manage_participants' event_id=0 %}`.replace('0', eventId))
+                .then(response => response.json())
+                .then(data => {
+                    if (data.participants && data.participants.length > 0) {
+                        // Criar tabela de participantes
+                        const table = document.createElement('table');
+                        table.className = 'table table-sm table-hover';
+                        
+                        const thead = document.createElement('thead');
+                        thead.innerHTML = `
+                            <tr>
+                                <th>Aluno</th>
+                                <th>Status</th>
+                                <th>Confirmado em</th>
+                                <th>Ações</th>
+                            </tr>
+                        `;
+                        table.appendChild(thead);
+                        
+                        const tbody = document.createElement('tbody');
+                        data.participants.forEach(participant => {
+                            const tr = document.createElement('tr');
+                            
+                            // Status em formato de badge
+                            let statusBadge = '';
+                            switch(participant.status) {
+                                case 'CONFIRMED':
+                                    statusBadge = '<span class="badge bg-success">Confirmado</span>';
+                                    break;
+                                case 'PENDING':
+                                    statusBadge = '<span class="badge bg-warning text-dark">Pendente</span>';
+                                    break;
+                                case 'CANCELLED':
+                                    statusBadge = '<span class="badge bg-danger">Cancelado</span>';
+                                    break;
+                                case 'ATTENDED':
+                                    statusBadge = '<span class="badge bg-primary">Compareceu</span>';
+                                    break;
+                                case 'MISSED':
+                                    statusBadge = '<span class="badge bg-secondary">Faltou</span>';
+                                    break;
+                            }
+                            
+                            // Formatar data/hora de confirmação
+                            let confirmedAt = 'Não confirmado';
+                            if (participant.confirmed_at) {
+                                const date = new Date(participant.confirmed_at);
+                                confirmedAt = date.toLocaleString('pt-BR');
+                            }
+                            
+                            // Dropdown de ações
+                            const actions = `
+                                <div class="dropdown">
+                                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                        Ações
+                                    </button>
+                                    <ul class="dropdown-menu">
+                                        <li><a class="dropdown-item status-action" href="#" data-student="${participant.student_id}" data-status="CONFIRMED">Marcar como Confirmado</a></li>
+                                        <li><a class="dropdown-item status-action" href="#" data-student="${participant.student_id}" data-status="ATTENDED">Marcar como Presente</a></li>
+                                        <li><a class="dropdown-item status-action" href="#" data-student="${participant.student_id}" data-status="MISSED">Marcar como Ausente</a></li>
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li><a class="dropdown-item text-danger remove-participant" href="#" data-student="${participant.student_id}">Remover Participante</a></li>
+                                    </ul>
+                                </div>
+                            `;
+                            
+                            tr.innerHTML = `
+                                <td>${participant.name}</td>
+                                <td>${statusBadge}</td>
+                                <td><small>${confirmedAt}</small></td>
+                                <td>${actions}</td>
+                            `;
+                            
+                            tbody.appendChild(tr);
+                        });
+                        
+                        table.appendChild(tbody);
+                        container.innerHTML = '';
+                        container.appendChild(table);
+                        
+                        // Adicionar event listeners para ações
+                        document.querySelectorAll('.status-action').forEach(el => {
+                            el.addEventListener('click', function(e) {
+                                e.preventDefault();
+                                const studentId = this.getAttribute('data-student');
+                                const status = this.getAttribute('data-status');
+                                updateParticipantStatus(eventId, studentId, status);
+                            });
+                        });
+                        
+                        document.querySelectorAll('.remove-participant').forEach(el => {
+                            el.addEventListener('click', function(e) {
+                                e.preventDefault();
+                                const studentId = this.getAttribute('data-student');
+                                if (confirm('Tem certeza que deseja remover este participante?')) {
+                                    removeParticipant(eventId, studentId);
+                                }
+                            });
+                        });
+                    } else {
+                        container.innerHTML = '<div class="alert alert-info">Não há participantes neste evento.</div>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro ao carregar participantes:', error);
+                    container.innerHTML = '<div class="alert alert-danger">Erro ao carregar participantes.</div>';
+                });
+        }
+        
+        // Atualizar status de um participante
+        function updateParticipantStatus(eventId, studentId, status) {
+            fetch(`{% url 'scheduler:api_manage_participants' event_id=0 %}`.replace('0', eventId), {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: JSON.stringify({
+                    student_id: studentId,
+                    status: status
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.message) {
+                    // Recarregar participantes para mostrar o status atualizado
+                    loadCurrentParticipants(eventId);
+                } else if (data.error) {
+                    alert(`Erro: ${data.error}`);
+                }
+            })
+            .catch(error => {
+                console.error('Erro ao atualizar status:', error);
+                alert('Erro ao atualizar status. Por favor, tente novamente.');
+            });
+        }
+        
+        // Remover um participante
+        function removeParticipant(eventId, studentId) {
+            fetch(`{% url 'scheduler:api_manage_participants' event_id=0 %}`.replace('0', eventId), {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: JSON.stringify({
+                    student_id: studentId
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.message) {
+                    // Recarregar participantes
+                    loadCurrentParticipants(eventId);
+                } else if (data.error) {
+                    alert(`Erro: ${data.error}`);
+                }
+            })
+            .catch(error => {
+                console.error('Erro ao remover participante:', error);
+                alert('Erro ao remover participante. Por favor, tente novamente.');
+            });
+        }
+        
+        // Botão para mostrar formulário de adicionar participantes
+        document.getElementById('add-participants-btn').addEventListener('click', function() {
+            const addContainer = document.getElementById('add-participants-container');
+            addContainer.style.display = 'block';
+            this.style.display = 'none';
+            
+            // Carregar alunos disponíveis
+            loadAvailableStudents();
+        });
+        
+        // Carregar alunos disponíveis para adicionar
+        function loadAvailableStudents() {
+            const container = document.getElementById('available-students-container');
+            const courseFilter = document.getElementById('add-course-filter').value;
+            const eventId = document.getElementById('manage-participants-modal').getAttribute('data-event-id');
+            
+            container.innerHTML = '<div class="alert alert-info">Carregando alunos disponíveis...</div>';
+            
+            let url = '/users/api/students/';
+            if (courseFilter) {
+                url = `{% url 'scheduler:api_course_students' %}?course_id=${courseFilter}`;
+            }
+            
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    // Verificar resposta
+                    const students = data.students || [];
+                    
+                    if (students.length > 0) {
+                        container.innerHTML = '';
+                        
+                        students.forEach(student => {
+                            const checkboxDiv = document.createElement('div');
+                            checkboxDiv.className = 'form-check mb-2';
+                            
+                            const checkbox = document.createElement('input');
+                            checkbox.type = 'checkbox';
+                            checkbox.className = 'form-check-input available-student-checkbox';
+                            checkbox.id = `available-student-${student.id}`;
+                            checkbox.value = student.id;
+                            
+                            const label = document.createElement('label');
+                            label.className = 'form-check-label';
+                            label.htmlFor = `available-student-${student.id}`;
+                            label.textContent = student.name;
+                            
+                            // Adicionar email como texto pequeno
+                            const emailText = document.createElement('small');
+                            emailText.className = 'd-block text-muted';
+                            emailText.textContent = student.email;
+                            label.appendChild(emailText);
+                            
+                            checkboxDiv.appendChild(checkbox);
+                            checkboxDiv.appendChild(label);
+                            container.appendChild(checkboxDiv);
+                        });
+                    } else {
+                        container.innerHTML = '<div class="alert alert-info">Nenhum aluno disponível.</div>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro ao carregar alunos:', error);
+                    container.innerHTML = '<div class="alert alert-danger">Erro ao carregar alunos.</div>';
+                });
+        }
+        
+        // Filtro para procurar alunos por nome ou email
+        document.getElementById('student-search').addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase();
+            document.querySelectorAll('.available-student-checkbox').forEach(checkbox => {
+                const label = document.querySelector(`label[for="${checkbox.id}"]`);
+                const studentName = label.textContent.toLowerCase();
+                const parentDiv = checkbox.closest('.form-check');
+                
+                if (studentName.includes(searchTerm)) {
+                    parentDiv.style.display = 'block';
+                } else {
+                    parentDiv.style.display = 'none';
+                }
+            });
+        });
+        
+        // Adicionar alunos selecionados ao evento
+        document.getElementById('confirm-add-participants').addEventListener('click', function() {
+            const eventId = document.getElementById('manage-participants-modal').getAttribute('data-event-id');
+            const selectedStudents = document.querySelectorAll('.available-student-checkbox:checked');
+            
+            if (selectedStudents.length === 0) {
+                alert('Selecione pelo menos um aluno.');
+                return;
+            }
+            
+            const studentIds = Array.from(selectedStudents).map(cb => cb.value);
+            
+            fetch(`{% url 'scheduler:api_manage_participants' event_id=0 %}`.replace('0', eventId), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: JSON.stringify({
+                    student_ids: studentIds
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.message) {
+                    // Esconder seção de adicionar e mostrar botão novamente
+                    document.getElementById('add-participants-container').style.display = 'none';
+                    document.getElementById('add-participants-btn').style.display = 'block';
+                    
+                    // Recarregar lista de participantes
+                    loadCurrentParticipants(eventId);
+                } else if (data.error) {
+                    alert(`Erro: ${data.error}`);
+                }
+            })
+            .catch(error => {
+                console.error('Erro ao adicionar participantes:', error);
+                alert('Erro ao adicionar participantes. Por favor, tente novamente.');
+            });
+        });
+        
+        // Resetar filtro de curso quando alterado
+        document.getElementById('add-course-filter').addEventListener('change', function() {
+            loadAvailableStudents();
+        });
+
+        // Carregar cursos do professor para o filtro
+        function loadProfessorCoursesForFilter(selectElement) {
+            selectElement.innerHTML = '<option value="">Todos os Alunos</option>';
+            
+            fetch('{% url "courses:api_professor_courses" %}', {
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                credentials: 'same-origin'
+            })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Erro ${response.status}: ${response.statusText}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // Manter a primeira opção e limpar o resto
+                    selectElement.innerHTML = '<option value="">Todos os Alunos</option>';
+                    
+                    if (data.courses && data.courses.length > 0) {
+                        data.courses.forEach(course => {
+                            const option = document.createElement('option');
+                            option.value = course.id;
+                            option.textContent = `${course.title} (${course.student_count} alunos)`;
+                            selectElement.appendChild(option);
+                        });
+                        console.log(`Carregados ${data.courses.length} cursos para o filtro`);
+                    } else {
+                        console.log("Nenhum curso encontrado para o filtro");
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro ao carregar cursos (filtro):', error);
+                });
+        }
+    });
+</script>
+{% endblock %}

@@ -6,15 +6,36 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2>Detalhes do Usuário</h2>
     <div>
+        {% if user_obj.user_type == 'PROFESSOR' and request.user.is_admin %}
+        <a href="/payments/admin/professor/{{ user_obj.id }}/" class="btn btn-primary">
+            <i class="fas fa-chart-line"></i> Painel Financeiro
+        </a>
+        {% endif %}
         <a href="{% url 'users:user_update' user_obj.id %}" class="btn btn-warning">
             <i class="fas fa-edit"></i> Editar
         </a>
+        {% if request.user.is_admin %}
         <a href="{% url 'users:user_delete' user_obj.id %}" class="btn btn-danger">
             <i class="fas fa-trash"></i> Excluir
         </a>
         <a href="{% url 'users:user_list' %}" class="btn btn-secondary">
             <i class="fas fa-arrow-left"></i> Voltar
         </a>
+        {% else %}
+        {% if request.user.is_professor %}
+        <a href="{% url 'courses:dashboard' %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Voltar
+        </a>
+        {% elif request.user.is_student %}
+        <a href="{% url 'courses:student:dashboard' %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Voltar
+        </a>
+        {% else %}
+        <a href="{% url 'home' %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Voltar
+        </a>
+        {% endif %}
+        {% endif %}
     </div>
 </div>
 

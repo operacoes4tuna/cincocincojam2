@@ -1,0 +1,301 @@
+/* Estilos para o widget de chat persistente */
+.chat-widget-container {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 1000;
+    transition: all 0.3s ease;
+}
+
+.chat-widget-button {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background-color: var(--bs-primary);
+    color: white;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    transition: all 0.3s ease;
+}
+
+.chat-widget-button:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+}
+
+.chat-widget-icon {
+    font-size: 24px;
+}
+
+.chat-widget-popup {
+    position: fixed;
+    bottom: 90px;
+    right: 20px;
+    width: 350px;
+    height: 450px;
+    background-color: var(--bs-body-bg, white);
+    color: var(--bs-body-color, black);
+    border-radius: 10px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    display: none;
+    flex-direction: column;
+    overflow: hidden;
+    z-index: 1001;
+    transition: all 0.3s ease;
+}
+
+[data-bs-theme="dark"] .chat-widget-popup {
+    border: 1px solid var(--bs-dark-border-subtle, #444);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+}
+
+/* Estilo para o widget expandido - tamanho bem mais amplo */
+.chat-widget-popup.expanded {
+    position: fixed;
+    bottom: 90px; /* Mantem a posição original */
+    right: 20px; /* Mantem a posição original */
+    width: 600px;
+    height: 650px;
+    max-width: 95vw;
+    max-height: 85vh;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+    z-index: 1040;
+    border-radius: 12px;
+}
+
+/* Estilo para o widget em tela cheia em dispositivos móveis */
+@media (max-width: 576px) {
+    .chat-widget-popup.expanded {
+        width: 90%;
+        height: 80%;
+        max-width: none;
+        max-height: 80vh;
+        bottom: 10vh;
+        right: 5%;
+        border-radius: 8px;
+    }
+}
+
+.chat-widget-header {
+    background-color: var(--bs-primary);
+    color: white;
+    padding: 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Botões no cabeçalho */
+.chat-widget-controls {
+    display: flex;
+    gap: 15px;
+}
+
+.chat-widget-close, 
+.chat-widget-expand {
+    cursor: pointer;
+    font-size: 18px;
+    transition: transform 0.2s ease;
+}
+
+.chat-widget-close:hover, 
+.chat-widget-expand:hover {
+    transform: scale(1.1);
+}
+
+/* Estilo para o ícone de expansão quando está expandido */
+.chat-widget-expand.is-expanded i {
+    transform: rotate(180deg);
+}
+
+.chat-widget-messages {
+    flex-grow: 1;
+    padding: 15px;
+    overflow-y: auto;
+    background-color: var(--bs-tertiary-bg, #f8f9fa);
+    color: var(--bs-body-color, black);
+}
+
+.chat-widget-input-container {
+    display: flex;
+    padding: 10px;
+    border-top: 1px solid var(--bs-border-color, #dee2e6);
+    background-color: var(--bs-body-bg, white);
+}
+
+.chat-widget-input {
+    flex-grow: 1;
+    border: 1px solid var(--bs-border-color, #ced4da);
+    border-radius: 4px;
+    padding: 8px 12px;
+    margin-right: 10px;
+    background-color: var(--bs-form-control-bg, white);
+    color: var(--bs-body-color, black);
+}
+
+[data-bs-theme="dark"] .chat-widget-input {
+    background-color: var(--bs-form-control-bg, #2b2b2b);
+    color: var(--bs-body-color, #e0e0e0);
+}
+
+.chat-widget-send {
+    background-color: var(--bs-primary);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 8px 15px;
+    cursor: pointer;
+}
+
+.chat-message {
+    margin-bottom: 10px;
+    max-width: 80%;
+}
+
+.user-message {
+    margin-left: auto;
+    background-color: var(--bs-tertiary-bg, #e9ecef);
+    color: var(--bs-body-color, black);
+    border-radius: 10px 10px 0 10px;
+    padding: 8px 12px;
+}
+
+[data-bs-theme="dark"] .user-message {
+    background-color: var(--bs-dark-bg-subtle, #444);
+    color: var(--bs-body-color, #e0e0e0);
+}
+
+.bot-message {
+    margin-right: auto;
+    background-color: var(--bs-primary);
+    color: white;
+    border-radius: 10px 10px 10px 0;
+    padding: 8px 12px;
+}
+
+/* Animações */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.chat-widget-popup.active {
+    display: flex;
+    animation: fadeIn 0.3s ease forwards;
+}
+
+/* Mensagens de texto em modo escuro */
+[data-bs-theme="dark"] .text-muted {
+    color: var(--bs-tertiary-color, #adb5bd) !important;
+}
+
+/* Responsividade */
+@media (max-width: 576px) {
+    .chat-widget-popup {
+        width: 90%;
+        right: 5%;
+        left: 5%;
+    }
+}
+
+/* Estilos para formatação markdown nas mensagens do bot */
+.bot-message h1 {
+    font-size: 1.5em;
+    margin: 0.7em 0 0.5em;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+    padding-bottom: 0.3em;
+    color: white;
+}
+
+.bot-message h2 {
+    font-size: 1.3em;
+    margin: 0.6em 0 0.4em;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    padding-bottom: 0.2em;
+    color: white;
+}
+
+.bot-message h3 {
+    font-size: 1.1em;
+    margin: 0.5em 0 0.3em;
+    color: white;
+}
+
+.bot-message strong {
+    font-weight: bold;
+    color: white;
+}
+
+.bot-message em {
+    font-style: italic;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.bot-message ul, .bot-message ol {
+    padding-left: 1.5em;
+    margin: 0.5em 0;
+}
+
+.bot-message blockquote {
+    border-left: 3px solid rgba(255, 255, 255, 0.5);
+    padding-left: 0.8em;
+    margin: 0.5em 0;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.bot-message code {
+    background-color: rgba(255, 255, 255, 0.2);
+    padding: 0.2em 0.4em;
+    border-radius: 3px;
+    font-family: monospace;
+    color: white;
+}
+
+.bot-message a {
+    color: white;
+    text-decoration: underline;
+}
+
+.bot-message a:hover {
+    text-decoration: none;
+    background-color: rgba(255, 255, 255, 0.2);
+    border-radius: 2px;
+}
+
+/* Ajuste de largura das mensagens para o chat expandido */
+.chat-widget-popup.expanded .chat-message {
+    max-width: 90%;
+}
+
+/* Cores do tema para o widget de chat, adaptadas do tema principal */
+:root {
+    --chat-bg: var(--bs-light);
+    --chat-text: var(--bs-dark);
+    --chat-primary: var(--bs-primary);
+    --chat-secondary: var(--bs-secondary);
+    --chat-success: var(--bs-success);
+    --chat-user-msg-bg: var(--bs-primary);
+    --chat-user-msg-text: white;
+    --chat-bot-msg-bg: var(--bs-light);
+    --chat-bot-msg-text: var(--bs-dark);
+    --chat-border: rgba(0, 0, 0, 0.125);
+    --chat-button-bg: var(--bs-primary);
+    --chat-button-text: white;
+    --chat-button-hover: var(--bs-primary-darker, #0056b3);
+}
+
+/* Suporte para tema escuro */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --chat-bg: var(--bs-dark);
+        --chat-text: var(--bs-light);
+        --chat-user-msg-bg: var(--bs-primary);
+        --chat-user-msg-text: white;
+        --chat-bot-msg-bg: var(--bs-dark-lighter, #343a40);
+        --chat-bot-msg-text: var(--bs-light);
+        --chat-border: rgba(255, 255, 255, 0.125);
+    }
+}

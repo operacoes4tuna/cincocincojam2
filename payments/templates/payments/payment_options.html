@@ -1,0 +1,92 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}Opções de Pagamento - {{ course.title }} - CincoCincoJAM 2.0{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/payment-icons.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'courses:student:dashboard' %}">Dashboard</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'courses:student:course_list' %}">Catálogo</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'courses:student:course_detail' course.id %}">{{ course.title }}</a></li>
+                    <li class="breadcrumb-item active">Opções de Pagamento</li>
+                </ol>
+            </nav>
+            <h2>Escolha uma forma de pagamento</h2>
+            <p class="lead text-muted">Você está se matriculando no curso <strong>{{ course.title }}</strong> por <strong>R$ {{ course.price }}</strong></p>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-primary text-white text-center">
+                    <h5 class="mb-0"><i class="fas fa-qrcode me-2"></i> {% trans "PIX" %}</h5>
+                </div>
+                <div class="card-body d-flex flex-column">
+                    <div class="text-center mb-3">
+                        <div class="payment-icon pix">PIX</div>
+                    </div>
+                    <p class="card-text">{% trans "Pagamento instantâneo via PIX. O acesso ao curso é liberado automaticamente assim que a transferência for confirmada." %}</p>
+                    <ul class="list-group list-group-flush mb-4">
+                        <li class="list-group-item d-flex align-items-center">
+                            <i class="fas fa-check-circle text-success me-2"></i> {% trans "Confirmação instantânea" %}
+                        </li>
+                        <li class="list-group-item d-flex align-items-center">
+                            <i class="fas fa-check-circle text-success me-2"></i> {% trans "Sem taxas adicionais" %}
+                        </li>
+                        <li class="list-group-item d-flex align-items-center">
+                            <i class="fas fa-check-circle text-success me-2"></i> {% trans "Disponível 24h" %}
+                        </li>
+                    </ul>
+                    <a href="{% url 'payments:create_pix_payment' course.id %}" class="btn btn-primary mt-auto">{% trans "Pagar com PIX" %}</a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-primary text-white text-center">
+                    <h5 class="mb-0"><i class="fas fa-credit-card me-2"></i> {% trans "Cartão" %}</h5>
+                </div>
+                <div class="card-body d-flex flex-column">
+                    <div class="text-center mb-3">
+                        <div class="d-flex justify-content-center gap-2">
+                            <div class="payment-icon visa">Visa</div>
+                            <div class="payment-icon mastercard">MC</div>
+                            <div class="payment-icon elo">Elo</div>
+                        </div>
+                    </div>
+                    <p class="card-text">{% trans "Pague com cartão de crédito ou débito. Você pode parcelar em até 6x sem juros no crédito." %}</p>
+                    <ul class="list-group list-group-flush mb-4">
+                        <li class="list-group-item d-flex align-items-center">
+                            <i class="fas fa-check-circle text-success me-2"></i> {% trans "Aprovação rápida" %}
+                        </li>
+                        <li class="list-group-item d-flex align-items-center">
+                            <i class="fas fa-check-circle text-success me-2"></i> {% trans "Parcelamento disponível" %}
+                        </li>
+                        <li class="list-group-item d-flex align-items-center">
+                            <i class="fas fa-check-circle text-success me-2"></i> {% trans "Ambiente seguro" %}
+                        </li>
+                    </ul>
+                    <a href="{% url 'payments:create_card_payment' course.id %}" class="btn btn-primary mt-auto">{% trans "Pagar com Cartão" %}</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="mt-4">
+        <a href="{% url 'courses:student:course_detail' course.id %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Voltar para o curso
+        </a>
+    </div>
+</div>
+{% endblock %} 

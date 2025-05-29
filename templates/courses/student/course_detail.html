@@ -7,12 +7,23 @@
     <div>
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb">
+                {% if is_student %}
                 <li class="breadcrumb-item"><a href="{% url 'courses:student:dashboard' %}">Dashboard</a></li>
+                {% elif is_professor %}
+                <li class="breadcrumb-item"><a href="{% url 'courses:dashboard' %}">Dashboard</a></li>
+                {% endif %}
                 <li class="breadcrumb-item"><a href="{% url 'courses:student:course_list' %}">Catálogo</a></li>
                 <li class="breadcrumb-item active">{{ course.title }}</li>
             </ol>
         </nav>
     </div>
+    {% if is_admin or is_professor and is_course_author %}
+    <div>
+        <a href="{% url 'courses:course_update' course.id %}" class="btn btn-warning">
+            <i class="fas fa-edit"></i> Editar Curso
+        </a>
+    </div>
+    {% endif %}
 </div>
 
 <div class="row">
@@ -49,13 +60,31 @@
                         </p>
                         <div class="d-flex align-items-center">
                             <h3 class="text-primary mb-0 me-3">R$ {{ course.price }}</h3>
-                            {% if not is_enrolled %}
-                                <a href="{% url 'courses:student:course_enroll' course.id %}" class="btn btn-primary">
-                                    <i class="fas fa-graduation-cap"></i> Matricular-se
-                                </a>
-                            {% else %}
-                                <a href="{% url 'courses:student:course_learn' course.id %}" class="btn btn-success">
-                                    <i class="fas fa-play-circle"></i> Continuar Aprendizado
+                            {% if is_student %}
+                                {% if not is_enrolled %}
+                                    {% if enrollment_exists and enrollment_status == 'CANCELLED' %}
+                                        <div>
+                                            <a href="{% url 'courses:student:course_enroll' course.id %}" class="btn btn-primary me-2">
+                                                <i class="fas fa-graduation-cap"></i> Matricular-se Novamente
+                                            </a>
+                                        </div>
+                                        <p class="small text-muted mt-2">Sua matrícula anterior foi cancelada. Você pode se matricular novamente.</p>
+                                    {% else %}
+                                        <div>
+                                            <a href="{% url 'courses:student:course_enroll' course.id %}" class="btn btn-primary me-2">
+                                                <i class="fas fa-graduation-cap"></i> Matricular-se Agora
+                                            </a>
+                                        </div>
+                                        <p class="small text-muted mt-2">Clique para se matricular neste curso.</p>
+                                    {% endif %}
+                                {% else %}
+                                    <a href="{% url 'courses:student:course_learn' course.id %}" class="btn btn-success">
+                                        <i class="fas fa-play-circle"></i> Continuar Aprendizado
+                                    </a>
+                                {% endif %}
+                            {% elif is_professor and is_course_author %}
+                                <a href="{% url 'courses:course_detail' course.id %}" class="btn btn-info">
+                                    <i class="fas fa-cog"></i> Gerenciar Curso
                                 </a>
                             {% endif %}
                         </div>
@@ -78,7 +107,7 @@
                 {% if lessons %}
                     <div class="list-group">
                         {% for lesson in lessons %}
-                            <div class="list-group-item {% if not is_enrolled %}{% if forloop.counter > 2 %}disabled opacity-50{% endif %}{% endif %}">
+                            <div class="list-group-item {% if not is_enrolled and is_student %}{% if forloop.counter > 2 %}disabled opacity-50{% endif %}{% endif %}">
                                 <div class="d-flex justify-content-between align-items-center">
                                     <div>
                                         <div class="d-flex align-items-center">
@@ -103,7 +132,7 @@
                         {% endfor %}
                     </div>
                     
-                    {% if not is_enrolled and total_lessons > 2 %}
+                    {% if not is_enrolled and is_student and total_lessons > 2 %}
                         <div class="alert alert-info mt-3">
                             <i class="fas fa-lock me-2"></i>
                             <strong>Acesso restrito!</strong> Matricule-se neste curso para acessar todas as {{ total_lessons }} aulas.
@@ -194,4 +223,21 @@
         </div>
     </div>
 </div>
+
+<!-- Adicionar esta seção na área de ações do curso -->
+
+{% if has_class_group_access %}
+    <div class="alert alert-success mb-4">
+        <i class="fas fa-users me-2"></i>
+        <strong>Acesso via Turma:</strong> Você tem acesso a este curso através da(s) sua(s) turma(s):
+        <ul class="mb-0 mt-2">
+            {% for group in class_groups %}
+                <li>{{ group.name }}</li>
+            {% endfor %}
+        </ul>
+        <a href="{% url 'courses:student:course_learn' course.id %}" class="btn btn-success mt-3">
+            <i class="fas fa-play-circle me-1"></i> Acessar curso
+        </a>
+    </div>
+{% endif %}
 {% endblock %}

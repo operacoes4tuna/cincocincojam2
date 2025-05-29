@@ -1,0 +1,439 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard Financeiro Administrativo - CincoCincoJAM 2.0{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Dashboard Financeiro - Visão Administrativa</h2>
+    <div>
+        <a href="{% url 'payments:admin_transactions' %}" class="btn btn-primary">
+            <i class="fas fa-list"></i> Ver Todas Transações
+        </a>
+    </div>
+</div>
+
+<!-- Cards de estatísticas gerais -->
+<div class="row">
+    <!-- Card de Receita Total -->
+    <div class="col-md-3">
+        <div class="card shadow mb-4">
+            <div class="card-body text-center">
+                <div class="display-4 text-success mb-2">R$ {{ total_received|floatformat:2 }}</div>
+                <h4>Receita Total</h4>
+                <div class="small text-muted">
+                    <span class="badge bg-success">Pagamentos confirmados</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Card de Pagamentos Pendentes -->
+    <div class="col-md-3">
+        <div class="card shadow mb-4">
+            <div class="card-body text-center">
+                <div class="display-4 text-warning mb-2">R$ {{ total_pending|floatformat:2 }}</div>
+                <h4>Pendente</h4>
+                <div class="small text-muted">
+                    <span class="badge bg-warning text-dark">Aguardando pagamento</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Card de Estornos -->
+    <div class="col-md-3">
+        <div class="card shadow mb-4">
+            <div class="card-body text-center">
+                <div class="display-4 text-danger mb-2">R$ {{ total_refunded|floatformat:2 }}</div>
+                <h4>Estornado</h4>
+                <div class="small text-muted">
+                    <span class="badge bg-danger">Pagamentos estornados</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Card de Transações -->
+    <div class="col-md-3">
+        <div class="card shadow mb-4">
+            <div class="card-body text-center">
+                <div class="display-4 text-primary mb-2">{{ total_transactions }}</div>
+                <h4>Transações</h4>
+                <div class="small text-muted">
+                    <span class="badge bg-primary">Total de transações</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Cards de plataforma -->
+<div class="row">
+    <!-- Card de Professores -->
+    <div class="col-md-4">
+        <div class="card shadow mb-4">
+            <div class="card-body text-center">
+                <div class="display-4 text-info mb-2">{{ total_professors }}</div>
+                <h4>Professores</h4>
+                <hr>
+                <a href="{% url 'users:user_list' %}?type=professor" class="btn btn-sm btn-outline-info">Ver Professores</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Card de Cursos -->
+    <div class="col-md-4">
+        <div class="card shadow mb-4">
+            <div class="card-body text-center">
+                <div class="display-4 text-info mb-2">{{ total_courses }}</div>
+                <h4>Cursos</h4>
+                <hr>
+                <a href="#" class="btn btn-sm btn-outline-info">Ver Todos os Cursos</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Card de Matrículas -->
+    <div class="col-md-4">
+        <div class="card shadow mb-4">
+            <div class="card-body text-center">
+                <div class="display-4 text-info mb-2">{{ total_enrollments }}</div>
+                <h4>Matrículas</h4>
+                <hr>
+                <a href="{% url 'payments:admin_transactions' %}" class="btn btn-sm btn-outline-info">Ver Transações</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Notas Fiscais -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card shadow mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Notas Fiscais</h5>
+            </div>
+            <div class="card-body">
+                {% if invoices_count %}
+                    <div class="row mb-4">
+                        <!-- Estatísticas de Notas Fiscais - Formato compacto -->
+                        <div class="col-md-3">
+                            <div class="d-flex align-items-center mb-2">
+                                <div class="badge bg-secondary me-2">{{ invoices_count }}</div>
+                                <span>Total de Notas</span>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="d-flex align-items-center mb-2">
+                                <div class="badge bg-success me-2">{{ invoices_approved }}</div>
+                                <span>Emitidas</span>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="d-flex align-items-center mb-2">
+                                <div class="badge bg-warning text-dark me-2">{{ invoices_processing|add:invoices_pending }}</div>
+                                <span>Em Processamento</span>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="d-flex align-items-center mb-2">
+                                <div class="badge bg-danger me-2">{{ invoices_error }}</div>
+                                <span>Com Erro</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Tabela de Notas Fiscais Recentes -->
+                    <h6 class="border-bottom pb-2 mb-3">Notas Fiscais Recentes</h6>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Data</th>
+                                    <th>Aluno</th>
+                                    <th>Valor</th>
+                                    <th>Status</th>
+                                    <th class="text-center">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for invoice in recent_invoices %}
+                                <tr>
+                                    <td>{{ invoice.id }}</td>
+                                    <td>{{ invoice.created_at|date:"d/m/Y H:i" }}</td>
+                                    <td>{{ invoice.transaction.enrollment.student.email }}</td>
+                                    <td>R$ {{ invoice.transaction.amount|floatformat:2 }}</td>
+                                    <td>
+                                        {% if invoice.status == 'approved' %}
+                                            <span class="badge bg-success">Emitida</span>
+                                        {% elif invoice.status == 'processing' %}
+                                            <span class="badge bg-warning text-dark">Processando</span>
+                                        {% elif invoice.status == 'pending' %}
+                                            <span class="badge bg-info">Pendente</span>
+                                        {% elif invoice.status == 'cancelled' %}
+                                            <span class="badge bg-secondary">Cancelada</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">Erro</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="{% url 'invoices:invoice_detail' invoice.id %}" class="btn btn-outline-primary" title="Detalhes">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            
+                                            <a href="{% url 'invoices:check_status' invoice.id %}" class="btn btn-outline-secondary check-status-btn" title="Verificar status" data-invoice-id="{{ invoice.id }}">
+                                                <i class="fas fa-sync"></i>
+                                            </a>
+                                            
+                                            {% if invoice.focus_pdf_url %}
+                                            <a href="{{ invoice.focus_pdf_url }}" class="btn btn-outline-success" target="_blank" title="Download PDF">
+                                                <i class="fas fa-file-pdf"></i>
+                                            </a>
+                                            {% endif %}
+                                            
+                                            {% if not invoice.status == 'approved' %}
+                                            <a href="{% url 'invoices:approve_manually' invoice.id %}" class="btn btn-outline-info" title="Aprovar Manualmente (Apenas Teste)">
+                                                <i class="fas fa-check-circle"></i>
+                                            </a>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="alert alert-info">
+                        <p><i class="fas fa-info-circle me-2"></i> Nenhuma nota fiscal emitida ainda.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Top Professores por Receita -->
+<div class="row mt-4">
+    <div class="col-md-6">
+        <div class="card shadow mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Top Professores por Receita</h5>
+            </div>
+            <div class="card-body">
+                {% if professor_stats %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Professor</th>
+                                    <th class="text-center">Cursos</th>
+                                    <th class="text-center">Matrículas</th>
+                                    <th class="text-end">Receita</th>
+                                    <th class="text-center">Detalhes</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for stat in professor_stats %}
+                                <tr>
+                                    <td>{{ stat.professor.get_full_name|default:stat.professor.email }}</td>
+                                    <td class="text-center">{{ stat.courses }}</td>
+                                    <td class="text-center">{{ stat.enrollments }}</td>
+                                    <td class="text-end">R$ {{ stat.revenue|floatformat:2 }}</td>
+                                    <td class="text-center">
+                                        <a href="{% url 'payments:admin_professor_detail' stat.professor.id %}" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="alert alert-info">
+                        Nenhum professor com receita encontrado.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Cursos por Receita -->
+    <div class="col-md-6">
+        <div class="card shadow mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Top Cursos por Receita</h5>
+            </div>
+            <div class="card-body">
+                {% if top_courses %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Curso</th>
+                                    <th>Professor</th>
+                                    <th class="text-end">Receita</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for course in top_courses %}
+                                <tr>
+                                    <td>{{ course.title }}</td>
+                                    <td>{{ course.professor.get_full_name|default:course.professor.email }}</td>
+                                    <td class="text-end">R$ {{ course.revenue|floatformat:2 }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="alert alert-info">
+                        Nenhum curso com receita encontrado.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Transações Recentes -->
+<div class="row mt-2">
+    <div class="col-12">
+        <div class="card shadow mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Transações Recentes</h5>
+            </div>
+            <div class="card-body">
+                {% if recent_transactions %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Data</th>
+                                    <th>Aluno</th>
+                                    <th>Curso</th>
+                                    <th>Professor</th>
+                                    <th class="text-end">Valor</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for transaction in recent_transactions %}
+                                <tr>
+                                    <td>{{ transaction.created_at|date:"d/m/Y H:i" }}</td>
+                                    <td>{{ transaction.enrollment.student.email }}</td>
+                                    <td>{{ transaction.enrollment.course.title }}</td>
+                                    <td>{{ transaction.enrollment.course.professor.get_full_name|default:transaction.enrollment.course.professor.email }}</td>
+                                    <td class="text-end">R$ {{ transaction.amount|floatformat:2 }}</td>
+                                    <td>
+                                        {% if transaction.status == 'PAID' %}
+                                            <span class="badge bg-success">Pago</span>
+                                        {% elif transaction.status == 'PENDING' %}
+                                            <span class="badge bg-warning text-dark">Pendente</span>
+                                        {% elif transaction.status == 'REFUNDED' %}
+                                            <span class="badge bg-danger">Estornado</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">{{ transaction.status }}</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div class="text-center mt-3">
+                        <a href="{% url 'payments:admin_transactions' %}" class="btn btn-outline-primary">Ver Todas Transações</a>
+                    </div>
+                {% else %}
+                    <div class="alert alert-info">
+                        Nenhuma transação encontrada.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Adicionar listeners para os botões de verificação de status
+    const statusButtons = document.querySelectorAll('.check-status-btn');
+    statusButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const invoiceId = this.getAttribute('data-invoice-id');
+            checkInvoiceStatus(invoiceId, this);
+        });
+    });
+    
+    // Função para verificar o status da nota fiscal via AJAX
+    function checkInvoiceStatus(invoiceId, button) {
+        // Mostrar indicador de carregamento
+        const originalHTML = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        button.disabled = true;
+        
+        // Fazer a requisição AJAX
+        fetch(`/invoices/status/${invoiceId}/`, {
+            method: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            // Atualizar o botão e status na interface
+            button.innerHTML = originalHTML;
+            button.disabled = false;
+            
+            // Mostrar notificação do resultado
+            const statusText = data.status === 'approved' ? 'Nota fiscal emitida com sucesso!' : 
+                              (data.status === 'error' ? 'Erro ao processar nota fiscal.' : 'Status atualizado.');
+            
+            // Exibir mensagem de status na página
+            const messageType = data.status === 'approved' ? 'success' : 
+                               (data.status === 'error' ? 'danger' : 'info');
+            
+            // Criar mensagem temporária
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${messageType} alert-dismissible fade show mt-3`;
+            alertDiv.innerHTML = `
+                ${statusText}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            `;
+            
+            // Inserir a mensagem na página
+            const cardBody = button.closest('.card-body');
+            cardBody.insertBefore(alertDiv, cardBody.firstChild);
+            
+            // Atualizar a página após 2 segundos para refletir as alterações
+            setTimeout(() => {
+                window.location.reload();
+            }, 2000);
+        })
+        .catch(error => {
+            console.error('Erro ao verificar status:', error);
+            button.innerHTML = originalHTML;
+            button.disabled = false;
+            
+            // Criar mensagem de erro
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'alert alert-danger alert-dismissible fade show mt-3';
+            alertDiv.innerHTML = `
+                Erro ao comunicar com o servidor. Tente novamente.
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            `;
+            
+            // Inserir a mensagem na página
+            const cardBody = button.closest('.card-body');
+            cardBody.insertBefore(alertDiv, cardBody.firstChild);
+        });
+    }
+});
+</script>
+{% endblock %}

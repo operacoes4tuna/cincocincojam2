@@ -1,0 +1,568 @@
+/* 
+ * CincoCincoJAM 2.0 - Sistema de temas claro/escuro
+ * Este arquivo define as variáveis de cores para os modos claro e escuro
+ * e garante a correta aplicação do tema em toda a interface
+ */
+
+:root {
+  /* Variáveis de cores para o modo claro (padrão) */
+  --body-bg: #f8f9fa;
+  --body-color: #212529;
+  --card-bg: #ffffff;
+  --card-border: rgba(0, 0, 0, 0.125);
+  --primary: #0d6efd;
+  --primary-hover: #0b5ed7;
+  --secondary: #6c757d;
+  --success: #198754;
+  --info: #0dcaf0;
+  --warning: #ffc107;
+  --danger: #dc3545;
+  --light: #f8f9fa;
+  --dark: #212529;
+  --muted: #6c757d;
+  --shadow: rgba(0, 0, 0, 0.15);
+  --header-bg: #ffffff;
+  --header-color: #212529;
+  --footer-bg: #f8f9fa;
+  --footer-color: #212529;
+  --input-bg: #ffffff;
+  --input-color: #212529;
+  --input-border: #ced4da;
+  --input-focus-border: #86b7fe;
+  --link-color: #0d6efd;
+  --link-hover-color: #0a58ca;
+  --navbar-dark-bg: #343a40;
+  --navbar-light-bg: #f8f9fa;
+  --table-bg: #ffffff;
+  --table-stripe-bg: rgba(0, 0, 0, 0.05);
+  --table-hover-bg: rgba(0, 0, 0, 0.075);
+  --border-color: #dee2e6;
+  --modal-bg: #ffffff;
+  --sidebar-bg: #ffffff;
+  --toast-bg: #ffffff;
+  --hr-color: rgba(0, 0, 0, 0.1);
+}
+
+/* Classes específicas para cada tema */
+.theme-light {
+  /* Força as variáveis do tema claro */
+  color-scheme: light;
+  --body-bg: #f8f9fa;
+  --body-color: #212529;
+  --card-bg: #ffffff;
+  --card-border: rgba(0, 0, 0, 0.125);
+  /* Demais variáveis do tema claro... */
+}
+
+.theme-dark {
+  /* Força as variáveis do tema escuro */
+  color-scheme: dark;
+  --body-bg: #121212;
+  --body-color: #e0e0e0;
+  --card-bg: #1e1e1e;
+  --card-border: rgba(255, 255, 255, 0.125);
+  /* Demais variáveis do tema escuro... */
+}
+
+/* Aplica o tema escuro quando o atributo data-bs-theme="dark" está definido */
+[data-bs-theme="dark"] {
+  color-scheme: dark;
+  --body-bg: #121212;
+  --body-color: #e0e0e0;
+  --card-bg: #1e1e1e;
+  --card-border: rgba(255, 255, 255, 0.125);
+  --primary: #3b82f6;
+  --primary-hover: #2563eb;
+  --secondary: #9ca3af;
+  --success: #22c55e;
+  --info: #3b82f6;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --light: #1e1e1e;
+  --dark: #e0e0e0;
+  --muted: #9ca3af;
+  --shadow: rgba(0, 0, 0, 0.5);
+  --header-bg: #1e1e1e;
+  --header-color: #e0e0e0;
+  --footer-bg: #1e1e1e;
+  --footer-color: #e0e0e0;
+  --input-bg: #2d2d2d;
+  --input-color: #e0e0e0;
+  --input-border: #3d3d3d;
+  --input-focus-border: #4d4d4d;
+  --link-color: #3b82f6;
+  --link-hover-color: #60a5fa;
+  --navbar-dark-bg: #121212;
+  --navbar-light-bg: #1e1e1e;
+  --table-bg: #1e1e1e;
+  --table-stripe-bg: rgba(255, 255, 255, 0.05);
+  --table-hover-bg: rgba(255, 255, 255, 0.075);
+  --border-color: #3d3d3d;
+  --modal-bg: #1e1e1e;
+  --sidebar-bg: #1e1e1e;
+  --toast-bg: #1e1e1e;
+  --hr-color: rgba(255, 255, 255, 0.1);
+  /* Demais variáveis do tema escuro... */
+}
+
+/* Manter para compatibilidade com preferências do sistema */
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* Variáveis de cores para o modo escuro */
+    --body-bg: #121212;
+    --body-color: #e0e0e0;
+    --card-bg: #1e1e1e;
+    --card-border: rgba(255, 255, 255, 0.125);
+    --card-footer-bg: #1e1e1e;
+    --card-header-bg: #1e1e1e;
+    --primary: #3b82f6;
+    --primary-hover: #2563eb;
+    --secondary: #9ca3af;
+    --success: #22c55e;
+    --info: #3b82f6;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+    --light: #1e1e1e;
+    --dark: #e0e0e0;
+    --muted: #9ca3af;
+    --shadow: rgba(0, 0, 0, 0.5);
+    --header-bg: #1e1e1e;
+    --header-color: #e0e0e0;
+    --footer-bg: #1e1e1e;
+    --footer-color: #e0e0e0;
+    --input-bg: #2d2d2d;
+    --input-color: #e0e0e0;
+    --input-border: #3d3d3d;
+    --input-focus-border: #4d4d4d;
+    --link-color: #3b82f6;
+    --link-hover-color: #60a5fa;
+    --navbar-dark-bg: #121212;
+    --navbar-light-bg: #1e1e1e;
+    --table-bg: #1e1e1e;
+    --table-stripe-bg: rgba(255, 255, 255, 0.05);
+    --table-hover-bg: rgba(255, 255, 255, 0.075);
+    --border-color: #3d3d3d;
+    --modal-bg: #1e1e1e;
+    --sidebar-bg: #1e1e1e;
+    --toast-bg: #1e1e1e;
+    --hr-color: rgba(255, 255, 255, 0.1);
+  }
+}
+
+/* Aplicando as variáveis CSS aos elementos HTML */
+body {
+  background-color: var(--body-bg);
+  color: var(--body-color);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Sobrescrevendo as classes do Bootstrap com as variáveis de cores */
+.bg-primary {
+  background-color: var(--primary) !important;
+}
+
+.bg-secondary {
+  background-color: var(--secondary) !important;
+}
+
+.bg-success {
+  background-color: var(--success) !important;
+}
+
+.bg-info {
+  background-color: var(--info) !important;
+}
+
+.bg-warning {
+  background-color: var(--warning) !important;
+}
+
+.bg-danger {
+  background-color: var(--danger) !important;
+}
+
+.bg-light {
+  background-color: var(--light) !important;
+}
+
+.bg-dark {
+  background-color: var(--dark) !important;
+}
+
+.text-primary {
+  color: var(--primary) !important;
+}
+
+.text-secondary {
+  color: var(--secondary) !important;
+}
+
+.text-success {
+  color: var(--success) !important;
+}
+
+.text-info {
+  color: var(--info) !important;
+}
+
+.text-warning {
+  color: var(--warning) !important;
+}
+
+.text-danger {
+  color: var(--danger) !important;
+}
+
+.text-light {
+  color: var(--light) !important;
+}
+
+.text-dark {
+  color: var(--dark) !important;
+}
+
+.text-muted {
+  color: var(--muted) !important;
+}
+
+/* Cards */
+.card {
+  background-color: var(--card-bg);
+  border-color: var(--card-border);
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+.card-header, .card-footer {
+  background-color: rgba(0, 0, 0, 0.03);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+@media (prefers-color-scheme: dark) {
+  .card-header, .card-footer {
+    background-color: rgba(255, 255, 255, 0.05);
+  }
+}
+
+/* Corrige elementos com fundo forçado no tema escuro */
+[data-bs-theme="dark"] .bg-white,
+[data-bs-theme="dark"] .card-footer.bg-white,
+[data-bs-theme="dark"] .card-header.bg-white {
+  background-color: var(--card-bg) !important;
+  color: var(--body-color) !important;
+}
+
+/* Melhora a adaptação de tabelas ao tema escuro */
+[data-bs-theme="dark"] th,
+[data-bs-theme="dark"] td {
+  background-color: var(--card-bg) !important;
+  color: var(--body-color) !important;
+}
+
+[data-bs-theme="dark"] .table-light,
+[data-bs-theme="dark"] thead.table-light,
+[data-bs-theme="dark"] .table-light > th,
+[data-bs-theme="dark"] .table-light > td {
+  background-color: #2d2d2d !important;
+  color: var(--body-color) !important;
+}
+
+/* Melhora adaptação de cabeçalhos coloridos */
+[data-bs-theme="dark"] .card-header.bg-primary,
+[data-bs-theme="dark"] .card-header.bg-success,
+[data-bs-theme="dark"] .card-header.bg-info,
+[data-bs-theme="dark"] .card-header.bg-warning,
+[data-bs-theme="dark"] .card-header.bg-danger {
+  color: #fff !important; /* Mantém o texto branco para contraste */
+  filter: brightness(0.85); /* Reduz um pouco o brilho para melhorar o conforto visual */
+}
+
+/* Melhora adaptação de modais ao tema escuro */
+[data-bs-theme="dark"] .modal-content {
+  background-color: var(--card-bg);
+  color: var(--body-color);
+  border-color: var(--card-border);
+}
+
+[data-bs-theme="dark"] .modal-header,
+[data-bs-theme="dark"] .modal-footer {
+  background-color: #2b2b2b;
+  border-color: var(--card-border);
+}
+
+/* Navbar */
+.navbar-light {
+  background-color: var(--navbar-light-bg);
+}
+
+.navbar-dark {
+  background-color: var(--navbar-dark-bg);
+}
+
+/* Botões */
+.btn-primary {
+  background-color: var(--primary);
+  border-color: var(--primary);
+}
+
+.btn-primary:hover, .btn-primary:focus {
+  background-color: var(--primary-hover);
+  border-color: var(--primary-hover);
+}
+
+.btn-outline-primary {
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+.btn-outline-primary:hover, .btn-outline-primary:focus {
+  background-color: var(--primary);
+  border-color: var(--primary);
+}
+
+/* Inputs */
+.form-control {
+  background-color: var(--input-bg);
+  border-color: var(--input-border);
+  color: var(--input-color);
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+/* Garante que os inputs tenham fundo branco no tema claro */
+[data-bs-theme="light"] .form-control,
+.theme-light .form-control {
+  background-color: #ffffff !important;
+  color: #212529 !important;
+}
+
+.form-control:focus {
+  background-color: var(--input-bg);
+  color: var(--input-color);
+  border-color: var(--input-focus-border);
+}
+
+/* Tabelas */
+.table {
+  color: var(--body-color);
+  transition: color 0.3s ease;
+}
+
+.table-striped tbody tr:nth-of-type(odd) {
+  background-color: var(--table-stripe-bg);
+}
+
+.table-hover tbody tr:hover {
+  background-color: var(--table-hover-bg);
+}
+
+/* Links */
+a {
+  color: var(--link-color);
+}
+
+a:hover {
+  color: var(--link-hover-color);
+}
+
+/* Bordas */
+.border {
+  border-color: var(--border-color) !important;
+}
+
+/* Dropdowns */
+.dropdown-menu {
+  background-color: var(--card-bg);
+  border-color: var(--card-border);
+}
+
+.dropdown-item {
+  color: var(--body-color);
+}
+
+.dropdown-item:hover, .dropdown-item:focus {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+@media (prefers-color-scheme: dark) {
+  .dropdown-item:hover, .dropdown-item:focus {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+}
+
+/* Modal */
+.modal-content {
+  background-color: var(--modal-bg);
+  border-color: var(--card-border);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Badges */
+.badge {
+  color: #fff;
+}
+
+/* Progress bars */
+.progress {
+  background-color: var(--light);
+}
+
+/* List groups */
+.list-group-item {
+  background-color: var(--card-bg);
+  border-color: var(--card-border);
+  color: var(--body-color);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Ajustes para elementos específicos do CincoCincoJAM 2.0 */
+.dashboard-card {
+  background-color: var(--card-bg);
+  border-color: var(--card-border);
+  box-shadow: 0 0.125rem 0.25rem var(--shadow);
+}
+
+.course-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.course-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 0.5rem 1rem var(--shadow);
+}
+
+/* Melhorias específicas para tema escuro */
+[data-bs-theme="dark"] {
+  /* Ajusta as sombras para melhor visibilidade no modo escuro */
+  .shadow {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.5) !important;
+  }
+  
+  /* Ajusta a cor de texto nos botões */
+  .btn-outline-dark {
+    color: var(--light);
+    border-color: var(--light);
+  }
+  
+  .btn-outline-dark:hover {
+    color: var(--dark);
+    background-color: var(--light);
+    border-color: var(--light);
+  }
+  
+  .btn-outline-light {
+    color: var(--dark);
+    border-color: var(--dark);
+  }
+  
+  .btn-outline-light:hover {
+    color: var(--light);
+    background-color: var(--dark);
+    border-color: var(--dark);
+  }
+  
+  /* Ajusta o contraste de alertas */
+  .alert {
+    border: 1px solid var(--border-color);
+  }
+  
+  /* Melhora a legibilidade dos botões close */
+  .btn-close {
+    filter: invert(1) grayscale(100%) brightness(200%);
+  }
+  
+  /* Garante que badges mantenham bom contraste */
+  .badge.bg-warning {
+    color: #212529 !important;
+  }
+  
+  .badge.bg-light {
+    background-color: #e0e0e0 !important;
+    color: #212529 !important;
+  }
+  
+  /* Ajusta borda de cards para melhor visibilidade */
+  .card {
+    border-color: rgba(255, 255, 255, 0.2);
+  }
+  
+  /* Melhora o contraste de elementos que usam texto preto */
+  .text-dark {
+    color: #e0e0e0 !important;
+  }
+}
+
+/* Personalização adicional para modo escuro */
+@media (prefers-color-scheme: dark) {
+  /* Ajusta as sombras para melhor visibilidade no modo escuro */
+  .shadow {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.5) !important;
+  }
+  
+  /* Ajusta a cor de texto nos botões */
+  .btn-outline-dark {
+    color: var(--light);
+    border-color: var(--light);
+  }
+  
+  .btn-outline-dark:hover {
+    color: var(--dark);
+    background-color: var(--light);
+    border-color: var(--light);
+  }
+  
+  .btn-outline-light {
+    color: var(--dark);
+    border-color: var(--dark);
+  }
+  
+  .btn-outline-light:hover {
+    color: var(--light);
+    background-color: var(--dark);
+    border-color: var(--dark);
+  }
+  
+  /* Ajusta o contraste de alertas */
+  .alert {
+    border: 1px solid var(--border-color);
+  }
+  
+  /* Melhora a legibilidade dos botões close */
+  .btn-close {
+    filter: invert(1) grayscale(100%) brightness(200%);
+  }
+}
+
+/* Regras específicas para o logo da marca de acordo com o tema */
+.logo-light {
+  display: none !important;
+}
+
+.logo-dark {
+  display: block !important;
+}
+
+/* Em tema escuro, inverte as logos */
+[data-bs-theme="dark"] .logo-light {
+  display: block !important;
+}
+
+[data-bs-theme="dark"] .logo-dark {
+  display: none !important;
+}
+
+/* Lógica para a navbar escura */
+.navbar-dark .logo-light {
+  display: block !important;
+}
+
+.navbar-dark .logo-dark {
+  display: none !important;
+}
+
+/* Lógica para a navbar clara */
+.navbar-light .logo-light {
+  display: none !important;
+}
+
+.navbar-light .logo-dark {
+  display: block !important;
+}

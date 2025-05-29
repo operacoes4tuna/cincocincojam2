@@ -1,0 +1,141 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+    .enrollments-form {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: #fff;
+        border-radius: 4px;
+        box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    .form-row {
+        display: flex;
+        margin-bottom: 20px;
+    }
+    .field-box {
+        flex: 1;
+        margin-right: 20px;
+    }
+    .field-box:last-child {
+        margin-right: 0;
+    }
+    .field-box label {
+        display: block;
+        font-weight: bold;
+        margin-bottom: 8px;
+    }
+    .field-box select, .field-box input {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+    }
+    .submit-row {
+        text-align: right;
+        margin-top: 20px;
+    }
+    .submit-row input[type="submit"] {
+        background: #417690;
+        color: #fff;
+        border: none;
+        padding: 10px 15px;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+    .submit-row input[type="submit"]:hover {
+        background: #2b5171;
+    }
+    .alert {
+        padding: 15px;
+        margin-bottom: 20px;
+        border-radius: 4px;
+    }
+    .alert-info {
+        background-color: #d9edf7;
+        border: 1px solid #bce8f1;
+        color: #31708f;
+    }
+</style>
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+    &rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+    &rsaquo; <a href="{% url 'admin:courses_enrollment_changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
+    &rsaquo; {% trans 'Matricular aluno em curso' %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <div class="app-courses module">
+        <h2>{% trans 'Matricular aluno em curso' %}</h2>
+        <div class="description">
+            <p>{% trans 'Selecione um aluno, um curso e opcionalmente uma turma para criar uma nova matrícula.' %}</p>
+        </div>
+        
+        <form method="post">
+            {% csrf_token %}
+            
+            <fieldset class="module aligned">
+                <div class="form-row">
+                    <div class="field-box">
+                        <label for="id_student">{% trans 'Aluno:' %}</label>
+                        <select name="student" id="id_student" required>
+                            <option value="">---------</option>
+                            {% for student in students %}
+                                <option value="{{ student.id }}">{{ student.email }} ({{ student.get_full_name }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="field-box">
+                        <label for="id_course">{% trans 'Curso:' %}</label>
+                        <select name="course" id="id_course" required>
+                            <option value="">---------</option>
+                            {% for course in courses %}
+                                <option value="{{ course.id }}">{{ course.title }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="field-box">
+                        <label for="id_class_group">{% trans 'Turma (opcional):' %}</label>
+                        <select name="class_group" id="id_class_group">
+                            <option value="">---------</option>
+                            {% for class_group in class_groups %}
+                                <option value="{{ class_group.id }}">{{ class_group.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="field-box">
+                        <label for="id_status">{% trans 'Status:' %}</label>
+                        <select name="status" id="id_status">
+                            {% for status_value, status_label in status_choices %}
+                                <option value="{{ status_value }}" {% if status_value == 'ACTIVE' %}selected{% endif %}>{{ status_label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </fieldset>
+            
+            <div class="submit-row">
+                <input type="submit" class="default" value="{% trans 'Matricular' %}">
+                <a href="{% url 'admin:courses_enrollment_changelist' %}" class="button cancel-link">{% trans 'Cancelar' %}</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %} 

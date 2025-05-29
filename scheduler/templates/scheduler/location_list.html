@@ -1,0 +1,122 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{% trans "Estúdios" %}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .location-card {
+        transition: all 0.2s ease;
+        border: 1px solid #dee2e6;
+        color: #333;
+    }
+    .location-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+    }
+    .online-badge {
+        background-color: #28a745;
+    }
+    .physical-badge {
+        background-color: #6c757d;
+    }
+    
+    .card-link {
+        color: inherit;
+        text-decoration: none;
+    }
+    
+    .card-link:hover {
+        text-decoration: none;
+        color: inherit;
+    }
+    
+    .card-footer-actions {
+        position: relative;
+        z-index: 10;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4 mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>{% trans "Estúdios" %}</h2>
+        <div>
+            <a href="{% url 'scheduler:location_create' %}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> {% trans "Novo Estúdio" %}
+            </a>
+        </div>
+    </div>
+
+    {% if locations %}
+        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+            {% for location in locations %}
+                <div class="col">
+                    <div class="card h-100 location-card">
+                        <a href="{% url 'scheduler:location_calendar' location.id %}" class="card-link">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start mb-3">
+                                    <h5 class="card-title">{{ location.name }}</h5>
+                                    {% if location.is_online %}
+                                        <span class="badge online-badge">{% trans "Online" %}</span>
+                                    {% else %}
+                                        <span class="badge physical-badge">{% trans "Presencial" %}</span>
+                                    {% endif %}
+                                </div>
+                                
+                                {% if location.is_online %}
+                                    {% if location.meeting_link %}
+                                        <p class="card-text mb-2">
+                                            <strong>{% trans "Link de Acesso:" %}</strong><br>
+                                            <a href="{{ location.meeting_link }}" target="_blank" class="text-truncate d-inline-block" style="max-width: 100%;">
+                                                {{ location.meeting_link }}
+                                            </a>
+                                        </p>
+                                    {% endif %}
+                                {% else %}
+                                    {% if location.address %}
+                                        <p class="card-text mb-2">
+                                            <strong>{% trans "Endereço:" %}</strong><br>
+                                            {{ location.address }}
+                                        </p>
+                                    {% endif %}
+                                {% endif %}
+                                
+                                {% with event_count=location.event_set.count %}
+                                    <p class="card-text text-muted mt-3">
+                                        <i class="far fa-calendar-alt me-1"></i> 
+                                        {% if event_count == 0 %}
+                                            {% trans "Nenhum evento agendado" %}
+                                        {% elif event_count == 1 %}
+                                            {% trans "1 evento agendado" %}
+                                        {% else %}
+                                            {{ event_count }} {% trans "eventos agendados" %}
+                                        {% endif %}
+                                    </p>
+                                {% endwith %}
+                            </div>
+                        </a>
+                        <div class="card-footer bg-transparent card-footer-actions">
+                            <div class="d-flex justify-content-end">
+                                <a href="{% url 'scheduler:location_update' location.id %}" class="btn btn-sm btn-outline-primary me-2">
+                                    <i class="fas fa-edit"></i> {% trans "Editar" %}
+                                </a>
+                                <a href="{% url 'scheduler:location_delete' location.id %}" class="btn btn-sm btn-outline-danger">
+                                    <i class="fas fa-trash"></i> {% trans "Excluir" %}
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="alert alert-info">
+            <h5 class="alert-heading">{% trans "Nenhum estúdio cadastrado" %}</h5>
+            <p>{% trans "Ainda não há estúdios cadastrados no sistema. Clique no botão 'Novo Estúdio' para adicionar um." %}</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load crispy_forms_tags %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-section {
+        border-bottom: 1px solid #e9ecef;
+        padding-bottom: 1rem;
+        margin-bottom: 1.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4 mb-5">
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">{{ page_title }}</h5>
+            <div>
+                <a href="{% url 'scheduler:location_list' %}" class="btn btn-outline-secondary btn-sm">
+                    <i class="fas fa-arrow-left"></i> {% trans "Voltar para a lista" %}
+                </a>
+            </div>
+        </div>
+        <div class="card-body">
+            {% crispy form %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const isOnlineCheckbox = document.getElementById('id_is_online');
+        const addressDiv = document.getElementById('address_div');
+        const meetingLinkDiv = document.getElementById('meeting_link_div');
+        
+        // Função para alternar visibilidade com base na seleção
+        function toggleFields() {
+            if (isOnlineCheckbox.checked) {
+                addressDiv.style.display = 'none';
+                meetingLinkDiv.style.display = 'block';
+            } else {
+                addressDiv.style.display = 'block';
+                meetingLinkDiv.style.display = 'none';
+            }
+        }
+        
+        // Executar no carregamento
+        toggleFields();
+        
+        // Adicionar listener para alterações
+        isOnlineCheckbox.addEventListener('change', toggleFields);
+    });
+</script>
+{% endblock %}

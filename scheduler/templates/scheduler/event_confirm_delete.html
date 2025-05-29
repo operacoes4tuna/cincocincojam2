@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">{% trans "Confirmar Exclusão" %}</h5>
+            <div>
+                <a href="{% url 'scheduler:event_detail' event.id %}" class="btn btn-outline-secondary btn-sm">
+                    <i class="fas fa-arrow-left"></i> {% trans "Voltar para o evento" %}
+                </a>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="alert alert-danger">
+                <h4 class="alert-heading mb-3">
+                    <i class="fas fa-exclamation-triangle"></i> {% trans "Tem certeza?" %}
+                </h4>
+                <p>{% trans "Você está prestes a excluir o evento:" %} <strong>{{ event.title }}</strong></p>
+                <p>{% trans "Esta ação não pode ser desfeita. Todos os participantes associados a este evento serão removidos." %}</p>
+                
+                <div class="mt-4">
+                    <h6 class="mb-2">{% trans "Detalhes do evento:" %}</h6>
+                    <ul class="list-unstyled">
+                        <li><strong>{% trans "Data:" %}</strong> {{ event.start_time|date:"d/m/Y" }}</li>
+                        <li><strong>{% trans "Horário:" %}</strong> {{ event.start_time|date:"H:i" }} - {{ event.end_time|date:"H:i" }}</li>
+                        <li><strong>{% trans "Tipo:" %}</strong> 
+                            {% if event.event_type == 'CLASS' %}
+                                {% trans "Aula" %}
+                            {% elif event.event_type == 'MEETING' %}
+                                {% trans "Reunião" %}
+                            {% elif event.event_type == 'WORKSHOP' %}
+                                {% trans "Workshop" %}
+                            {% else %}
+                                {% trans "Outro" %}
+                            {% endif %}
+                        </li>
+                        <li><strong>{% trans "Participantes:" %}</strong> {{ event.participants.count }}</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <form method="post" class="mt-4">
+                {% csrf_token %}
+                <div class="d-flex justify-content-end">
+                    <a href="{% url 'scheduler:event_detail' event.id %}" class="btn btn-secondary me-2">
+                        {% trans "Cancelar" %}
+                    </a>
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash"></i> {% trans "Excluir evento" %}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

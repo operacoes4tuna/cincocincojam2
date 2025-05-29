@@ -32,6 +32,14 @@ CincoCincoJAM 2.0 é uma plataforma LMS (Learning Management System) desenvolvid
 - Sistema de redirecionamento inteligente após login baseado no tipo de usuário
 - Gerenciamento de perfis com informações personalizadas
 
+### Assistente IA
+- Chatbot inteligente integrado com a API da OpenAI
+- Interface de chat acessível em todas as páginas da plataforma
+- Consultas contextuais ao banco de dados para responder perguntas sobre cursos e matrículas
+- Personalização do comportamento do assistente através de interface amigável.
+- Acesso rápido às configurações do assistente via ícone na barra de navegação.
+- Diferentes permissões de visualização e edição para administradores e usuários comuns.
+
 ### Área do Administrador
 - Dashboard com estatísticas gerais do sistema
 - Gerenciamento completo de usuários (CRUD)
@@ -54,11 +62,12 @@ CincoCincoJAM 2.0 é uma plataforma LMS (Learning Management System) desenvolvid
 
 ## Estrutura do Projeto
 
-O projeto está organizado em três aplicações principais:
+O projeto está organizado em quatro aplicações principais:
 
 - **core**: Gerencia o modelo de usuário personalizado e funcionalidades centrais
 - **users**: Implementa a área administrativa e gerenciamento de usuários
 - **courses**: Contém toda a lógica de cursos, aulas, matrículas e progresso
+- **assistant**: Implementa o Assistente IA com integração à OpenAI e consultas contextuais ao banco de dados
 
 ## Instalação e Configuração
 
@@ -66,6 +75,7 @@ O projeto está organizado em três aplicações principais:
 - Python 3.8 ou superior
 - pip (gerenciador de pacotes Python)
 - Ambiente virtual (recomendado)
+- Chave de API da OpenAI (para o Assistente IA)
 
 ### Passo a Passo
 
@@ -94,6 +104,12 @@ O projeto está organizado em três aplicações principais:
    DEBUG=True
    SECRET_KEY=sua-chave-secreta-aqui
    ALLOWED_HOSTS=localhost,127.0.0.1
+   
+   # Configurações do Assistente IA
+   OPENAI_API_KEY=sua-chave-api-openai
+   OPENAI_MODEL=gpt-4o-mini
+   OPENAI_MAX_TOKENS=150
+   OPENAI_TEMPERATURE=0.7
    ```
 
 5. **Execute as migrações:**
@@ -108,8 +124,14 @@ O projeto está organizado em três aplicações principais:
 
 7. **Inicie o servidor de desenvolvimento:**
    ```bash
-   python manage.py runserver
+   python3 manage.py runserver
    ```
+   
+   Alternativamente, use o script de inicialização que gerencia automaticamente a porta:
+   ```bash
+   ./start_server.sh
+   ```
+   Este script verifica se há algum processo usando a porta 8000 e o encerra antes de iniciar o servidor.
 
 8. **Acesse a aplicação:**
    Abra o navegador e acesse `http://127.0.0.1:8000/`
@@ -152,6 +174,9 @@ Utilize os botões de login rápido na página de login para acessar facilmente 
 - **Lesson**: Aulas associadas a cursos, com ordem e conteúdo
 - **Enrollment**: Matrícula de alunos em cursos com status e progresso
 - **LessonProgress**: Rastreamento de progresso em aulas específicas
+- **ChatSession**: Sessões de chat com histórico de interações do usuário com o assistente
+- **Message**: Mensagens trocadas entre usuários e o assistente
+- **AssistantBehavior**: Configurações de comportamento do assistente IA
 
 ## Deploy em Produção
 
@@ -176,3 +201,5 @@ Contribuições são bem-vindas! Para contribuir:
 3. Commit suas mudanças (`git commit -m 'Add some AmazingFeature'`)
 4. Push para a branch (`git push origin feature/AmazingFeature`)
 5. Abra um Pull Request
+
+TESTE: teste

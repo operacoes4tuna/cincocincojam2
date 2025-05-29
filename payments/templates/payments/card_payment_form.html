@@ -1,0 +1,439 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{% trans "Pagamento via Cartão" %} - {{ course.title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .card-payment-container {
+        max-width: 750px;
+        margin: 0 auto;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+        background-color: #fff;
+    }
+    
+    .card-title {
+        font-size: 1.5rem;
+        font-weight: 600;
+        margin-bottom: 20px;
+        color: #333;
+        border-bottom: 2px solid #f0f0f0;
+        padding-bottom: 10px;
+    }
+    
+    .card-form {
+        margin-top: 20px;
+    }
+    
+    .card-input {
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        padding: 8px 15px;
+        transition: border-color 0.3s;
+    }
+    
+    .card-input:focus {
+        border-color: #6c63ff;
+        box-shadow: 0 0 0 0.2rem rgba(108, 99, 255, 0.25);
+    }
+    
+    .card-preview {
+        background: linear-gradient(135deg, #6c63ff, #3f3d9c);
+        color: white;
+        border-radius: 10px;
+        padding: 20px;
+        max-width: 380px;
+        height: 220px;
+        margin-bottom: 30px;
+        position: relative;
+        box-shadow: 0 10px 25px rgba(108, 99, 255, 0.2);
+    }
+    
+    .card-chip {
+        width: 50px;
+        height: 40px;
+        background-color: #e6b82b;
+        border-radius: 5px;
+        margin-bottom: 20px;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .card-chip::before {
+        content: "";
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 35px;
+        height: 25px;
+        background-color: rgba(0, 0, 0, 0.1);
+        border-radius: 3px;
+    }
+    
+    .card-number {
+        font-size: 1.4rem;
+        letter-spacing: 3px;
+        margin-bottom: 20px;
+    }
+    
+    .card-details {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.9rem;
+    }
+    
+    .card-detail-label {
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        opacity: 0.7;
+    }
+    
+    .payment-method-selector {
+        margin-bottom: 20px;
+    }
+    
+    .installments-selector {
+        margin-bottom: 20px;
+        display: none;
+    }
+    
+    .installments-selector.active {
+        display: block;
+    }
+    
+    .form-actions {
+        margin-top: 30px;
+    }
+    
+    .course-info {
+        padding: 15px;
+        border: 1px solid #eee;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        background-color: #f9f9f9;
+    }
+    
+    .course-info h5 {
+        color: #444;
+        margin-bottom: 10px;
+    }
+    
+    .price-tag {
+        font-size: 1.8rem;
+        font-weight: bold;
+        color: #6c63ff;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+    <div class="row">
+        <div class="col-12">
+            <h3 class="mb-4">{% trans "Pagamento do Curso" %}</h3>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'home' %}">{% trans "Início" %}</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'courses:student:course_detail' course.id %}">{{ course.title }}</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">{% trans "Pagamento via Cartão" %}</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card-payment-container">
+                <h4 class="card-title">{% trans "Pagamento via Cartão" %}</h4>
+                
+                <div class="course-info">
+                    <h5>{{ course.title }}</h5>
+                    <p>{{ course.short_description|truncatechars:100 }}</p>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span>{% trans "Valor:" %}</span>
+                        <span class="price-tag">R$ {{ course.price|floatformat:2 }}</span>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-7">
+                        <div class="card-preview">
+                            <div class="card-chip"></div>
+                            <div class="card-number" id="cardNumberPreview">•••• •••• •••• ••••</div>
+                            <div class="card-details">
+                                <div>
+                                    <div class="card-detail-label">{% trans "Titular" %}</div>
+                                    <div id="cardHolderPreview">SEU NOME</div>
+                                </div>
+                                <div>
+                                    <div class="card-detail-label">{% trans "Expiração" %}</div>
+                                    <div id="cardExpirationPreview">MM/YY</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-5">
+                        <div class="payment-method-selector">
+                            <label class="form-label">{% trans "Método de Pagamento" %}</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="payment_method_option" id="credit_card_option" value="credit_card" checked>
+                                <label class="form-check-label" for="credit_card_option">
+                                    {% trans "Cartão de Crédito" %}
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="payment_method_option" id="debit_card_option" value="debit_card">
+                                <label class="form-check-label" for="debit_card_option">
+                                    {% trans "Cartão de Débito" %}
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="installments-selector" id="installmentsContainer">
+                            <label for="installments" class="form-label">{% trans "Parcelas" %}</label>
+                            <select class="form-select" id="installments" name="installments">
+                                <option value="1">{% trans "1x" %} R$ {{ course.price|floatformat:2 }} {% trans "à vista" %}</option>
+                                
+                                {% if course.price >= 60 %}
+                                <option value="2">{% trans "2x" %} R$ {{ course.price|divisibleby:2|floatformat:2 }} {% trans "sem juros" %}</option>
+                                {% endif %}
+                                
+                                {% if course.price >= 90 %}
+                                <option value="3">{% trans "3x" %} R$ {{ course.price|divisibleby:3|floatformat:2 }} {% trans "sem juros" %}</option>
+                                {% endif %}
+                                
+                                {% if course.price >= 120 %}
+                                <option value="4">{% trans "4x" %} R$ {{ course.price|divisibleby:4|floatformat:2 }} {% trans "sem juros" %}</option>
+                                {% endif %}
+                                
+                                {% if course.price >= 150 %}
+                                <option value="5">{% trans "5x" %} R$ {{ course.price|divisibleby:5|floatformat:2 }} {% trans "sem juros" %}</option>
+                                {% endif %}
+                                
+                                {% if course.price >= 180 %}
+                                <option value="6">{% trans "6x" %} R$ {{ course.price|divisibleby:6|floatformat:2 }} {% trans "sem juros" %}</option>
+                                {% endif %}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <form method="post" class="card-form">
+                    {% csrf_token %}
+                    <input type="hidden" name="payment_method" id="payment_method" value="credit_card">
+                    
+                    <div class="mb-3">
+                        <label for="card_number" class="form-label">{% trans "Número do Cartão" %}</label>
+                        <input type="text" class="form-control card-input" id="card_number" name="card_number" placeholder="•••• •••• •••• ••••" maxlength="19" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="holder_name" class="form-label">{% trans "Nome do Titular" %}</label>
+                        <input type="text" class="form-control card-input" id="holder_name" name="holder_name" placeholder="{% trans "Exatamente como aparece no cartão" %}" required>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="expiration_date" class="form-label">{% trans "Data de Validade" %}</label>
+                            <input type="text" class="form-control card-input" id="expiration_date" name="expiration_date" placeholder="MM/AA" maxlength="5" required>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="cvv" class="form-label">{% trans "Código de Segurança (CVV)" %}</label>
+                            <input type="text" class="form-control card-input" id="cvv" name="cvv" placeholder="123" maxlength="4" required>
+                        </div>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary btn-lg w-100">{% trans "Pagar Agora" %}</button>
+                        <p class="text-muted mt-2 small">{% trans "Seus dados de pagamento estão seguros e criptografados." %}</p>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">{% trans "Resumo da Compra" %}</h5>
+                </div>
+                <div class="card-body">
+                    <h6 class="mb-3">{{ course.title }}</h6>
+                    <p class="text-muted small">{{ course.short_description|truncatechars:100 }}</p>
+                    
+                    <hr>
+                    
+                    <div class="d-flex justify-content-between">
+                        <span>{% trans "Valor do curso:" %}</span>
+                        <strong>R$ {{ course.price|floatformat:2 }}</strong>
+                    </div>
+                    
+                    {% if course.discount_price and course.discount_price < course.price %}
+                    <div class="d-flex justify-content-between text-success">
+                        <span>{% trans "Desconto:" %}</span>
+                        <strong>-R$ {{ course.discount_amount|floatformat:2 }}</strong>
+                    </div>
+                    <hr>
+                    <div class="d-flex justify-content-between">
+                        <span>{% trans "Total:" %}</span>
+                        <strong class="fs-5">R$ {{ course.discount_price|floatformat:2 }}</strong>
+                    </div>
+                    {% else %}
+                    <hr>
+                    <div class="d-flex justify-content-between">
+                        <span>{% trans "Total:" %}</span>
+                        <strong class="fs-5">R$ {{ course.price|floatformat:2 }}</strong>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="card-footer bg-transparent">
+                    <a href="{% url 'payments:create_pix_payment' course.id %}" class="btn btn-outline-primary btn-sm w-100 mb-2">
+                        <i class="fas fa-qrcode me-2"></i> {% trans "Prefere pagar com PIX?" %}
+                    </a>
+                    <a href="{% url 'courses:student:course_detail' course.id %}" class="btn btn-link btn-sm text-muted w-100">
+                        {% trans "Voltar para o curso" %}
+                    </a>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">{% trans "Pagamento Seguro" %}</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-3">
+                        <i class="fas fa-lock text-success me-3 fs-4"></i>
+                        <div>
+                            <h6 class="mb-0">{% trans "Dados Protegidos" %}</h6>
+                            <p class="text-muted small mb-0">{% trans "Suas informações estão criptografadas" %}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex align-items-center mb-3">
+                        <i class="fas fa-shield-alt text-success me-3 fs-4"></i>
+                        <div>
+                            <h6 class="mb-0">{% trans "Ambiente Seguro" %}</h6>
+                            <p class="text-muted small mb-0">{% trans "Processamento PCI Compliant" %}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-credit-card text-success me-3 fs-4"></i>
+                        <div>
+                            <h6 class="mb-0">{% trans "Pagamento Confiável" %}</h6>
+                            <p class="text-muted small mb-0">{% trans "Processado pela" %} Pagar.me</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Elementos do formulário
+        const cardNumberInput = document.getElementById('card_number');
+        const cardHolderInput = document.getElementById('holder_name');
+        const expirationInput = document.getElementById('expiration_date');
+        const cvvInput = document.getElementById('cvv');
+        const paymentMethodRadios = document.getElementsByName('payment_method_option');
+        const paymentMethodInput = document.getElementById('payment_method');
+        const installmentsContainer = document.getElementById('installmentsContainer');
+        
+        // Elementos de preview
+        const cardNumberPreview = document.getElementById('cardNumberPreview');
+        const cardHolderPreview = document.getElementById('cardHolderPreview');
+        const expirationPreview = document.getElementById('cardExpirationPreview');
+        
+        // Formatar número do cartão
+        cardNumberInput.addEventListener('input', function(e) {
+            let value = e.target.value.replace(/\D/g, '');
+            let formattedValue = '';
+            
+            for (let i = 0; i < value.length; i++) {
+                if (i > 0 && i % 4 === 0) {
+                    formattedValue += ' ';
+                }
+                formattedValue += value[i];
+            }
+            
+            e.target.value = formattedValue;
+            
+            // Atualizar preview
+            if (value.length > 0) {
+                let maskedValue = '';
+                for (let i = 0; i < formattedValue.length; i++) {
+                    if (formattedValue[i] === ' ') {
+                        maskedValue += ' ';
+                    } else if (i < formattedValue.length - 4) {
+                        maskedValue += '•';
+                    } else {
+                        maskedValue += formattedValue[i];
+                    }
+                }
+                cardNumberPreview.textContent = maskedValue;
+            } else {
+                cardNumberPreview.textContent = '•••• •••• •••• ••••';
+            }
+        });
+        
+        // Atualizar nome do titular
+        cardHolderInput.addEventListener('input', function(e) {
+            if (e.target.value.trim().length > 0) {
+                cardHolderPreview.textContent = e.target.value.toUpperCase();
+            } else {
+                cardHolderPreview.textContent = 'SEU NOME';
+            }
+        });
+        
+        // Formatar data de validade
+        expirationInput.addEventListener('input', function(e) {
+            let value = e.target.value.replace(/\D/g, '');
+            
+            if (value.length > 2) {
+                value = value.substring(0, 2) + '/' + value.substring(2, 4);
+            }
+            
+            e.target.value = value;
+            
+            // Atualizar preview
+            if (value.length > 0) {
+                expirationPreview.textContent = value;
+            } else {
+                expirationPreview.textContent = 'MM/YY';
+            }
+        });
+        
+        // Formatar CVV (apenas números)
+        cvvInput.addEventListener('input', function(e) {
+            e.target.value = e.target.value.replace(/\D/g, '');
+        });
+        
+        // Alternar entre métodos de pagamento
+        for (let i = 0; i < paymentMethodRadios.length; i++) {
+            paymentMethodRadios[i].addEventListener('change', function() {
+                paymentMethodInput.value = this.value;
+                
+                // Mostrar/ocultar parcelas apenas para cartão de crédito
+                if (this.value === 'credit_card') {
+                    installmentsContainer.classList.add('active');
+                } else {
+                    installmentsContainer.classList.remove('active');
+                }
+            });
+        }
+        
+        // Inicializar parcelas
+        if (document.getElementById('credit_card_option').checked) {
+            installmentsContainer.classList.add('active');
+        }
+    });
+</script>
+{% endblock %} 

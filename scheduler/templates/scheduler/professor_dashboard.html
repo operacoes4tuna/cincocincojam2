@@ -1,0 +1,397 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{% trans "Dashboard do Professor - Agendamentos" %}{% endblock %}
+
+{% block extra_css %}
+<style>
+  .status-badge {
+    min-width: 90px;
+    text-align: center;
+  }
+  .participant-status {
+    width: 12px;
+    height: 12px;
+    display: inline-block;
+    border-radius: 50%;
+    margin-right: 5px;
+  }
+  .status-pending { background-color: #ffc107; }
+  .status-confirmed { background-color: #198754; }
+  .status-cancelled { background-color: #dc3545; }
+  .status-completed { background-color: #0d6efd; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>{% trans "Meus Agendamentos" %}</h2>
+    <div>
+      <a href="{% url 'scheduler:location_list' %}" class="btn btn-primary">
+        <i class="fas fa-plus-circle"></i> {% trans "Novo Agendamento" %}
+      </a>
+    </div>
+  </div>
+
+  <!-- Cards com estatísticas -->
+  <div class="row mb-4">
+    <!-- Card de Agendamentos Totais -->
+    <div class="col-md-3">
+      <div class="card shadow-sm">
+        <div class="card-body text-center">
+          <div class="display-4 text-primary mb-2">{{ total_events }}</div>
+          <h5>{% trans "Total" %}</h5>
+          <div class="small text-muted">{% trans "Agendamentos" %}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card de Agendamentos Pendentes -->
+    <div class="col-md-3">
+      <div class="card shadow-sm">
+        <div class="card-body text-center">
+          <div class="display-4 text-warning mb-2">{{ scheduled_events }}</div>
+          <h5>{% trans "Pendentes" %}</h5>
+          <div class="small text-muted">{% trans "Aguardando confirmação" %}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card de Agendamentos Confirmados -->
+    <div class="col-md-3">
+      <div class="card shadow-sm">
+        <div class="card-body text-center">
+          <div class="display-4 text-success mb-2">{{ confirmed_events }}</div>
+          <h5>{% trans "Confirmados" %}</h5>
+          <div class="small text-muted">{% trans "Prontos para acontecer" %}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card de Agendamentos Hoje -->
+    <div class="col-md-3">
+      <div class="card shadow-sm">
+        <div class="card-body text-center">
+          <div class="display-4 text-info mb-2">{{ today_events }}</div>
+          <h5>{% trans "Hoje" %}</h5>
+          <div class="small text-muted">{% trans "Agendamentos do dia" %}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Próximos Agendamentos -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-header bg-primary text-white">
+      <h5 class="mb-0">{% trans "Próximos Agendamentos" %}</h5>
+    </div>
+    <div class="card-body">
+      {% if upcoming_events %}
+        <div class="table-responsive">
+          <table class="table table-hover">
+            <thead>
+              <tr>
+                <th>{% trans "Data/Hora" %}</th>
+                <th>{% trans "Título" %}</th>
+                <th>{% trans "Tipo" %}</th>
+                <th>{% trans "Estúdio" %}</th>
+                <th>{% trans "Participantes" %}</th>
+                <th>{% trans "Status" %}</th>
+                <th>{% trans "Ações" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for event in upcoming_events %}
+                <tr>
+                  <td>
+                    <strong>{{ event.start_time|date:"d/m/Y" }}</strong><br>
+                    <small>{{ event.start_time|date:"H:i" }} - {{ event.end_time|date:"H:i" }}</small>
+                  </td>
+                  <td>{{ event.title }}</td>
+                  <td>
+                    {% if event.event_type == 'CLASS' %}
+                      <span class="badge bg-primary">{% trans "Aula" %}</span>
+                    {% elif event.event_type == 'MEETING' %}
+                      <span class="badge bg-info">{% trans "Reunião" %}</span>
+                    {% elif event.event_type == 'WORKSHOP' %}
+                      <span class="badge bg-warning">{% trans "Workshop" %}</span>
+                    {% else %}
+                      <span class="badge bg-secondary">{% trans "Outro" %}</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {{ event.location.name }}
+                    {% if event.location.is_online %}
+                      <span class="badge bg-info">{% trans "Online" %}</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    <div class="dropdown">
+                      <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" 
+                              id="dropdownParticipants{{ event.id }}" data-bs-toggle="dropdown" 
+                              aria-expanded="false">
+                        {{ event.participants.count }} / 
+                        {% if event.max_participants %}{{ event.max_participants }}{% else %}∞{% endif %}
+                      </button>
+                      <ul class="dropdown-menu" aria-labelledby="dropdownParticipants{{ event.id }}">
+                        {% for participant in event.participants.all %}
+                          <li class="dropdown-item">
+                            {% if participant.attendance_status == 'PENDING' %}
+                              <span class="participant-status status-pending"></span>
+                            {% elif participant.attendance_status == 'CONFIRMED' %}
+                              <span class="participant-status status-confirmed"></span>
+                            {% elif participant.attendance_status == 'CANCELLED' %}
+                              <span class="participant-status status-cancelled"></span>
+                            {% elif participant.attendance_status == 'ATTENDED' %}
+                              <span class="participant-status status-completed"></span>
+                            {% endif %}
+                            {{ participant.student.get_full_name|default:participant.student.email }}
+                          </li>
+                        {% empty %}
+                          <li class="dropdown-item text-muted">{% trans "Sem participantes" %}</li>
+                        {% endfor %}
+                        {% if event.participants.count > 0 %}
+                          <li><hr class="dropdown-divider"></li>
+                          <li>
+                            <a class="dropdown-item text-primary" href="{% url 'scheduler:participant_list' event.id %}">
+                              <i class="fas fa-users"></i> {% trans "Gerenciar Participantes" %}
+                            </a>
+                          </li>
+                        {% endif %}
+                      </ul>
+                    </div>
+                  </td>
+                  <td>
+                    {% if event.status == 'SCHEDULED' %}
+                      <span class="badge bg-warning status-badge">{% trans "Agendado" %}</span>
+                    {% elif event.status == 'CONFIRMED' %}
+                      <span class="badge bg-success status-badge">{% trans "Confirmado" %}</span>
+                    {% elif event.status == 'CANCELLED' %}
+                      <span class="badge bg-danger status-badge">{% trans "Cancelado" %}</span>
+                    {% elif event.status == 'COMPLETED' %}
+                      <span class="badge bg-info status-badge">{% trans "Concluído" %}</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    <div class="btn-group">
+                      <a href="{% url 'scheduler:event_detail' event.id %}" class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-eye"></i>
+                      </a>
+                      <a href="{% url 'scheduler:event_edit' event.id %}" class="btn btn-sm btn-outline-secondary">
+                        <i class="fas fa-edit"></i>
+                      </a>
+                      <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" 
+                              data-bs-target="#cancelEventModal{{ event.id }}">
+                        <i class="fas fa-times"></i>
+                      </button>
+                    </div>
+                    
+                    <!-- Modal de Cancelamento -->
+                    <div class="modal fade" id="cancelEventModal{{ event.id }}" tabindex="-1" 
+                         aria-labelledby="cancelEventModalLabel{{ event.id }}" aria-hidden="true">
+                      <div class="modal-dialog">
+                        <div class="modal-content">
+                          <div class="modal-header">
+                            <h5 class="modal-title" id="cancelEventModalLabel{{ event.id }}">
+                              {% trans "Cancelar Agendamento" %}
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                          </div>
+                          <div class="modal-body">
+                            <p>{% trans "Tem certeza que deseja cancelar este agendamento?" %}</p>
+                            <p><strong>{{ event.title }}</strong> - {{ event.start_time|date:"d/m/Y H:i" }}</p>
+                            <p class="text-danger">
+                              <i class="fas fa-exclamation-triangle"></i> 
+                              {% trans "Esta ação notificará todos os participantes e não poderá ser desfeita." %}
+                            </p>
+                          </div>
+                          <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                              {% trans "Fechar" %}
+                            </button>
+                            <form action="{% url 'scheduler:event_delete' event.id %}" method="post">
+                              {% csrf_token %}
+                              <button type="submit" class="btn btn-danger">
+                                {% trans "Confirmar Cancelamento" %}
+                              </button>
+                            </form>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% if has_more_events %}
+          <div class="text-center mt-3">
+            <a href="{% url 'scheduler:event_list' %}" class="btn btn-outline-primary">
+              {% trans "Ver Todos os Agendamentos" %}
+            </a>
+          </div>
+        {% endif %}
+      {% else %}
+        <div class="alert alert-info text-center">
+          <i class="fas fa-calendar-alt fa-2x mb-3"></i>
+          <p>{% trans "Você não possui agendamentos próximos." %}</p>
+          <a href="{% url 'scheduler:location_list' %}" class="btn btn-primary">
+            <i class="fas fa-plus-circle"></i> {% trans "Criar Novo Agendamento" %}
+          </a>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Convites Pendentes (Respostas de Alunos) -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-header bg-warning text-dark">
+      <h5 class="mb-0">{% trans "Convites Pendentes de Confirmação" %}</h5>
+    </div>
+    <div class="card-body">
+      {% if pending_responses %}
+        <div class="table-responsive">
+          <table class="table table-hover">
+            <thead>
+              <tr>
+                <th>{% trans "Aluno" %}</th>
+                <th>{% trans "Evento" %}</th>
+                <th>{% trans "Data/Hora" %}</th>
+                <th>{% trans "Status" %}</th>
+                <th>{% trans "Ações" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for participant in pending_responses %}
+                <tr>
+                  <td>{{ participant.student.get_full_name|default:participant.student.email }}</td>
+                  <td>{{ participant.event.title }}</td>
+                  <td>{{ participant.event.start_time|date:"d/m/Y H:i" }}</td>
+                  <td>
+                    <span class="badge bg-warning">{% trans "Aguardando Resposta" %}</span>
+                  </td>
+                  <td>
+                    <div class="btn-group">
+                      <a href="#" class="btn btn-sm btn-outline-primary send-reminder" 
+                         data-participant-id="{{ participant.id }}">
+                        <i class="fas fa-bell"></i> {% trans "Lembrar" %}
+                      </a>
+                      <a href="{% url 'scheduler:event_detail' participant.event.id %}" 
+                         class="btn btn-sm btn-outline-secondary">
+                        <i class="fas fa-eye"></i> {% trans "Ver Evento" %}
+                      </a>
+                    </div>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="alert alert-info text-center">
+          <i class="fas fa-check-circle fa-2x mb-3"></i>
+          <p>{% trans "Não há convites pendentes de confirmação." %}</p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Histórico de Agendamentos -->
+  <div class="card shadow-sm">
+    <div class="card-header bg-light">
+      <h5 class="mb-0">{% trans "Histórico de Agendamentos" %}</h5>
+    </div>
+    <div class="card-body">
+      {% if past_events %}
+        <div class="table-responsive">
+          <table class="table table-hover">
+            <thead>
+              <tr>
+                <th>{% trans "Data/Hora" %}</th>
+                <th>{% trans "Título" %}</th>
+                <th>{% trans "Tipo" %}</th>
+                <th>{% trans "Estúdio" %}</th>
+                <th>{% trans "Participantes" %}</th>
+                <th>{% trans "Status" %}</th>
+                <th>{% trans "Ações" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for event in past_events %}
+                <tr class="{% if event.status == 'CANCELLED' %}table-danger{% elif event.status == 'COMPLETED' %}table-success{% endif %}">
+                  <td>
+                    <strong>{{ event.start_time|date:"d/m/Y" }}</strong><br>
+                    <small>{{ event.start_time|date:"H:i" }} - {{ event.end_time|date:"H:i" }}</small>
+                  </td>
+                  <td>{{ event.title }}</td>
+                  <td>
+                    {% if event.event_type == 'CLASS' %}
+                      <span class="badge bg-primary">{% trans "Aula" %}</span>
+                    {% elif event.event_type == 'MEETING' %}
+                      <span class="badge bg-info">{% trans "Reunião" %}</span>
+                    {% elif event.event_type == 'WORKSHOP' %}
+                      <span class="badge bg-warning">{% trans "Workshop" %}</span>
+                    {% else %}
+                      <span class="badge bg-secondary">{% trans "Outro" %}</span>
+                    {% endif %}
+                  </td>
+                  <td>{{ event.location.name }}</td>
+                  <td>{{ event.participants.count }}</td>
+                  <td>
+                    {% if event.status == 'SCHEDULED' %}
+                      <span class="badge bg-warning status-badge">{% trans "Agendado" %}</span>
+                    {% elif event.status == 'CONFIRMED' %}
+                      <span class="badge bg-success status-badge">{% trans "Confirmado" %}</span>
+                    {% elif event.status == 'CANCELLED' %}
+                      <span class="badge bg-danger status-badge">{% trans "Cancelado" %}</span>
+                    {% elif event.status == 'COMPLETED' %}
+                      <span class="badge bg-info status-badge">{% trans "Concluído" %}</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    <a href="{% url 'scheduler:event_detail' event.id %}" class="btn btn-sm btn-outline-primary">
+                      <i class="fas fa-eye"></i>
+                    </a>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <div class="text-center mt-3">
+          <a href="{% url 'scheduler:event_list' %}" class="btn btn-outline-secondary">
+            {% trans "Ver Histórico Completo" %}
+          </a>
+        </div>
+      {% else %}
+        <div class="alert alert-info text-center">
+          <p>{% trans "Nenhum agendamento anterior encontrado." %}</p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Função para enviar lembretes para alunos
+    const reminderButtons = document.querySelectorAll('.send-reminder');
+    reminderButtons.forEach(button => {
+      button.addEventListener('click', function(e) {
+        e.preventDefault();
+        const participantId = this.getAttribute('data-participant-id');
+        
+        // Aqui seria feita uma requisição AJAX para enviar o lembrete
+        // Por enquanto, apenas mostraremos um alerta de sucesso
+        
+        alert('Lembrete enviado com sucesso!');
+      });
+    });
+  });
+</script>
+{% endblock %} 

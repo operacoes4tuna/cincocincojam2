@@ -1,0 +1,53 @@
+[
+  {
+    "model": "scheduler.eventlocation",
+    "pk": 1,
+    "fields": {
+      "name": "School of Rock - Barra da Tijuca",
+      "address": "Av. das Américas, 3301 - Bloco 5, Loja 101 - Barra da Tijuca, Rio de Janeiro - RJ, 22631-004",
+      "is_online": false,
+      "meeting_link": null,
+      "is_active": true,
+      "phone": "(21) 2431-8787",
+      "email": "barra@schoolofrock.com.br",
+      "image": "studios/school-rock-barra.jpg",
+      "created_by": null,
+      "created_at": "2024-04-01T10:00:00Z",
+      "updated_at": "2024-04-01T10:00:00Z"
+    }
+  },
+  {
+    "model": "scheduler.eventlocation",
+    "pk": 2,
+    "fields": {
+      "name": "School of Rock - Ipanema",
+      "address": "Rua Visconde de Pirajá, 318 - Loja 202 - Ipanema, Rio de Janeiro - RJ, 22410-001",
+      "is_online": false,
+      "meeting_link": null,
+      "is_active": true,
+      "phone": "(21) 3511-7200",
+      "email": "ipanema@schoolofrock.com.br",
+      "image": "studios/school-rock-ipanema.jpg",
+      "created_by": null,
+      "created_at": "2024-04-01T10:00:00Z",
+      "updated_at": "2024-04-01T10:00:00Z"
+    }
+  },
+  {
+    "model": "scheduler.eventlocation",
+    "pk": 3,
+    "fields": {
+      "name": "School of Rock - Botafogo",
+      "address": "Rua São Clemente, 424 - Botafogo, Rio de Janeiro - RJ, 22260-004",
+      "is_online": false,
+      "meeting_link": null,
+      "is_active": true,
+      "phone": "(21) 3550-0018",
+      "email": "botafogo@schoolofrock.com.br",
+      "image": "studios/school-rock-botafogo.jpg",
+      "created_by": null,
+      "created_at": "2024-04-01T10:00:00Z",
+      "updated_at": "2024-04-01T10:00:00Z"
+    }
+  }
+] 

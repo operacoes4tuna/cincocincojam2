@@ -1,0 +1,40 @@
+07:19:16 - API Key: DSVnC...6GUZB (67 caracteres)
+07:19:16 - Company ID: 67ea5530094b7d18f44a88fa
+07:19:16 - Environment: Development
+07:19:16 - Teste de conexão - Status: 200
+07:19:16 - 
+=== TESTE COM FORMATO CORRIGIDO ===
+07:19:16 - Dados para emissão: {
+  "borrower": {
+    "name": "Cliente Teste NFE.io",
+    "email": "cliente@teste.com",
+    "federalTaxNumber": 11111111111,
+    "address": {
+      "country": "BRA",
+      "postalCode": "01001000",
+      "street": "Rua de Teste",
+      "number": "100",
+      "district": "Centro",
+      "city": "São Paulo",
+      "state": "SP"
+    }
+  },
+  "serviceCode": "01.07",
+  "description": "Teste de emissão com formato corrigido",
+  "servicesAmount": 10.0,
+  "environment": "Development"
+}
+07:19:16 - Enviando requisição...
+07:19:17 - Status: 400
+07:19:17 - Headers: {'Date': 'Mon, 31 Mar 2025 10:19:16 GMT', 'Content-Type': 'application/json; charset=utf-8', 'Content-Length': '2', 'Connection': 'keep-alive', 'X-Request-Id': '0HNBA1929IH7L:0000000B'}
+07:19:17 - Conteúdo da resposta (2 bytes): ""
+07:19:17 - ❌ Formato corrigido falhou
+07:19:17 - 
+=== MODIFICAÇÕES RECOMENDADAS PARA O CÓDIGO ===
+07:19:17 - 1. Alterar 'document' para 'federalTaxNumber' - e usar número ao invés de string
+07:19:17 - 2. Alterar 'cityServiceCode' para 'serviceCode'
+07:19:17 - 3. Alterar 'country': 'Brasil' para 'country': 'BRA'
+07:19:17 - 4. Verifique se todos os campos de endereço obrigatórios estão presentes
+07:19:17 - 
+=== TESTE CONCLUÍDO ===
+07:19:17 - Resultados completos disponíveis em: test_results/nfeio_fixed_20250331_071916.txt

@@ -1,0 +1,170 @@
+{% extends 'base.html' %}
+
+{% block title %}Meus Pagamentos - CincoCincoJAM 2.0{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Meus Pagamentos</h2>
+    <div>
+        <a href="{% url 'courses:student:dashboard' %}" class="btn btn-outline-primary">
+            <i class="fas fa-arrow-left"></i> Meus Cursos
+        </a>
+    </div>
+</div>
+
+<!-- Cards de resumo -->
+<div class="row mb-4">
+    <!-- Card de Matrículas -->
+    <div class="col-md-4">
+        <div class="card shadow mb-4">
+            <div class="card-body text-center">
+                <div class="display-4 text-primary mb-2">{{ enrollments_count }}</div>
+                <h4>Matrículas</h4>
+                <div class="small text-muted">
+                    <span class="badge bg-info">Total de cursos matriculados</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Card de Pagamentos -->
+    <div class="col-md-4">
+        <div class="card shadow mb-4">
+            <div class="card-body text-center">
+                <div class="display-4 text-success mb-2">R$ {{ total_paid|floatformat:2 }}</div>
+                <h4>Pago</h4>
+                <div class="small text-muted">
+                    <span class="badge bg-success">Pagamentos confirmados</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Card de Pendências -->
+    <div class="col-md-4">
+        <div class="card shadow mb-4">
+            <div class="card-body text-center">
+                <div class="display-4 text-warning mb-2">R$ {{ total_pending|floatformat:2 }}</div>
+                <h4>Pendente</h4>
+                <div class="small text-muted">
+                    <span class="badge bg-warning text-dark">Aguardando pagamento</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Lista de Matrículas e Pagamentos -->
+<div class="card shadow mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">Meus Cursos e Pagamentos</h5>
+    </div>
+    <div class="card-body">
+        {% if enrollments_with_payments %}
+            <div class="accordion" id="accordionEnrollments">
+                {% for item in enrollments_with_payments %}
+                <div class="accordion-item">
+                    <h2 class="accordion-header" id="heading{{ item.enrollment.id }}">
+                        <button class="accordion-button {% if not forloop.first %}collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ item.enrollment.id }}" aria-expanded="{% if forloop.first %}true{% else %}false{% endif %}" aria-controls="collapse{{ item.enrollment.id }}">
+                            <div class="d-flex justify-content-between align-items-center w-100 me-3">
+                                <div>
+                                    <strong>{{ item.enrollment.course.title }}</strong>
+                                    <span class="text-muted ms-2 small">Professor: {{ item.enrollment.course.professor.get_full_name|default:item.enrollment.course.professor.email }}</span>
+                                </div>
+                                <div>
+                                    {% if item.is_paid %}
+                                        <span class="badge bg-success">Pago</span>
+                                    {% else %}
+                                        <span class="badge bg-warning text-dark">Pendente</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </button>
+                    </h2>
+                    <div id="collapse{{ item.enrollment.id }}" class="accordion-collapse collapse {% if forloop.first %}show{% endif %}" aria-labelledby="heading{{ item.enrollment.id }}" data-bs-parent="#accordionEnrollments">
+                        <div class="accordion-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6>Informações do Curso</h6>
+                                    <dl class="row">
+                                        <dt class="col-sm-4">Curso:</dt>
+                                        <dd class="col-sm-8">{{ item.enrollment.course.title }}</dd>
+                                        
+                                        <dt class="col-sm-4">Professor:</dt>
+                                        <dd class="col-sm-8">{{ item.enrollment.course.professor.get_full_name|default:item.enrollment.course.professor.email }}</dd>
+                                        
+                                        <dt class="col-sm-4">Data de Matrícula:</dt>
+                                        <dd class="col-sm-8">{{ item.enrollment.enrolled_at|date:"d/m/Y H:i" }}</dd>
+                                        
+                                        <dt class="col-sm-4">Valor do Curso:</dt>
+                                        <dd class="col-sm-8">R$ {{ item.enrollment.course.price|floatformat:2 }}</dd>
+                                        
+                                        <dt class="col-sm-4">Status:</dt>
+                                        <dd class="col-sm-8">
+                                            {% if item.is_paid %}
+                                                <span class="badge bg-success">Pago</span>
+                                            {% else %}
+                                                <span class="badge bg-warning text-dark">Pendente</span>
+                                            {% endif %}
+                                        </dd>
+                                    </dl>
+                                    
+                                    <div class="mt-3">
+                                        <a href="{% url 'payments:student_enrollment_detail' item.enrollment.id %}" class="btn btn-outline-primary btn-sm">Ver Detalhes</a>
+                                        <a href="{% url 'courses:student:course_detail' item.enrollment.course.id %}" class="btn btn-primary btn-sm">Acessar Curso</a>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <h6>Histórico de Transações</h6>
+                                    {% if item.transactions %}
+                                        <div class="table-responsive">
+                                            <table class="table table-sm">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Data</th>
+                                                        <th>Valor</th>
+                                                        <th>Status</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {% for transaction in item.transactions %}
+                                                    <tr>
+                                                        <td>{{ transaction.created_at|date:"d/m/Y H:i" }}</td>
+                                                        <td>R$ {{ transaction.amount|floatformat:2 }}</td>
+                                                        <td>
+                                                            {% if transaction.status == 'PAID' %}
+                                                                <span class="badge bg-success">Pago</span>
+                                                            {% elif transaction.status == 'PENDING' %}
+                                                                <span class="badge bg-warning text-dark">Pendente</span>
+                                                            {% elif transaction.status == 'REFUNDED' %}
+                                                                <span class="badge bg-danger">Estornado</span>
+                                                            {% else %}
+                                                                <span class="badge bg-secondary">{{ transaction.status }}</span>
+                                                            {% endif %}
+                                                        </td>
+                                                    </tr>
+                                                    {% endfor %}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    {% else %}
+                                        <div class="alert alert-info">
+                                            Nenhuma transação encontrada para esta matrícula.
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="alert alert-info">
+                Você ainda não está matriculado em nenhum curso. Explore nossa <a href="{% url 'courses:student:course_list' %}">lista de cursos</a> para encontrar opções de estudo.
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

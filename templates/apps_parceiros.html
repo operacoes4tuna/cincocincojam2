@@ -1,0 +1,105 @@
+{% extends 'base.html' %}
+
+{% block title %}Apps Parceiros - 55Jam{% endblock %}
+
+{% load static %}
+
+{% block content %}
+<div class="container py-5">
+    <h1 class="text-center mb-5">Apps Parceiros</h1>
+    
+    <div class="row row-cols-1 row-cols-md-2 g-5 mb-5">
+        <!-- ScaleClock App -->
+        <div class="col">
+            <div class="card h-100 app-card shadow">
+                <div class="card-body p-4">
+                    <div class="d-flex align-items-center mb-4">
+                        <div class="me-4" style="width: 100px; height: 100px;">
+                            <img src="{% static 'img/apps-parceiros/scaleclock.webp' %}" alt="ScaleClock" class="img-fluid rounded app-icon" style="max-width: 100%; height: auto;">
+                        </div>
+                        <h2 class="card-title mb-0 fs-2">ScaleClock</h2>
+                    </div>
+                    <p class="card-text fs-5 mb-4">O número 1 em escalas musicais no Brasil! Aprenda a lógica por trás do sistema musical, entenda e pratique intervalos e escalas.</p>
+                    <div class="d-flex justify-content-center mt-4 store-links">
+                        <a href="https://play.google.com/store/apps/details?id=com.scaleclock" target="_blank" rel="noopener noreferrer" class="me-4">
+                            <img src="{% static 'img/store-icons/google-play.png' %}" alt="Disponível no Google Play" class="img-fluid store-badge" style="height: 45px;">
+                        </a>
+                        <a href="https://apps.apple.com/br/app/scaleclock/id1464221197" target="_blank" rel="noopener noreferrer">
+                            <img src="{% static 'img/store-icons/app-store.svg' %}" alt="Baixar na App Store" class="img-fluid store-badge" style="height: 45px;">
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- eBatuque App -->
+        <div class="col">
+            <div class="card h-100 app-card shadow">
+                <div class="card-body p-4">
+                    <div class="d-flex align-items-center mb-4">
+                        <div class="me-4" style="width: 100px; height: 100px;">
+                            <img src="{% static 'img/apps-parceiros/ebatuque.webp' %}" alt="eBatuque" class="img-fluid rounded app-icon" style="max-width: 100%; height: auto;">
+                        </div>
+                        <h2 class="card-title mb-0 fs-2">eBatuque</h2>
+                    </div>
+                    <p class="card-text fs-5 mb-4">Um app com diversos loops de percussão brasileira, gravados por percussionistas renomados, para você estudar seu instrumento de uma maneira musical e divertida.</p>
+                    <div class="d-flex justify-content-center mt-4 store-links">
+                        <a href="https://play.google.com/store/apps/details?id=br.com.ebatuque.full" target="_blank" rel="noopener noreferrer" class="me-4">
+                            <img src="{% static 'img/store-icons/google-play.png' %}" alt="Disponível no Google Play" class="img-fluid store-badge" style="height: 45px;">
+                        </a>
+                        <a href="https://apps.apple.com/br/app/ebatuque/id1554007194" target="_blank" rel="noopener noreferrer">
+                            <img src="{% static 'img/store-icons/app-store.svg' %}" alt="Baixar na App Store" class="img-fluid store-badge" style="height: 45px;">
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .app-card {
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        border-radius: 16px;
+        overflow: hidden;
+        border: none;
+    }
+    
+    .app-card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 16px 24px rgba(0,0,0,0.15) !important;
+    }
+    
+    .app-icon {
+        border-radius: 16px;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    
+    .store-links {
+        gap: 24px;
+    }
+    
+    .store-badge {
+        transition: all 0.2s ease;
+        width: auto;
+    }
+    
+    .store-badge:hover {
+        transform: scale(1.05);
+    }
+    
+    [data-bs-theme="dark"] .app-card {
+        background-color: #2b2b2b;
+        box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+    }
+    
+    [data-bs-theme="dark"] .app-icon {
+        box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+    }
+    
+    /* Filtro para inverter cores do SVG da App Store em modo escuro */
+    [data-bs-theme="dark"] .store-badge[src*="app-store.svg"] {
+        filter: invert(1);
+    }
+</style>
+{% endblock %} 

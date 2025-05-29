@@ -15,168 +15,242 @@
         <h2>{{ course.title }}</h2>
         <div class="mb-2">
             {% if course.status == 'PUBLISHED' %}
-                <span class="badge bg-success">Publicado</span>
+            <span class="badge bg-success">Publicado</span>
             {% else %}
-                <span class="badge bg-secondary">Rascunho</span>
+            <span class="badge bg-secondary">Rascunho</span>
             {% endif %}
             <span class="text-muted">Criado em {{ course.created_at|date:"d/m/Y" }}</span>
         </div>
     </div>
-    
+
+    {% if request.user.is_admin or request.user.is_professor and course.professor == request.user %}
     <div>
         <a href="{% url 'courses:course_update' course.id %}" class="btn btn-warning me-2">
             <i class="fas fa-edit"></i> Editar Curso
         </a>
         {% if course.status == 'DRAFT' %}
-            <a href="{% url 'courses:course_publish' course.id %}" class="btn btn-success me-2">
-                <i class="fas fa-check-circle"></i> Publicar
-            </a>
+        <a href="{% url 'courses:course_publish' course.id %}" class="btn btn-success me-2">
+            <i class="fas fa-check-circle"></i> Publicar
+        </a>
         {% endif %}
+        <a href="{% url 'courses:lesson_create' course.id %}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Nova Aula
+        </a>
     </div>
+    {% endif %}
 </div>
 
-<div class="row">
-    <!-- Informações do Curso -->
-    <div class="col-lg-4">
-        <div class="card shadow mb-4">
-            <div class="card-header bg-primary text-white">
-                <h5 class="mb-0">Informações do Curso</h5>
-            </div>
-            <div class="card-body">
+<!-- Course Header Card -->
+<div class="card shadow mb-4">
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-3">
                 {% if course.image %}
-                    <div class="text-center mb-3">
-                        <img src="{{ course.image.url }}" class="img-fluid rounded" alt="{{ course.title }}">
-                    </div>
+                <img src="{{ course.image.url }}" class="img-fluid rounded" alt="{{ course.title }}">
+                {% else %}
+                <div class="bg-light rounded d-flex align-items-center justify-content-center" style="height: 150px;">
+                    <i class="fas fa-book fa-4x text-muted"></i>
+                </div>
                 {% endif %}
-                
-                <h4 class="mb-3">{{ course.title }}</h4>
-                
-                <div class="mb-3">
-                    <strong>Preço:</strong> R$ {{ course.price }}
+            </div>
+            <div class="col-md-6">
+                <h4 class="mb-2">{{ course.short_description }}</h4>
+                <p>{{ course.description|linebreaks|truncatewords:50 }}</p>
+
+                <div class="row mt-3">
+                    <div class="col-sm-4">
+                        <div class="d-flex align-items-center">
+                            <div class="me-2">
+                                <i class="fas fa-book text-primary"></i>
+                            </div>
+                            <div>
+                                <span class="d-block text-muted small">Aulas</span>
+                                <span class="fw-bold">{{ lessons|length }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-sm-4">
+                        <div class="d-flex align-items-center">
+                            <div class="me-2">
+                                <i class="fas fa-users text-success"></i>
+                            </div>
+                            <div>
+                                <span class="d-block text-muted small">Alunos</span>
+                                <span class="fw-bold">{{ course.get_enrolled_students_count }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-sm-4">
+                        <div class="d-flex align-items-center">
+                            <div class="me-2">
+                                <i class="fas fa-money-bill-wave text-info"></i>
+                            </div>
+                            <div>
+                                <span class="d-block text-muted small">Preço</span>
+                                <span class="fw-bold">R$ {{ course.price }}</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                
-                <div class="mb-3">
-                    <strong>Status:</strong>
-                    {% if course.status == 'PUBLISHED' %}
-                        <span class="badge bg-success">Publicado</span>
-                    {% else %}
-                        <span class="badge bg-secondary">Rascunho</span>
-                    {% endif %}
-                </div>
-                
-                <div class="mb-3">
-                    <strong>Data de Criação:</strong> {{ course.created_at|date:"d/m/Y" }}
-                </div>
-                
-                <div class="mb-3">
-                    <strong>Última Atualização:</strong> {{ course.updated_at|date:"d/m/Y" }}
-                </div>
-                
-                <div class="mb-3">
-                    <strong>Descrição Curta:</strong>
-                    <p>{{ course.short_description }}</p>
-                </div>
-                
-                <div class="mb-3">
-                    <strong>Descrição Completa:</strong>
-                    <p>{{ course.description|linebreaks }}</p>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-light h-100">
+                    <div class="card-body">
+                        <ul class="list-group list-group-flush">
+                            <li class="list-group-item d-flex justify-content-between px-0">
+                                <span>Status:</span>
+                                <span>
+                                    {% if course.status == 'PUBLISHED' %}
+                                    <span class="badge bg-success">Publicado</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">Rascunho</span>
+                                    {% endif %}
+                                </span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between px-0">
+                                <span>Criado em:</span>
+                                <span>{{ course.created_at|date:"d/m/Y" }}</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between px-0">
+                                <span>Atualizado em:</span>
+                                <span>{{ course.updated_at|date:"d/m/Y" }}</span>
+                            </li>
+                        </ul>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-    
+</div>
+
+<div class="row">
     <!-- Lista de Aulas -->
     <div class="col-lg-8">
         <div class="card shadow mb-4">
             <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Aulas</h5>
+                <h5 class="mb-0"><i class="fas fa-list-alt me-2"></i> Aulas do Curso</h5>
                 <a href="{% url 'courses:lesson_create' course.id %}" class="btn btn-sm btn-light">
                     <i class="fas fa-plus"></i> Nova Aula
                 </a>
             </div>
             <div class="card-body">
                 {% if lessons %}
-                    <div class="list-group">
-                        {% for lesson in lessons %}
-                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                <!-- Progress bar -->
+                <div class="mb-4">
+                    <div class="d-flex justify-content-between mb-1">
+                        <span>Progresso do Curso</span>
+                        <span>
+                            {{ lessons|length }} aulas criadas
+                            {% with published=lessons|length %}
+                            ({% if published > 0 %}{{ published }}{% else %}0{% endif %} publicadas)
+                            {% endwith %}
+                        </span>
+                    </div>
+                    <div class="progress" style="height: 10px;">
+                        <div class="progress-bar bg-success" role="progressbar" style="width: 100%;" aria-valuenow="100"
+                            aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                </div>
+
+                <div class="list-group">
+                    {% for lesson in lessons %}
+                    <div
+                        class="list-group-item border-start border-3 {% if lesson.status == 'PUBLISHED' %}border-success{% else %}border-secondary{% endif %}">
+                        <div class="row align-items-center">
+                            <div class="col-md-7">
+                                <div class="d-flex align-items-center">
+                                    <span class="badge bg-primary rounded-circle me-2">{{ lesson.order }}</span>
+                                    <h5 class="mb-1">{{ lesson.title }}</h5>
+                                </div>
+                                {% if lesson.description %}
+                                <p class="mb-1 text-muted small">{{ lesson.description|truncatechars:100 }}</p>
+                                {% endif %}
                                 <div>
-                                    <div class="d-flex align-items-center">
-                                        <span class="badge bg-primary rounded-circle me-2">{{ lesson.order }}</span>
-                                        <h5 class="mb-1">{{ lesson.title }}</h5>
-                                    </div>
-                                    {% if lesson.description %}
-                                        <p class="mb-1 text-muted small">{{ lesson.description|truncatechars:100 }}</p>
-                                    {% endif %}
                                     {% if lesson.status == 'PUBLISHED' %}
-                                        <span class="badge bg-success">Publicada</span>
+                                    <span class="badge bg-success">Publicada</span>
                                     {% else %}
-                                        <span class="badge bg-secondary">Rascunho</span>
+                                    <span class="badge bg-secondary">Rascunho</span>
+                                    {% endif %}
+                                    {% if lesson.video_url %}
+                                    <span class="badge bg-info"><i class="fas fa-video me-1"></i> Vídeo
+                                        disponível</span>
                                     {% endif %}
                                 </div>
+                            </div>
+                            <div class="col-md-5 text-end">
                                 <div class="btn-group">
                                     {% if lesson.video_url %}
-                                        <a href="{{ lesson.video_url }}" target="_blank" class="btn btn-sm btn-primary" title="Ver Vídeo">
-                                            <i class="fas fa-play"></i>
-                                        </a>
-                                    {% endif %}
-                                    <a href="{% url 'courses:lesson_update' lesson.id %}" class="btn btn-sm btn-warning" title="Editar">
-                                        <i class="fas fa-edit"></i>
+                                    {% comment %}
+                                    <a href="{{ lesson.video_url }}" target="_blank"
+                                        class="btn btn-sm btn-outline-primary" title="Ver Vídeo">
+                                        <i class="fas fa-play"></i> Ver Vídeo
                                     </a>
-                                    <a href="{% url 'courses:lesson_delete' lesson.id %}" class="btn btn-sm btn-danger" title="Excluir">
+                                    {% endcomment %}
+                                    {% endif %}
+                                    <a href="{% url 'courses:lesson_update' lesson.id %}" class="btn btn-sm btn-warning"
+                                        title="Editar">
+                                        <i class="fas fa-edit"></i> Editar
+                                    </a>
+                                    <a href="{% url 'courses:lesson_delete' lesson.id %}" class="btn btn-sm btn-danger"
+                                        title="Excluir">
                                         <i class="fas fa-trash"></i>
                                     </a>
                                 </div>
                             </div>
-                        {% endfor %}
-                    </div>
-                {% else %}
-                    <div class="alert alert-info text-center">
-                        <i class="fas fa-info-circle me-2"></i>
-                        Este curso ainda não possui aulas.
-                        <div class="mt-3">
-                            <a href="{% url 'courses:lesson_create' course.id %}" class="btn btn-primary">
-                                <i class="fas fa-plus-circle"></i> Adicionar primeira aula
-                            </a>
                         </div>
                     </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="alert alert-info text-center">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>Este curso ainda não possui aulas.</strong>
+                    <p class="mb-0 mt-2">Comece adicionando aulas para criar seu conteúdo.</p>
+                    <div class="mt-3">
+                        <a href="{% url 'courses:lesson_create' course.id %}" class="btn btn-primary">
+                            <i class="fas fa-plus-circle"></i> Adicionar primeira aula
+                        </a>
+                    </div>
+                </div>
                 {% endif %}
             </div>
         </div>
-        
+    </div>
+
+    <!-- Painel lateral -->
+    <div class="col-lg-4">
+        <!-- Detalhes completos -->
+        <div class="card shadow mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i> Informações Completas</h5>
+            </div>
+            <div class="card-body">
+                <h5>Descrição Completa</h5>
+                <div class="mb-4">
+                    {{ course.description|linebreaks }}
+                </div>
+            </div>
+        </div>
+
         <!-- Dicas para completar o curso -->
         <div class="card shadow">
             <div class="card-header bg-info text-white">
-                <h5 class="mb-0">Dicas para completar seu curso</h5>
+                <h5 class="mb-0"><i class="fas fa-lightbulb me-2"></i> Dicas para completar seu curso</h5>
             </div>
             <div class="card-body">
-                <div class="list-group">
-                    <div class="list-group-item d-flex">
-                        <div class="me-3">
-                            <i class="fas fa-check-circle text-success fa-2x"></i>
-                        </div>
-                        <div>
-                            <h5 class="mb-1">Adicione pelo menos 5 aulas</h5>
-                            <p class="mb-0">Os alunos preferem cursos com conteúdo substancial.</p>
-                        </div>
-                    </div>
-                    <div class="list-group-item d-flex">
-                        <div class="me-3">
-                            <i class="fas fa-check-circle text-success fa-2x"></i>
-                        </div>
-                        <div>
-                            <h5 class="mb-1">Inclua uma imagem atrativa para o curso</h5>
-                            <p class="mb-0">Cursos com imagens de capa têm mais inscrições.</p>
-                        </div>
-                    </div>
-                    <div class="list-group-item d-flex">
-                        <div class="me-3">
-                            <i class="fas fa-check-circle text-success fa-2x"></i>
-                        </div>
-                        <div>
-                            <h5 class="mb-1">Escreva uma descrição detalhada</h5>
-                            <p class="mb-0">Explique o que os alunos irão aprender com seu curso.</p>
-                        </div>
-                    </div>
+                <div class="mb-3 border-start border-3 border-success ps-3">
+                    <h6 class="mb-1"><i class="fas fa-check-circle text-success me-1"></i> Adicione pelo menos 5 aulas
+                    </h6>
+                    <p class="small mb-0">Os alunos preferem cursos com conteúdo substancial.</p>
+                </div>
+                <div class="mb-3 border-start border-3 border-warning ps-3">
+                    <h6 class="mb-1"><i class="fas fa-image text-warning me-1"></i> Inclua uma imagem atrativa</h6>
+                    <p class="small mb-0">Cursos com imagens de capa têm mais inscrições.</p>
+                </div>
+                <div class="mb-3 border-start border-3 border-info ps-3">
+                    <h6 class="mb-1"><i class="fas fa-align-left text-info me-1"></i> Escreva uma descrição detalhada
+                    </h6>
+                    <p class="small mb-0">Explique o que os alunos irão aprender com seu curso.</p>
                 </div>
             </div>
         </div>

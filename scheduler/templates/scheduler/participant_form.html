@@ -1,0 +1,175 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load crispy_forms_tags %}
+
+{% block title %}{{ page_title }} - {{ event.title }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="row justify-content-center">
+    <div class="col-md-8">
+      <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+          <h5 class="mb-0">{{ page_title }}</h5>
+          <a href="{% url 'scheduler:participant_list' event.id %}" class="btn btn-light btn-sm">
+            <i class="fas fa-arrow-left"></i> {% trans "Voltar à Lista" %}
+          </a>
+        </div>
+        
+        <div class="card-body">
+          <!-- Informações do evento -->
+          <div class="mb-4 p-3 bg-body-tertiary rounded border">
+            <h5>{{ event.title }}</h5>
+            <div class="row g-2">
+              <div class="col-md-4">
+                <div class="d-flex align-items-center">
+                  <i class="fas fa-calendar-day text-primary me-2"></i>
+                  <span>{{ event.start_time|date:"d/m/Y" }}</span>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="d-flex align-items-center">
+                  <i class="fas fa-clock text-primary me-2"></i>
+                  <span>{{ event.start_time|date:"H:i" }} - {{ event.end_time|date:"H:i" }}</span>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="d-flex align-items-center">
+                  <i class="fas fa-map-marker-alt text-primary me-2"></i>
+                  <span>{{ event.location.name }}</span>
+                </div>
+              </div>
+            </div>
+            {% if event.max_participants %}
+              <div class="mt-2">
+                <div class="d-flex align-items-center text-primary">
+                  <i class="fas fa-users me-2"></i>
+                  <span>
+                    {{ event.participants.count }} / {{ event.max_participants }} {% trans "participantes" %}
+                    {% if event.participants.count >= event.max_participants %}
+                      <span class="badge bg-danger ms-2">{% trans "Lotado" %}</span>
+                    {% endif %}
+                  </span>
+                </div>
+              </div>
+            {% endif %}
+          </div>
+          
+          {% if event.max_participants and event.participants.count >= event.max_participants %}
+            <div class="alert alert-warning">
+              <i class="fas fa-exclamation-triangle me-2"></i>
+              {% trans "Este evento já atingiu o limite máximo de participantes." %}
+            </div>
+          {% endif %}
+          
+          <!-- Formulário de adição de participantes -->
+          <form method="post">
+            {% csrf_token %}
+            
+            <div class="row">
+              <div class="col-md-12 mb-3">
+                {% if event.course %}
+                  <div class="alert alert-info mb-3">
+                    <div class="d-flex">
+                      <div class="flex-shrink-0">
+                        <i class="fas fa-info-circle fa-lg me-2"></i>
+                      </div>
+                      <div>
+                        <p class="mb-1">{% trans "Este evento está associado ao curso:" %}</p>
+                        <p class="mb-0"><strong>{{ event.course.title }}</strong></p>
+                        <button type="button" class="btn btn-sm btn-outline-primary mt-2" id="loadStudentsBtn">
+                          <i class="fas fa-sync-alt"></i> {% trans "Carregar Alunos deste Curso" %}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                {% endif %}
+                
+                {{ form|crispy }}
+              </div>
+            </div>
+            
+            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+              <a href="{% url 'scheduler:participant_list' event.id %}" class="btn btn-secondary">
+                {% trans "Cancelar" %}
+              </a>
+              <button type="submit" class="btn btn-primary">
+                <i class="fas fa-save me-1"></i> {% trans "Adicionar Participante" %}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% if event.course %}
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const loadStudentsBtn = document.getElementById('loadStudentsBtn');
+    const studentSelect = document.getElementById('id_student');
+    
+    if (loadStudentsBtn && studentSelect) {
+      loadStudentsBtn.addEventListener('click', function() {
+        // Desabilitar botão durante o carregamento
+        this.disabled = true;
+        this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Carregando...';
+        
+        // Fazer requisição AJAX para obter alunos do curso
+        fetch('/agenda/api/course-students/?course_id={{ event.course.id }}')
+          .then(response => {
+            if (!response.ok) {
+              throw new Error('Erro ao carregar alunos');
+            }
+            return response.json();
+          })
+          .then(data => {
+            if (data.success && data.students.length > 0) {
+              // Limpar opções atuais
+              studentSelect.innerHTML = '<option value="">---------</option>';
+              
+              // Adicionar alunos do curso
+              data.students.forEach(student => {
+                const option = document.createElement('option');
+                option.value = student.id;
+                option.text = student.name || student.email;
+                
+                // Verificar se o aluno já está registrado neste evento
+                if (student.is_registered) {
+                  option.disabled = true;
+                  option.text += ' (Já registrado)';
+                }
+                
+                studentSelect.appendChild(option);
+              });
+              
+              // Ativar o select2 se estiver disponível
+              if (typeof($.fn.select2) !== 'undefined') {
+                $(studentSelect).select2('destroy').select2();
+              }
+              
+              // Mostrar mensagem de sucesso
+              alert('Alunos carregados com sucesso!');
+            } else {
+              alert('Nenhum aluno encontrado para este curso.');
+            }
+          })
+          .catch(error => {
+            console.error('Erro:', error);
+            alert('Ocorreu um erro ao carregar os alunos. Tente novamente.');
+          })
+          .finally(() => {
+            // Reabilitar botão
+            loadStudentsBtn.disabled = false;
+            loadStudentsBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Carregar Alunos deste Curso';
+          });
+      });
+    }
+  });
+</script>
+{% endif %}
+{% endblock %} 

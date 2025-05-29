@@ -14,6 +14,7 @@ class UserAdmin(BaseUserAdmin):
     list_filter = ('user_type', 'is_active', 'is_staff')
     search_fields = ('email', 'first_name', 'last_name')
     ordering = ('email',)
+    readonly_fields = ('last_login',)
     
     fieldsets = (
         (None, {'fields': ('email', 'password')}),
@@ -24,6 +25,6 @@ class UserAdmin(BaseUserAdmin):
     add_fieldsets = (
         (None, {
             'classes': ('wide',),
-            'fields': ('email', 'password1', 'password2', 'user_type', 'first_name', 'last_name'),
+            'fields': ('email', 'password1', 'password2', 'user_type', 'first_name', 'last_name', 'is_staff', 'is_superuser'),
         }),
     )

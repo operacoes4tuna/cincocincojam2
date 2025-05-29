@@ -1,0 +1,221 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load humanize %}
+
+{% block title %}{% translate "Pagamento Pix" %} - {{ sale.description }}{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">{% translate "Pagamento Pix" %}</h4>
+                </div>
+                
+                <div class="card-body">
+                    <!-- Status do Pagamento -->
+                    <div id="payment-status" class="mb-4 text-center">
+                        {% if sale.status == 'PAID' %}
+                            <div class="alert alert-success">
+                                <i class="fas fa-check-circle fa-3x mb-3"></i>
+                                <h4>{% translate "Pagamento Confirmado!" %}</h4>
+                                <p>{% translate "O pagamento foi recebido com sucesso." %}</p>
+                                <p class="mb-0"><small>{{ sale.paid_at|date:"d/m/Y H:i" }}</small></p>
+                            </div>
+                        {% elif sale.status == 'PENDING' %}
+                            <div class="alert alert-warning" id="pending-alert">
+                                <h4>{% translate "Aguardando Pagamento" %}</h4>
+                                <p>{% translate "Escaneie o QR Code abaixo ou copie o código Pix para pagar." %}</p>
+                            </div>
+                        {% else %}
+                            <div class="alert alert-danger">
+                                <i class="fas fa-exclamation-circle fa-3x mb-3"></i>
+                                <h4>{% translate "Pagamento Não Realizado" %}</h4>
+                                <p>{% translate "Este pagamento não foi completado ou foi cancelado." %}</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Loading -->
+                    <div id="loading-status" class="text-center py-4" style="display: none;">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">{% translate "Carregando..." %}</span>
+                        </div>
+                        <p class="mt-2">{% translate "Verificando status do pagamento..." %}</p>
+                    </div>
+                    
+                    <!-- Detalhes da Venda -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <h5>{% translate "Detalhes" %}</h5>
+                            <ul class="list-group list-group-flush">
+                                <li class="list-group-item d-flex justify-content-between px-0">
+                                    <span class="text-muted">{% translate "Descrição" %}:</span>
+                                    <span>{{ sale.description }}</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between px-0">
+                                    <span class="text-muted">{% translate "Valor" %}:</span>
+                                    <span class="fw-bold">R$ {{ sale.amount|floatformat:2|intcomma }}</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between px-0">
+                                    <span class="text-muted">{% translate "Cliente" %}:</span>
+                                    <span>{{ sale.customer_name }}</span>
+                                </li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h5>{% translate "Vendedor" %}</h5>
+                            <ul class="list-group list-group-flush">
+                                <li class="list-group-item d-flex justify-content-between px-0">
+                                    <span class="text-muted">{% translate "Nome" %}:</span>
+                                    <span>{{ sale.seller.get_full_name }}</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between px-0">
+                                    <span class="text-muted">{% translate "E-mail" %}:</span>
+                                    <span>{{ sale.seller.email }}</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between px-0">
+                                    <span class="text-muted">{% translate "Data" %}:</span>
+                                    <span>{{ sale.created_at|date:"d/m/Y H:i" }}</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    {% if sale.status == 'PENDING' %}
+                        <!-- QR Code e Código Pix -->
+                        <div class="row mb-4">
+                            <div class="col-md-6 text-center mb-3 mb-md-0">
+                                {% if sale.qrcode_image %}
+                                    <h5 class="mb-3">{% translate "QR Code Pix" %}</h5>
+                                    <img src="{{ sale.qrcode_image }}" alt="QR Code Pix" class="img-fluid border rounded p-2 mb-2" style="max-width: 200px;">
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <h5 class="mb-3">{% translate "Pix Copia e Cola" %}</h5>
+                                <div class="input-group mb-3">
+                                    <input type="text" class="form-control" id="pixcode" value="{{ sale.brcode }}" readonly>
+                                    <button class="btn btn-outline-primary" type="button" id="copy-button" onclick="copyPixCode()">
+                                        <i class="fas fa-copy"></i>
+                                    </button>
+                                </div>
+                                <div id="code-copied" class="text-success" style="display: none;">
+                                    <i class="fas fa-check-circle"></i> {% translate "Código copiado!" %}
+                                </div>
+                                <p class="small text-muted mt-2">
+                                    <i class="fas fa-info-circle me-1"></i> 
+                                    {% translate "Copie o código acima e cole no seu aplicativo de banco para pagar via Pix." %}
+                                </p>
+                            </div>
+                        </div>
+                        
+                        <!-- Botão para verificar o status -->
+                        <div class="text-center mb-3">
+                            <button id="check-status-btn" class="btn btn-primary" onclick="checkPaymentStatus()">
+                                <i class="fas fa-sync-alt me-2"></i> {% translate "Verificar Pagamento" %}
+                            </button>
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <div class="card-footer">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <small class="text-muted">ID: {{ sale.id }}</small>
+                        
+                        {% if is_seller %}
+                            <a href="{% url 'payments:singlesale_detail' pk=sale.id %}" class="btn btn-outline-secondary btn-sm">
+                                <i class="fas fa-arrow-left me-1"></i> {% translate "Voltar aos Detalhes" %}
+                            </a>
+                        {% else %}
+                            <div>
+                                <small class="text-muted">{% translate "Obrigado pela sua compra!" %}</small>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function copyPixCode() {
+        const pixCode = document.getElementById('pixcode');
+        pixCode.select();
+        document.execCommand('copy');
+        
+        const codeCopied = document.getElementById('code-copied');
+        codeCopied.style.display = 'block';
+        
+        // Ocultar a mensagem após 3 segundos
+        setTimeout(() => {
+            codeCopied.style.display = 'none';
+        }, 3000);
+    }
+    
+    function checkPaymentStatus() {
+        // Mostrar loading e ocultar status atual
+        document.getElementById('payment-status').style.display = 'none';
+        document.getElementById('loading-status').style.display = 'block';
+        
+        // Desabilitar o botão para evitar múltiplos cliques
+        const checkBtn = document.getElementById('check-status-btn');
+        if (checkBtn) checkBtn.disabled = true;
+        
+        // Fazer requisição para verificar o status
+        fetch('{% url "payments:check_singlesale_status" sale_id=sale.id %}')
+            .then(response => response.json())
+            .then(data => {
+                // Ocultar loading
+                document.getElementById('loading-status').style.display = 'none';
+                document.getElementById('payment-status').style.display = 'block';
+                
+                // Se o pagamento foi confirmado, atualizar a página após um breve delay
+                if (data.status === 'PAID') {
+                    // Mostrar mensagem de sucesso temporária
+                    const pendingAlert = document.getElementById('pending-alert');
+                    if (pendingAlert) {
+                        pendingAlert.className = 'alert alert-success';
+                        pendingAlert.innerHTML = `
+                            <i class="fas fa-check-circle fa-3x mb-3"></i>
+                            <h4>{% translate "Pagamento Confirmado!" %}</h4>
+                            <p>{% translate "Redirecionando..." %}</p>
+                        `;
+                    }
+                    
+                    // Recarregar a página após 2 segundos
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 2000);
+                } else {
+                    // Se ainda estiver pendente, habilitar o botão novamente
+                    if (checkBtn) checkBtn.disabled = false;
+                }
+            })
+            .catch(error => {
+                console.error('Erro ao verificar o status:', error);
+                document.getElementById('loading-status').style.display = 'none';
+                document.getElementById('payment-status').style.display = 'block';
+                if (checkBtn) checkBtn.disabled = false;
+                
+                alert('{% translate "Erro ao verificar o status do pagamento. Tente novamente." %}');
+            });
+    }
+    
+    // Verificar o status automaticamente a cada 30 segundos se o pagamento estiver pendente
+    {% if sale.status == 'PENDING' %}
+    const autoCheckInterval = setInterval(() => {
+        if (document.getElementById('pending-alert')) {
+            checkPaymentStatus();
+        } else {
+            // Se não houver mais o alerta de pendente, parar de verificar
+            clearInterval(autoCheckInterval);
+        }
+    }, 30000); // 30 segundos
+    {% endif %}
+</script>
+{% endblock %} 

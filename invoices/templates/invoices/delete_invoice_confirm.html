@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+
+{% block title %}Confirmar Exclusão de Nota Fiscal - CincoCincoJAM 2.0{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header bg-danger text-white">
+                    <h4 class="mb-0">Confirmar Exclusão de Nota Fiscal</h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning">
+                        <p><i class="fas fa-exclamation-triangle me-2"></i> <strong>Atenção:</strong> Esta operação é irreversível e deve ser usada apenas em ambiente de testes.</p>
+                    </div>
+                    
+                    <h5>Detalhes da Nota Fiscal</h5>
+                    <div class="table-responsive mb-4">
+                        <table class="table table-bordered">
+                            <tr>
+                                <th style="width: 30%">ID da Nota:</th>
+                                <td>{{ invoice.id }}</td>
+                            </tr>
+                            <tr>
+                                <th>Status:</th>
+                                <td>
+                                    {% if invoice.status == 'approved' %}
+                                        <span class="badge bg-success">Emitida</span>
+                                    {% elif invoice.status == 'processing' %}
+                                        <span class="badge bg-warning text-dark">Processando</span>
+                                    {% elif invoice.status == 'pending' %}
+                                        <span class="badge bg-info">Pendente</span>
+                                    {% elif invoice.status == 'cancelled' %}
+                                        <span class="badge bg-secondary">Cancelada</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">Erro</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>Transação:</th>
+                                <td>#{{ transaction.id }}</td>
+                            </tr>
+                            <tr>
+                                <th>Aluno:</th>
+                                <td>{{ transaction.enrollment.student.email }}</td>
+                            </tr>
+                            <tr>
+                                <th>Curso:</th>
+                                <td>{{ transaction.enrollment.course.title }}</td>
+                            </tr>
+                            <tr>
+                                <th>Valor:</th>
+                                <td>R$ {{ transaction.amount|floatformat:2 }}</td>
+                            </tr>
+                        </table>
+                    </div>
+                    
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="d-flex justify-content-end">
+                            <a href="{% url 'payments:professor_transactions' %}" class="btn btn-secondary me-2">Cancelar</a>
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-trash me-1"></i> Confirmar Exclusão
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

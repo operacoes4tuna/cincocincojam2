@@ -1,0 +1,144 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">{% trans "Meus Eventos" %}</h5>
+            <div>
+                <a href="{% url 'scheduler:calendar' %}" class="btn btn-outline-secondary btn-sm me-2">
+                    <i class="far fa-calendar"></i> {% trans "Calendário" %}
+                </a>
+                <a href="{% url 'scheduler:event_create' %}" class="btn btn-primary btn-sm">
+                    <i class="fas fa-plus"></i> {% trans "Novo Evento" %}
+                </a>
+            </div>
+        </div>
+        <div class="card-body">
+            <!-- Filtros -->
+            <div class="mb-4">
+                <form method="get" class="row g-3">
+                    <div class="col-md-3">
+                        <label for="status" class="form-label">{% trans "Status" %}</label>
+                        <select name="status" id="status" class="form-select">
+                            <option value="">{% trans "Todos" %}</option>
+                            <option value="SCHEDULED" {% if request.GET.status == 'SCHEDULED' %}selected{% endif %}>{% trans "Agendado" %}</option>
+                            <option value="CONFIRMED" {% if request.GET.status == 'CONFIRMED' %}selected{% endif %}>{% trans "Confirmado" %}</option>
+                            <option value="CANCELLED" {% if request.GET.status == 'CANCELLED' %}selected{% endif %}>{% trans "Cancelado" %}</option>
+                            <option value="COMPLETED" {% if request.GET.status == 'COMPLETED' %}selected{% endif %}>{% trans "Concluído" %}</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="type" class="form-label">{% trans "Tipo" %}</label>
+                        <select name="type" id="type" class="form-select">
+                            <option value="">{% trans "Todos" %}</option>
+                            <option value="CLASS" {% if request.GET.type == 'CLASS' %}selected{% endif %}>{% trans "Aula" %}</option>
+                            <option value="MEETING" {% if request.GET.type == 'MEETING' %}selected{% endif %}>{% trans "Reunião" %}</option>
+                            <option value="WORKSHOP" {% if request.GET.type == 'WORKSHOP' %}selected{% endif %}>{% trans "Workshop" %}</option>
+                            <option value="OTHER" {% if request.GET.type == 'OTHER' %}selected{% endif %}>{% trans "Outro" %}</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="from" class="form-label">{% trans "Data Inicial" %}</label>
+                        <input type="date" class="form-control" id="from" name="from" value="{{ request.GET.from }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="to" class="form-label">{% trans "Data Final" %}</label>
+                        <input type="date" class="form-control" id="to" name="to" value="{{ request.GET.to }}">
+                    </div>
+                    <div class="col-12 text-end">
+                        <button type="submit" class="btn btn-primary">{% trans "Filtrar" %}</button>
+                        <a href="{% url 'scheduler:event_list' %}" class="btn btn-outline-secondary">{% trans "Limpar" %}</a>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Tabela de eventos -->
+            {% if events %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>{% trans "Título" %}</th>
+                                <th>{% trans "Tipo" %}</th>
+                                <th>{% trans "Data e Hora" %}</th>
+                                <th>{% trans "Local" %}</th>
+                                <th>{% trans "Status" %}</th>
+                                <th>{% trans "Participantes" %}</th>
+                                <th>{% trans "Ações" %}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for event in events %}
+                                <tr>
+                                    <td><a href="{% url 'scheduler:event_detail' event.id %}">{{ event.title }}</a></td>
+                                    <td>
+                                        {% if event.event_type == 'CLASS' %}
+                                            <span class="badge bg-primary">{% trans "Aula" %}</span>
+                                        {% elif event.event_type == 'MEETING' %}
+                                            <span class="badge bg-success">{% trans "Reunião" %}</span>
+                                        {% elif event.event_type == 'WORKSHOP' %}
+                                            <span class="badge bg-purple">{% trans "Workshop" %}</span>
+                                        {% else %}
+                                            <span class="badge bg-warning">{% trans "Outro" %}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {{ event.start_time|date:"d/m/Y" }}<br>
+                                        {{ event.start_time|date:"H:i" }} - {{ event.end_time|date:"H:i" }}
+                                    </td>
+                                    <td>
+                                        {% if event.location %}
+                                            {% if event.location.is_online %}
+                                                <span class="text-info"><i class="fas fa-video"></i> {% trans "Online" %}</span>
+                                            {% else %}
+                                                {{ event.location.name }}
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="text-muted">{% trans "Não especificado" %}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if event.status == 'SCHEDULED' %}
+                                            <span class="badge bg-info">{% trans "Agendado" %}</span>
+                                        {% elif event.status == 'CONFIRMED' %}
+                                            <span class="badge bg-success">{% trans "Confirmado" %}</span>
+                                        {% elif event.status == 'CANCELLED' %}
+                                            <span class="badge bg-danger">{% trans "Cancelado" %}</span>
+                                        {% elif event.status == 'COMPLETED' %}
+                                            <span class="badge bg-secondary">{% trans "Concluído" %}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <a href="{% url 'scheduler:participant_list' event.id %}">
+                                            {{ event.participant_count }} {% trans "participantes" %}
+                                        </a>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group">
+                                            <a href="{% url 'scheduler:event_edit' event.id %}" class="btn btn-sm btn-outline-primary">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            <a href="{% url 'scheduler:event_delete' event.id %}" class="btn btn-sm btn-outline-danger">
+                                                <i class="fas fa-trash"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i> {% trans "Nenhum evento encontrado com os filtros atuais." %}
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
