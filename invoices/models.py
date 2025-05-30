@@ -40,6 +40,55 @@ REGIME_TRIBUTARIO_CHOICES = [
     ('lucro_real', _('Lucro Real'))
 ]
 
+class ServiceCode(models.Model):
+    """
+    Modelo para armazenar códigos de serviço municipal.
+    Permite múltiplos códigos por empresa.
+    """
+    company_config = models.ForeignKey(
+        'CompanyConfig',
+        on_delete=models.CASCADE,
+        related_name='service_codes',
+        verbose_name=_('configuração da empresa')
+    )
+    code = models.CharField(
+        max_length=10,
+        verbose_name=_('código de serviço'),
+        help_text=_('Código de serviço municipal (ex: 0107, 1401, etc.)')
+    )
+    description = models.CharField(
+        max_length=255,
+        verbose_name=_('descrição do serviço'),
+        help_text=_('Descrição do tipo de serviço prestado')
+    )
+    is_default = models.BooleanField(
+        default=False,
+        verbose_name=_('código padrão'),
+        help_text=_('Marque como padrão para usar automaticamente em novas notas')
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name=_('criado em')
+    )
+    
+    class Meta:
+        verbose_name = _('código de serviço')
+        verbose_name_plural = _('códigos de serviço')
+        unique_together = ['company_config', 'code']
+        ordering = ['code']
+    
+    def __str__(self):
+        return f"{self.code} - {self.description}"
+    
+    def save(self, *args, **kwargs):
+        # Se este código está sendo marcado como padrão, desmarcar outros
+        if self.is_default:
+            ServiceCode.objects.filter(
+                company_config=self.company_config,
+                is_default=True
+            ).exclude(pk=self.pk).update(is_default=False)
+        super().save(*args, **kwargs)
+
 class CompanyConfig(models.Model):
     """
     Configurações da empresa para emissão de notas fiscais.
@@ -146,8 +195,8 @@ class CompanyConfig(models.Model):
     city_service_code = models.CharField(
         max_length=10,
         default='0107',
-        verbose_name=_('código de serviço municipal'),
-        help_text=_('Código de serviço específico do município para atividades educacionais')
+        verbose_name=_('código de serviço municipal (legado)'),
+        help_text=_('Campo mantido para compatibilidade. Use os códigos de serviço relacionados.')
     )
     
     # Campos para controle de RPS (Recibo Provisório de Serviço)
@@ -189,6 +238,38 @@ class CompanyConfig(models.Model):
         if self.cnpj:
             self.cnpj = self.cnpj.replace('.', '').replace('/', '').replace('-', '')
         super().save(*args, **kwargs)
+        
+        # Se não há códigos de serviço e existe um código legado, criar o primeiro código
+        if not self.service_codes.exists() and self.city_service_code:
+            ServiceCode.objects.create(
+                company_config=self,
+                code=self.city_service_code,
+                description='Código padrão migrado',
+                is_default=True
+            )
+    
+    def get_default_service_code(self):
+        """
+        Retorna o código de serviço padrão.
+        Se não houver códigos cadastrados, retorna o campo legado.
+        """
+        default_code = self.service_codes.filter(is_default=True).first()
+        if default_code:
+            return default_code.code
+        
+        # Fallback para o primeiro código disponível
+        first_code = self.service_codes.first()
+        if first_code:
+            return first_code.code
+            
+        # Fallback final para o campo legado
+        return self.city_service_code or '0107'
+    
+    def get_service_code_choices(self):
+        """
+        Retorna uma lista de tuplas (código, descrição) para uso em formulários.
+        """
+        return [(sc.code, f"{sc.code} - {sc.description}") for sc in self.service_codes.all()]
     
     def is_complete(self):
         """
@@ -204,11 +285,20 @@ class CompanyConfig(models.Model):
             self.bairro, 
             self.municipio, 
             self.uf, 
-            self.cep,
-            self.city_service_code
+            self.cep
         ]
         
-        return all(field is not None and field != '' for field in required_fields) and self.enabled
+        # Verificar se há pelo menos um código de serviço ou o campo legado
+        has_service_code = (
+            self.service_codes.exists() or 
+            (self.city_service_code and self.city_service_code.strip())
+        )
+        
+        return (
+            all(field is not None and field != '' for field in required_fields) and 
+            self.enabled and 
+            has_service_code
+        )
 
 
 class Invoice(models.Model):

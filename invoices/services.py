@@ -172,111 +172,38 @@ class NFEioService:
             print(f"DEBUG - {error_msg}")
             return {"error": True, "message": error_msg}
 
-    def emit_invoice(self, invoice):
+    def emit_invoice(self, invoice, service_code=None):
         """
-        Emite uma nota fiscal de serviço usando a API NFE.io
+        Emite uma nota fiscal usando a API NFE.io
+        
+        Args:
+            invoice: Objeto Invoice a ser emitido
+            service_code: Código de serviço específico a ser usado (opcional)
         """
-        print(f"\nDEBUG - Iniciando emissão de nota fiscal ID: {invoice.id}")
+        logger.info(f"Iniciando emissão de nota fiscal para invoice ID: {invoice.id}")
         
-        # Verificar se a invoice está vinculada a uma transaction ou singlesale
-        if invoice.transaction:
-            # 1. Validar configuração do professor
-            professor = invoice.transaction.enrollment.course.professor
-            print(f"DEBUG - Professor: {professor.get_full_name()}")
+        try:
+            # Preparar dados da nota fiscal
+            invoice_data = self._prepare_invoice_data(invoice, service_code)
             
-            config_valid, config_message = self.validate_company_config(professor.company_config)
-            if not config_valid:
-                print(f"DEBUG - Erro na configuração: {config_message}")
-                invoice.status = 'error'
-                invoice.error_message = config_message
-                invoice.save()
-                return {"error": True, "message": config_message}
-                
-            # 2. Validar dados do aluno
-            student = invoice.transaction.enrollment.student
-            print(f"DEBUG - Aluno: {student.get_full_name()}")
+            # Fazer a requisição para a API
+            response = self._make_request('POST', '/serviceinvoices', invoice_data)
             
-            student_valid, student_message = self.validate_student_data(student)
-            if not student_valid:
-                print(f"DEBUG - Erro nos dados do aluno: {student_message}")
-                invoice.status = 'error'
-                invoice.error_message = student_message
-                invoice.save()
-                return {"error": True, "message": student_message}
-        elif invoice.singlesale:
-            # 1. Validar configuração do professor para venda avulsa
-            professor = invoice.singlesale.seller
-            print(f"DEBUG - Professor (vendedor): {professor.get_full_name()}")
+            # Atualizar a invoice com a resposta
+            self._update_invoice_with_response(invoice, response)
             
-            config_valid, config_message = self.validate_company_config(professor.company_config)
-            if not config_valid:
-                print(f"DEBUG - Erro na configuração: {config_message}")
-                invoice.status = 'error'
-                invoice.error_message = config_message
-                invoice.save()
-                return {"error": True, "message": config_message}
-                
-            # 2. Para vendas avulsas, não há validação de student
-            print(f"DEBUG - Cliente: {invoice.singlesale.customer_name}")
-        else:
-            error_message = "A nota fiscal não está associada a uma transação ou venda avulsa"
-            print(f"DEBUG - Erro: {error_message}")
-            invoice.status = 'error'
-            invoice.error_message = error_message
-            invoice.save()
-            return {"error": True, "message": error_message}
-            
-        # 3. Verificar conectividade
-        if not self.check_connectivity():
-            error_msg = "Não foi possível conectar ao serviço NFE.io"
-            print(f"DEBUG - Erro de conectividade: {error_msg}")
-            invoice.status = 'error'
-            invoice.error_message = error_msg
-            invoice.save()
-            return {"error": True, "message": error_msg}
-            
-        # 4. Gerar número RPS
-        print("DEBUG - Gerando número RPS...")
-        self._generate_rps_for_invoice(invoice, professor)
-        print(f"DEBUG - RPS gerado: Série {invoice.rps_serie}, Número {invoice.rps_numero}")
-            
-        # 5. Preparar dados da nota
-        print("DEBUG - Preparando dados da nota...")
-        invoice_data = self._prepare_invoice_data(invoice)
-        print("DEBUG - Dados preparados:")
-        print(json.dumps(invoice_data, indent=2, ensure_ascii=False))
-        
-        # 6. Emitir nota
-        print("DEBUG - Enviando para API...")
-        endpoint = f"v1/companies/{self.company_id}/serviceinvoices"
-        response = self._make_request('POST', endpoint, invoice_data)
-        
-        if response.get('error'):
-            print(f"DEBUG - Erro na API: {response.get('message')}")
-            invoice.status = 'error'
-            invoice.error_message = response.get('message')
-            invoice.save()
+            logger.info(f"Nota fiscal emitida com sucesso para invoice ID: {invoice.id}")
             return response
             
-        # 7. Atualizar nota com resposta
-        print("DEBUG - Atualizando nota com resposta...")
-        self._update_invoice_with_response(invoice, response)
-        
-        # 8. Verificar status inicial
-        print("DEBUG - Verificando status inicial...")
-        time.sleep(5)
-        status_response = self.check_invoice_status(invoice)
-        print(f"DEBUG - Status inicial: {status_response}")
-        
-        # 9. Se a nota estiver no estado WaitingSend, enviar explicitamente
-        if invoice.focus_status == 'WaitingSend':
-            print("DEBUG - Nota fiscal no estado WaitingSend, enviando explicitamente...")
-            send_response = self.send_invoice(invoice)
-            print(f"DEBUG - Resposta do envio explícito: {send_response}")
-        
-        return response
+        except Exception as e:
+            logger.error(f"Erro ao emitir nota fiscal para invoice ID {invoice.id}: {str(e)}")
+            # Atualizar status da invoice para erro
+            invoice.status = 'error'
+            invoice.error_message = str(e)
+            invoice.save()
+            raise
 
-    def _prepare_invoice_data(self, invoice):
+    def _prepare_invoice_data(self, invoice, service_code=None):
         """
         Prepara os dados da nota fiscal no formato esperado pela API
         """
@@ -293,7 +220,7 @@ class NFEioService:
             print(f"DEBUG - Dados do professor:")
             print(f"- Nome: {professor.get_full_name()}")
             print(f"- CNPJ: {company_config.cnpj}")
-            print(f"- Código de serviço: {company_config.city_service_code}")
+            print(f"- Código de serviço: {company_config.get_default_service_code()}")
             
             # Limpar CPF e converter para número
             cpf = getattr(student, 'cpf', '00000000000')
@@ -365,7 +292,7 @@ class NFEioService:
             print(f"DEBUG - Dados do vendedor:")
             print(f"- Nome: {professor.get_full_name()}")
             print(f"- CNPJ: {company_config.cnpj}")
-            print(f"- Código de serviço: {company_config.city_service_code}")
+            print(f"- Código de serviço: {company_config.get_default_service_code()}")
             
             # Limpar CPF e converter para número
             cpf = sale.customer_cpf or '00000000000'
@@ -415,16 +342,22 @@ class NFEioService:
             raise ValueError("Invoice não está associada a uma transação ou venda avulsa")
 
         # Formatação comum para ambos os tipos de invoice
-        # Formatar o código de serviço (remover pontos e garantir 4 dígitos)
-        service_code = company_config.city_service_code
-        if not service_code:
-            print("DEBUG - ERRO: Código de serviço não configurado!")
-            raise ValueError("Código de serviço não configurado para o professor")
-        
-        service_code = service_code.replace('.', '')
-        if len(service_code) < 4:
-            service_code = service_code.zfill(4)
-        print(f"DEBUG - Código de serviço formatado: {service_code}")
+        # Obter o código de serviço padrão usando o novo sistema
+        if service_code:
+            service_code = service_code.replace('.', '')
+            if len(service_code) < 4:
+                service_code = service_code.zfill(4)
+            print(f"DEBUG - Código de serviço formatado: {service_code}")
+        else:
+            service_code = company_config.get_default_service_code()
+            if not service_code:
+                print("DEBUG - ERRO: Código de serviço não configurado!")
+                raise ValueError("Código de serviço não configurado para o professor")
+            
+            service_code = service_code.replace('.', '')
+            if len(service_code) < 4:
+                service_code = service_code.zfill(4)
+            print(f"DEBUG - Código de serviço formatado: {service_code}")
         
         # Montar payload final
         payload = {

@@ -1,7 +1,8 @@
 from django import forms
 from django.utils.translation import gettext_lazy as _
 from django.core.validators import RegexValidator
-from .models import CompanyConfig
+from django.forms import inlineformset_factory
+from .models import CompanyConfig, ServiceCode
 
 # Validadores
 cnpj_validator = RegexValidator(
@@ -12,6 +13,86 @@ cnpj_validator = RegexValidator(
 cep_validator = RegexValidator(
     regex=r'^\d{5}-\d{3}$',
     message=_('Digite um CEP válido no formato XXXXX-XXX')
+)
+
+class ServiceCodeSelectionForm(forms.Form):
+    """
+    Formulário para seleção de código de serviço na emissão de notas fiscais.
+    """
+    service_code = forms.ChoiceField(
+        label=_('Código de Serviço'),
+        help_text=_('Selecione o código de serviço municipal para esta nota fiscal'),
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
+    
+    def __init__(self, company_config, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # Obter códigos de serviço disponíveis
+        service_codes = company_config.service_codes.all()
+        
+        if service_codes.exists():
+            choices = [(sc.code, f"{sc.code} - {sc.description}") for sc in service_codes]
+            self.fields['service_code'].choices = choices
+            
+            # Definir o código padrão como selecionado
+            default_code = company_config.service_codes.filter(is_default=True).first()
+            if default_code:
+                self.fields['service_code'].initial = default_code.code
+        else:
+            # Fallback para o campo legado
+            legacy_code = company_config.city_service_code or '0107'
+            self.fields['service_code'].choices = [(legacy_code, f"{legacy_code} - Código padrão")]
+            self.fields['service_code'].initial = legacy_code
+
+class ServiceCodeForm(forms.ModelForm):
+    """
+    Formulário para códigos de serviço municipal.
+    """
+    class Meta:
+        model = ServiceCode
+        fields = ['code', 'description', 'is_default']
+        widgets = {
+            'code': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': '0107',
+                'maxlength': '10'
+            }),
+            'description': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Descrição do serviço'
+            }),
+            'is_default': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            })
+        }
+    
+    def clean_code(self):
+        """
+        Validar o código de serviço.
+        """
+        code = self.cleaned_data.get('code', '').strip()
+        if not code:
+            raise forms.ValidationError(_('Código de serviço é obrigatório.'))
+        
+        # Remover pontos se houver
+        code = code.replace('.', '')
+        
+        # Verificar se contém apenas números
+        if not code.isdigit():
+            raise forms.ValidationError(_('Código de serviço deve conter apenas números.'))
+        
+        return code
+
+# Formset para gerenciar múltiplos códigos de serviço
+ServiceCodeFormSet = inlineformset_factory(
+    CompanyConfig,
+    ServiceCode,
+    form=ServiceCodeForm,
+    extra=1,
+    can_delete=True,
+    min_num=0,
+    validate_min=False
 )
 
 class CompanyConfigForm(forms.ModelForm):
@@ -42,7 +123,12 @@ class CompanyConfigForm(forms.ModelForm):
             'cep': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '00000-000'}),
             'telefone': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '(00) 00000-0000'}),
             'email': forms.EmailInput(attrs={'class': 'form-control'}),
-            'city_service_code': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '0107'}),
+            'city_service_code': forms.TextInput(attrs={
+                'class': 'form-control', 
+                'placeholder': '0107',
+                'readonly': True,
+                'title': 'Campo mantido para compatibilidade. Use os códigos de serviço abaixo.'
+            }),
             'rps_serie': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '1'}),
             'rps_numero_atual': forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}),
             'rps_lote': forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}),
@@ -56,6 +142,12 @@ class CompanyConfigForm(forms.ModelForm):
             for field_name, field in self.fields.items():
                 if field_name != 'enabled':
                     field.required = False
+                    
+        # Adicionar help text para o campo legado
+        if 'city_service_code' in self.fields:
+            self.fields['city_service_code'].help_text = _(
+                'Campo mantido para compatibilidade. Use a seção "Códigos de Serviço" abaixo para gerenciar múltiplos códigos.'
+            )
                     
     def clean_cnpj(self):
         """
@@ -83,8 +175,7 @@ class CompanyConfigForm(forms.ModelForm):
         if enabled:
             required_fields = [
                 'cnpj', 'razao_social', 'regime_tributario', 
-                'endereco', 'numero', 'bairro', 'municipio', 'uf', 'cep',
-                'city_service_code'
+                'endereco', 'numero', 'bairro', 'municipio', 'uf', 'cep'
             ]
             
             for field in required_fields:

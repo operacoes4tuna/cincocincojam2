@@ -53,7 +53,7 @@
             <div class="card h-100">
                 <div class="card-body">
                     <h5 class="card-title text-primary">{% translate "Total de Vendas Avulsas" %}</h5>
-                    <div class="display-6">R$ {{ total_amount|floatformat:2|intcomma }}</div>
+                    <div class="display-6">R$ {{ total_amount|floatformat:2 }}</div>
                     <div class="text-muted mt-2">
                         <div>{% translate "Qtd. Vendas" %}: {{ sales|length }}</div>
                     </div>
@@ -64,7 +64,7 @@
             <div class="card h-100">
                 <div class="card-body">
                     <h5 class="card-title text-success">{% translate "Total Recebido" %}</h5>
-                    <div class="display-6 text-success">R$ {{ total_paid|floatformat:2|intcomma }}</div>
+                    <div class="display-6 text-success">R$ {{ total_paid|floatformat:2 }}</div>
                     <div class="text-muted mt-2">
                         <div>{% translate "Pagamentos confirmados" %}</div>
                     </div>
@@ -75,7 +75,7 @@
             <div class="card h-100">
                 <div class="card-body">
                     <h5 class="card-title text-warning">{% translate "Total Pendente" %}</h5>
-                    <div class="display-6 text-warning">R$ {{ total_pending|floatformat:2|intcomma }}</div>
+                    <div class="display-6 text-warning">R$ {{ total_pending|floatformat:2 }}</div>
                     <div class="text-muted mt-2">
                         <div>{% translate "Pagamentos a receber" %}</div>
                     </div>

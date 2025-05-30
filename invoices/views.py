@@ -15,7 +15,7 @@ from payments.models import PaymentTransaction, SingleSale
 from users.decorators import professor_required, admin_required
 
 from .models import CompanyConfig, Invoice
-from .forms import CompanyConfigForm
+from .forms import CompanyConfigForm, ServiceCodeFormSet
 from .services import NFEioService
 
 # Configuração do logger
@@ -36,17 +36,37 @@ def company_settings(request):
     
     if request.method == 'POST':
         form = CompanyConfigForm(request.POST, instance=company_config)
-        if form.is_valid():
-            form.save()
+        
+        # Se a instância ainda não foi salva, salvar primeiro para poder usar no formset
+        if not company_config.pk:
+            if form.is_valid():
+                company_config = form.save()
+            else:
+                # Se o formulário principal não é válido, não processar o formset
+                formset = ServiceCodeFormSet(request.POST, instance=company_config)
+                return render(request, 'invoices/company_settings.html', {
+                    'form': form,
+                    'formset': formset,
+                    'company_config': company_config,
+                    'is_complete': False,
+                })
+        
+        formset = ServiceCodeFormSet(request.POST, instance=company_config)
+        
+        if form.is_valid() and formset.is_valid():
+            company_config = form.save()
+            formset.save()
             messages.success(request, _('Configurações fiscais atualizadas com sucesso!'))
             return redirect('invoices:company_settings')
     else:
         form = CompanyConfigForm(instance=company_config)
+        formset = ServiceCodeFormSet(instance=company_config if company_config.pk else None)
     
     is_complete = company_config.is_complete() if company_config.pk else False
     
     return render(request, 'invoices/company_settings.html', {
         'form': form,
+        'formset': formset,
         'company_config': company_config,
         'is_complete': is_complete,
     })
