@@ -52,10 +52,10 @@
         <div class="col-md-4">
             <div class="card h-100">
                 <div class="card-body">
-                    <h5 class="card-title text-primary">{% translate "Total de Vendas Avulsas" %}</h5>
+                    <h5 class="card-title text-primary">{% translate "Total de notas avulsas" %}</h5>
                     <div class="display-6">R$ {{ total_amount|floatformat:2 }}</div>
                     <div class="text-muted mt-2">
-                        <div>{% translate "Qtd. Vendas" %}: {{ sales|length }}</div>
+                        <div>{% translate "Qtd. notas" %}: {{ sales|length }}</div>
                     </div>
                 </div>
             </div>
@@ -272,7 +272,7 @@
                 {% endif %}
             {% else %}
                 <div class="alert alert-info">
-                    {% translate "Nenhuma venda avulsa encontrada." %}
+                    {% translate "Nenhuma nota avulsa encontrada." %}
                 </div>
             {% endif %}
         </div>

@@ -167,6 +167,15 @@ class SingleSale(models.Model):
         null=True
     )
     
+    # Código de Serviço Municipal
+    municipal_service_code = models.CharField(
+        _('Código de Serviço Municipal'),
+        max_length=10,
+        blank=True,
+        null=True,
+        help_text=_('Código de serviço municipal para emissão de notas fiscais (ex: 0107, 14.01)')
+    )
+    
     generate_invoice = models.BooleanField(_('Gerar Nota Fiscal'), default=False)
     
     # Datas

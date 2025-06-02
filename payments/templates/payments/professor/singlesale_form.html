@@ -54,6 +54,7 @@
                                     data-state="{{ company.client.state }}"
                                     data-zipcode="{{ company.client.zipcode }}"
                                     data-phone="{{ company.client.phone }}"
+                                    data-municipal-service-code="{{ company.municipal_service_code|default:'' }}"
                                 >
                                     {{ company.company_name }} ({{ company.cnpj }})
                                 </option>
@@ -80,6 +81,7 @@
                                     data-state="{{ individual.client.state }}"
                                     data-zipcode="{{ individual.client.zipcode }}"
                                     data-phone="{{ individual.client.phone }}"
+                                    data-municipal-service-code="{{ individual.municipal_service_code|default:'' }}"
                                 >
                                     {{ individual.full_name }} ({{ individual.cpf }})
                                 </option>
@@ -159,6 +161,16 @@
                         {{ form.has_boleto|as_crispy_field }}
                     </div>
                     {% endif %}
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        {{ form.municipal_service_code|as_crispy_field }}
+                        <small class="text-muted">
+                            <i class="fas fa-info-circle"></i> 
+                            Pode ser preenchido manualmente ou automaticamente ao selecionar um cliente cadastrado
+                        </small>
+                    </div>
                 </div>
                 
                 <!-- Campos de boleto condicionais -->
@@ -269,6 +281,7 @@ document.addEventListener('DOMContentLoaded', function() {
         setFieldValue('id_customer_state', selectedOption.getAttribute('data-state'));
         setFieldValue('id_customer_zipcode', selectedOption.getAttribute('data-zipcode'));
         setFieldValue('id_customer_phone', selectedOption.getAttribute('data-phone'));
+        setFieldValue('id_municipal_service_code', selectedOption.getAttribute('data-municipal-service-code'));
     }
     
     // Add input event listeners to remove highlight on manual edit
@@ -276,7 +289,7 @@ document.addEventListener('DOMContentLoaded', function() {
         'id_customer_name', 'id_customer_email', 'id_customer_cpf',
         'id_customer_address', 'id_customer_address_number', 'id_customer_address_complement',
         'id_customer_neighborhood', 'id_customer_city', 'id_customer_state', 
-        'id_customer_zipcode', 'id_customer_phone'
+        'id_customer_zipcode', 'id_customer_phone', 'id_municipal_service_code'
     ];
     
     customerFields.forEach(function(fieldId) {

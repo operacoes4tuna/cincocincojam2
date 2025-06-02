@@ -36,12 +36,13 @@ class IndividualClientForm(forms.ModelForm):
     """
     class Meta:
         model = IndividualClient
-        fields = ['full_name', 'cpf', 'rg', 'birth_date']
+        fields = ['full_name', 'cpf', 'rg', 'birth_date', 'municipal_service_code']
         widgets = {
             'full_name': forms.TextInput(attrs={'class': 'form-control'}),
             'cpf': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '000.000.000-00'}),
             'rg': forms.TextInput(attrs={'class': 'form-control'}),
-            'birth_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'})
+            'birth_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'municipal_service_code': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '0107 ou 14.01'})
         }
     
     def clean_cpf(self):
@@ -75,7 +76,7 @@ class CompanyClientForm(forms.ModelForm):
         model = CompanyClient
         fields = [
             'company_name', 'trade_name', 'cnpj',
-            'state_registration', 'municipal_registration',
+            'state_registration', 'municipal_registration', 'municipal_service_code',
             'responsible_name', 'responsible_cpf'
         ]
         widgets = {
@@ -84,6 +85,7 @@ class CompanyClientForm(forms.ModelForm):
             'cnpj': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '00.000.000/0000-00'}),
             'state_registration': forms.TextInput(attrs={'class': 'form-control'}),
             'municipal_registration': forms.TextInput(attrs={'class': 'form-control'}),
+            'municipal_service_code': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '0107 ou 14.01'}),
             'responsible_name': forms.TextInput(attrs={'class': 'form-control'}),
             'responsible_cpf': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '000.000.000-00'})
         }
@@ -200,6 +202,18 @@ class ClientRegistrationForm(forms.Form):
         )
     )
     
+    # Campo de Código de Serviço Municipal para Pessoa Física
+    individual_municipal_service_code = forms.CharField(
+        label=_('Código de Serviço Municipal (opcional)'),
+        max_length=10,
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control', 
+            'placeholder': '0107 ou 14.01',
+            'data-type': 'individual'
+        })
+    )
+    
     # Campos de Pessoa Jurídica
     company_name = forms.CharField(
         label=_('Razão Social'),
@@ -234,6 +248,16 @@ class ClientRegistrationForm(forms.Form):
         max_length=30,
         required=False,
         widget=forms.TextInput(attrs={'class': 'form-control', 'data-type': 'company'})
+    )
+    company_municipal_service_code = forms.CharField(
+        label=_('Código de Serviço Municipal (opcional)'),
+        max_length=10,
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control', 
+            'placeholder': '0107 ou 14.01',
+            'data-type': 'company'
+        })
     )
     responsible_name = forms.CharField(
         label=_('Nome do Responsável'),
@@ -337,7 +361,8 @@ class ClientRegistrationForm(forms.Form):
                 full_name=self.cleaned_data['full_name'],
                 cpf=self.cleaned_data['cpf'],
                 rg=self.cleaned_data.get('rg', ''),
-                birth_date=self.cleaned_data['birth_date']
+                birth_date=self.cleaned_data['birth_date'],
+                municipal_service_code=self.cleaned_data.get('individual_municipal_service_code', '')
             )
             individual.save()
             return client, individual
@@ -350,6 +375,7 @@ class ClientRegistrationForm(forms.Form):
                 cnpj=self.cleaned_data['cnpj'],
                 state_registration=self.cleaned_data.get('state_registration', ''),
                 municipal_registration=self.cleaned_data.get('municipal_registration', ''),
+                municipal_service_code=self.cleaned_data.get('company_municipal_service_code', ''),
                 responsible_name=self.cleaned_data['responsible_name'],
                 responsible_cpf=self.cleaned_data['responsible_cpf']
             )

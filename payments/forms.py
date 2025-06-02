@@ -41,6 +41,18 @@ class SingleSaleForm(forms.ModelForm):
         widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
     )
 
+    # Campo para Código de Serviço Municipal
+    municipal_service_code = forms.CharField(
+        label=_('Código de Serviço Municipal'),
+        max_length=10,
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control', 
+            'placeholder': '0107 ou 14.01'
+        }),
+        help_text=_('Código de serviço municipal - preenchido automaticamente quando um cliente cadastrado é selecionado')
+    )
+
     class Meta:
         model = SingleSale
         fields = [
@@ -48,7 +60,7 @@ class SingleSaleForm(forms.ModelForm):
             'customer_name', 'customer_email', 'customer_cpf',
             'customer_address', 'customer_address_number', 'customer_address_complement',
             'customer_neighborhood', 'customer_city', 'customer_state', 'customer_zipcode',
-            'customer_phone'
+            'customer_phone', 'municipal_service_code'
         ]
         widgets = {
             'description': forms.TextInput(attrs={'class': 'form-control', 'placeholder': _('Descrição do produto/serviço')}),
@@ -65,6 +77,7 @@ class SingleSaleForm(forms.ModelForm):
             'customer_state': forms.TextInput(attrs={'class': 'form-control', 'placeholder': _('UF'), 'maxlength': '2'}),
             'customer_zipcode': forms.TextInput(attrs={'class': 'form-control', 'placeholder': _('00000-000')}),
             'customer_phone': forms.TextInput(attrs={'class': 'form-control', 'placeholder': _('(11) 99999-9999')}),
+            'municipal_service_code': forms.TextInput(attrs={'class': 'form-control', 'placeholder': _('0107 ou 14.01')}),
         }
         
     def __init__(self, *args, **kwargs):

@@ -349,7 +349,15 @@ class NFEioService:
                 service_code = service_code.zfill(4)
             print(f"DEBUG - Código de serviço formatado: {service_code}")
         else:
-            service_code = company_config.get_default_service_code()
+            # Primeiro, verificar se há código específico na venda avulsa
+            if invoice.singlesale and invoice.singlesale.municipal_service_code:
+                service_code = invoice.singlesale.municipal_service_code
+                print(f"DEBUG - Usando código de serviço da venda avulsa: {service_code}")
+            else:
+                # Usar o código padrão da configuração do professor
+                service_code = company_config.get_default_service_code()
+                print(f"DEBUG - Usando código de serviço padrão do professor: {service_code}")
+            
             if not service_code:
                 print("DEBUG - ERRO: Código de serviço não configurado!")
                 raise ValueError("Código de serviço não configurado para o professor")

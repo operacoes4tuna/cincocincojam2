@@ -19,6 +19,11 @@ cep_validator = RegexValidator(
     message=_('Digite um CEP válido no formato XXXXX-XXX')
 )
 
+municipal_service_code_validator = RegexValidator(
+    regex=r'^\d{2,5}\.?\d{0,2}$',
+    message=_('Digite um código de serviço municipal válido (ex: 0107, 14.01, etc.)')
+)
+
 # UF choices for Brazilian states
 UF_CHOICES = [
     ('AC', 'Acre'),
@@ -136,6 +141,16 @@ class IndividualClient(models.Model):
     rg = models.CharField(_('RG'), max_length=30, blank=True, null=True)
     birth_date = models.DateField(_('data de nascimento'))
     
+    # Municipal service code
+    municipal_service_code = models.CharField(
+        _('código de serviço municipal'),
+        max_length=10,
+        blank=True,
+        null=True,
+        validators=[municipal_service_code_validator],
+        help_text=_('Código de serviço municipal para emissão de notas fiscais (ex: 0107, 14.01)')
+    )
+    
     class Meta:
         verbose_name = _('cliente pessoa física')
         verbose_name_plural = _('clientes pessoa física')
@@ -181,6 +196,16 @@ class CompanyClient(models.Model):
     )
     municipal_registration = models.CharField(
         _('inscrição municipal'), max_length=30, blank=True, null=True
+    )
+    
+    # Municipal service code
+    municipal_service_code = models.CharField(
+        _('código de serviço municipal'),
+        max_length=10,
+        blank=True,
+        null=True,
+        validators=[municipal_service_code_validator],
+        help_text=_('Código de serviço municipal para emissão de notas fiscais (ex: 0107, 14.01)')
     )
     
     # Responsible person
