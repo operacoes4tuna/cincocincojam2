@@ -850,82 +850,34 @@ class SingleSaleCreateView(LoginRequiredMixin, ProfessorRequiredMixin, CreateVie
             
         return context
     
-    def post(self, request, *args, **kwargs):
-        """Sobrescrever o método post para capturar os dados diretamente"""
+    def form_valid(self, form):
+        """
+        If the form is valid, save the associated model and set the seller.
+        """
+        self.object = form.save(commit=False)
+        self.object.seller = self.request.user
+        
+        # Log para debug
+        print(f"Criando venda com dados: {form.cleaned_data}")
+        
         try:
-            # Obter dados do POST
-            form = self.get_form()
-            
-            # Validar o formulário
-            if form.is_valid():
-                # Log dos dados do formulário
-                print(f"Form data: {form.cleaned_data}")
-                
-                # Criar objeto manualmente para maior controle
-                sale = SingleSale()
-                
-                # Preencher campos básicos
-                sale.description = form.cleaned_data.get('description', '')
-                sale.amount = form.cleaned_data.get('amount', 0)
-                sale.status = form.cleaned_data.get('status', 'PENDING')
-                sale.seller = self.request.user
-                
-                # Campos do cliente
-                sale.customer_name = form.cleaned_data.get('customer_name', '')
-                sale.customer_email = form.cleaned_data.get('customer_email', '')
-                
-                # Tratar CPF/CNPJ - remover caracteres especiais
-                cpf = form.cleaned_data.get('customer_cpf', '')
-                if cpf:
-                    # Remover todos os caracteres especiais
-                    cpf = ''.join(c for c in cpf if c.isdigit())
-                    print(f"CPF/CNPJ limpo: {cpf}")
-                sale.customer_cpf = cpf
-                
-                # Endereço do cliente
-                sale.customer_address = form.cleaned_data.get('customer_address', '')
-                sale.customer_address_number = form.cleaned_data.get('customer_address_number', '')
-                sale.customer_address_complement = form.cleaned_data.get('customer_address_complement', '')
-                sale.customer_neighborhood = form.cleaned_data.get('customer_neighborhood', '')
-                sale.customer_city = form.cleaned_data.get('customer_city', '')
-                sale.customer_state = form.cleaned_data.get('customer_state', '')
-                sale.customer_zipcode = form.cleaned_data.get('customer_zipcode', '')
-                sale.customer_phone = form.cleaned_data.get('customer_phone', '')
-                
-                # Campos para nota fiscal
-                sale.product_code = form.cleaned_data.get('product_code', '')
-                sale.ncm_code = form.cleaned_data.get('ncm_code', '')
-                sale.cfop_code = form.cleaned_data.get('cfop_code', '')
-                sale.quantity = form.cleaned_data.get('quantity', 1)
-                sale.unit_value = form.cleaned_data.get('unit_value', sale.amount)
-                sale.invoice_type = form.cleaned_data.get('invoice_type', 'nfse')
-                sale.generate_invoice = form.cleaned_data.get('generate_invoice', False)
-                
-                # Salvar o objeto
-                print("Tentando salvar o objeto...")
-                sale.save()
-                print(f"Objeto salvo com ID: {sale.id}")
-                
-                # Mostrar mensagem de sucesso
-                messages.success(self.request, _('Venda avulsa criada com sucesso!'))
-                
-                # Redirecionar para a lista
-                return redirect(self.success_url)
-            else:
-                # Log de erros do formulário
-                print(f"Erros de validação: {form.errors}")
-                messages.error(self.request, _('Erro ao criar venda. Verifique os campos.'))
-                return self.form_invalid(form)
-                
+            self.object.save()
+            messages.success(self.request, _('Venda avulsa criada com sucesso!'))
+            return super().form_valid(form)
         except Exception as e:
-            # Log detalhado do erro
             import traceback
-            print(f"Erro ao criar venda: {str(e)}")
+            print(f"Erro ao salvar venda: {str(e)}")
             print(traceback.format_exc())
-            
-            # Mostrar mensagem de erro para o usuário
-            messages.error(self.request, _(f'Erro ao processar: {str(e)}'))
-            return self.render_to_response(self.get_context_data(form=self.get_form()))
+            messages.error(self.request, _('Erro ao criar venda: {}').format(str(e)))
+            return self.form_invalid(form)
+    
+    def form_invalid(self, form):
+        """
+        If the form is invalid, render the invalid form.
+        """
+        print(f"Formulário inválido. Erros: {form.errors}")
+        messages.error(self.request, _('Erro ao criar venda. Verifique os campos obrigatórios.'))
+        return super().form_invalid(form)
 
 
 class SingleSaleDetailView(LoginRequiredMixin, ProfessorRequiredMixin, DetailView):
@@ -1161,85 +1113,31 @@ class SingleSaleUpdateView(LoginRequiredMixin, ProfessorRequiredMixin, UpdateVie
     def get_success_url(self):
         return reverse_lazy('payments:singlesale_list')
     
-    def post(self, request, *args, **kwargs):
-        """Sobrescrever o método post para capturar os dados diretamente"""
+    def form_valid(self, form):
+        """
+        If the form is valid, save the associated model.
+        """
+        # Log para debug
+        print(f"Atualizando venda ID: {self.object.id} com dados: {form.cleaned_data}")
+        
         try:
-            # Obter o objeto existente
-            self.object = self.get_object()
-            
-            # Obter dados do POST
-            form = self.get_form()
-            
-            # Validar o formulário
-            if form.is_valid():
-                # Log dos dados do formulário
-                print(f"Update form data: {form.cleaned_data}")
-                
-                # Atualizar campos 
-                sale = self.object
-                
-                # Preencher campos básicos
-                sale.description = form.cleaned_data.get('description', '')
-                sale.amount = form.cleaned_data.get('amount', 0)
-                sale.status = form.cleaned_data.get('status', 'PENDING')
-                
-                # Campos do cliente
-                sale.customer_name = form.cleaned_data.get('customer_name', '')
-                sale.customer_email = form.cleaned_data.get('customer_email', '')
-                
-                # Tratar CPF/CNPJ - remover caracteres especiais
-                cpf = form.cleaned_data.get('customer_cpf', '')
-                if cpf:
-                    # Remover todos os caracteres especiais
-                    cpf = ''.join(c for c in cpf if c.isdigit())
-                    print(f"CPF/CNPJ limpo (update): {cpf}")
-                sale.customer_cpf = cpf
-                
-                # Endereço do cliente
-                sale.customer_address = form.cleaned_data.get('customer_address', '')
-                sale.customer_address_number = form.cleaned_data.get('customer_address_number', '')
-                sale.customer_address_complement = form.cleaned_data.get('customer_address_complement', '')
-                sale.customer_neighborhood = form.cleaned_data.get('customer_neighborhood', '')
-                sale.customer_city = form.cleaned_data.get('customer_city', '')
-                sale.customer_state = form.cleaned_data.get('customer_state', '')
-                sale.customer_zipcode = form.cleaned_data.get('customer_zipcode', '')
-                sale.customer_phone = form.cleaned_data.get('customer_phone', '')
-                
-                # Campos para nota fiscal
-                sale.product_code = form.cleaned_data.get('product_code', '')
-                sale.ncm_code = form.cleaned_data.get('ncm_code', '')
-                sale.cfop_code = form.cleaned_data.get('cfop_code', '')
-                sale.quantity = form.cleaned_data.get('quantity', 1)
-                sale.unit_value = form.cleaned_data.get('unit_value', sale.amount)
-                sale.invoice_type = form.cleaned_data.get('invoice_type', 'nfse')
-                sale.generate_invoice = form.cleaned_data.get('generate_invoice', False)
-                
-                # Salvar o objeto
-                print(f"Tentando atualizar o objeto ID: {sale.id}")
-                sale.save()
-                print(f"Objeto atualizado com sucesso")
-                
-                # Mostrar mensagem de sucesso
-                messages.success(self.request, _('Venda atualizada com sucesso!'))
-                
-                # Redirecionar para a lista
-                return redirect(self.get_success_url())
-            else:
-                # Log de erros do formulário
-                print(f"Erros de validação (update): {form.errors}")
-                messages.error(self.request, _('Erro ao atualizar venda. Verifique os campos.'))
-                return self.form_invalid(form)
-                
+            self.object = form.save()
+            messages.success(self.request, _('Venda atualizada com sucesso!'))
+            return super().form_valid(form)
         except Exception as e:
-            # Log detalhado do erro
             import traceback
             print(f"Erro ao atualizar venda: {str(e)}")
             print(traceback.format_exc())
-            
-            # Mostrar mensagem de erro para o usuário
-            messages.error(self.request, _(f'Erro ao atualizar: {str(e)}'))
-            form = self.get_form()
-            return self.render_to_response(self.get_context_data(form=form))
+            messages.error(self.request, _('Erro ao atualizar venda: {}').format(str(e)))
+            return self.form_invalid(form)
+    
+    def form_invalid(self, form):
+        """
+        If the form is invalid, render the invalid form.
+        """
+        print(f"Formulário inválido. Erros: {form.errors}")
+        messages.error(self.request, _('Erro ao atualizar venda. Verifique os campos obrigatórios.'))
+        return super().form_invalid(form)
 
 
 @login_required
