@@ -14,8 +14,8 @@ import json
 from payments.models import PaymentTransaction, SingleSale
 from users.decorators import professor_required, admin_required
 
-from .models import CompanyConfig, Invoice
-from .forms import CompanyConfigForm
+from .models import CompanyConfig, Invoice, MunicipalServiceCode
+from .forms import CompanyConfigForm, MunicipalServiceCodeFormSet
 from .services import NFEioService
 
 # Configuração do logger
@@ -36,17 +36,31 @@ def company_settings(request):
     
     if request.method == 'POST':
         form = CompanyConfigForm(request.POST, instance=company_config)
-        if form.is_valid():
-            form.save()
+        service_codes_formset = MunicipalServiceCodeFormSet(request.POST, instance=company_config)
+        
+        if form.is_valid() and service_codes_formset.is_valid():
+            with db_transaction.atomic():
+                company_config = form.save()
+                service_codes_formset.save()
+                
+                # Atualiza o campo city_service_code se ele estiver vazio
+                # ou se não estiver entre os códigos cadastrados
+                selected_code = form.cleaned_data.get('city_service_code')
+                if selected_code:
+                    company_config.city_service_code = selected_code
+                    company_config.save()
+                
             messages.success(request, _('Configurações fiscais atualizadas com sucesso!'))
             return redirect('invoices:company_settings')
     else:
         form = CompanyConfigForm(instance=company_config)
+        service_codes_formset = MunicipalServiceCodeFormSet(instance=company_config)
     
     is_complete = company_config.is_complete() if company_config.pk else False
     
     return render(request, 'invoices/company_settings.html', {
         'form': form,
+        'service_codes_formset': service_codes_formset,
         'company_config': company_config,
         'is_complete': is_complete,
     })

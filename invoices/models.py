@@ -145,9 +145,9 @@ class CompanyConfig(models.Model):
     )
     city_service_code = models.CharField(
         max_length=10,
-        default='0107',
-        verbose_name=_('código de serviço municipal'),
-        help_text=_('Código de serviço específico do município para atividades educacionais')
+         
+        verbose_name=_('código de serviço municipal padrão'),
+        help_text=_('Código de serviço padrão do município para atividades educacionais')
     )
     
     # Campos para controle de RPS (Recibo Provisório de Serviço)
@@ -209,6 +209,40 @@ class CompanyConfig(models.Model):
         ]
         
         return all(field is not None and field != '' for field in required_fields) and self.enabled
+
+
+class MunicipalServiceCode(models.Model):
+    """
+    Códigos de serviço municipal adicionais para uma empresa.
+    """
+    company_config = models.ForeignKey(
+        CompanyConfig,
+        on_delete=models.CASCADE,
+        related_name='service_codes',
+        verbose_name=_('configuração da empresa')
+    )
+    code = models.CharField(
+        max_length=10,
+        verbose_name=_('código de serviço'),
+        help_text=_('Código de serviço específico do município')
+    )
+    description = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        verbose_name=_('descrição'),
+        help_text=_('Descrição opcional do serviço')
+    )
+    
+    class Meta:
+        verbose_name = _('código de serviço municipal')
+        verbose_name_plural = _('códigos de serviço municipal')
+        unique_together = ['company_config', 'code']
+        
+    def __str__(self):
+        if self.description:
+            return f"{self.code} - {self.description}"
+        return self.code
 
 
 class Invoice(models.Model):
