@@ -1180,6 +1180,29 @@ class SingleSaleUpdateView(LoginRequiredMixin, ProfessorRequiredMixin, UpdateVie
             context['company_clients'] = []
             context['individual_clients'] = []
             
+        # Carregar códigos de serviço municipal
+        try:
+            from invoices.models import CompanyConfig, MunicipalServiceCode
+            
+            # Obter configuração da empresa do professor
+            company_config = CompanyConfig.objects.filter(user=self.request.user).first()
+            if company_config:
+                # Código de serviço padrão
+                context['default_service_code'] = company_config.city_service_code
+                
+                # Obter todos os códigos de serviço adicionais
+                service_codes = MunicipalServiceCode.objects.filter(
+                    company_config=company_config
+                ).order_by('code')
+                context['service_codes'] = service_codes
+            else:
+                context['default_service_code'] = ''
+                context['service_codes'] = []
+                
+        except ImportError:
+            context['default_service_code'] = ''
+            context['service_codes'] = []
+            
         return context
     
     def get_success_url(self):
