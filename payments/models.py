@@ -154,6 +154,14 @@ class SingleSale(models.Model):
         null=True,
         help_text=_('Código Fiscal de Operações e Prestações')
     )
+    # Novo campo para código de serviço municipal
+    municipal_service_code = models.CharField(
+        _('Código de Serviço Municipal'), 
+        max_length=10, 
+        blank=True, 
+        null=True,
+        help_text=_('Código de serviço municipal para a emissão da nota fiscal')
+    )
     quantity = models.DecimalField(_('Quantidade'), max_digits=10, decimal_places=2, default=1)
     unit_value = models.DecimalField(_('Valor Unitário'), max_digits=10, decimal_places=2, null=True, blank=True)
     

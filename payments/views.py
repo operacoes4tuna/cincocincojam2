@@ -847,6 +847,29 @@ class SingleSaleCreateView(LoginRequiredMixin, ProfessorRequiredMixin, CreateVie
         except ImportError:
             context['company_clients'] = []
             context['individual_clients'] = []
+        
+        # Carregar códigos de serviço municipal
+        try:
+            from invoices.models import CompanyConfig, MunicipalServiceCode
+            
+            # Obter configuração da empresa do professor
+            company_config = CompanyConfig.objects.filter(user=self.request.user).first()
+            if company_config:
+                # Código de serviço padrão
+                context['default_service_code'] = company_config.city_service_code
+                
+                # Obter todos os códigos de serviço adicionais
+                service_codes = MunicipalServiceCode.objects.filter(
+                    company_config=company_config
+                ).order_by('code')
+                context['service_codes'] = service_codes
+            else:
+                context['default_service_code'] = ''
+                context['service_codes'] = []
+                
+        except ImportError:
+            context['default_service_code'] = ''
+            context['service_codes'] = []
             
         return context
     
@@ -893,9 +916,10 @@ class SingleSaleCreateView(LoginRequiredMixin, ProfessorRequiredMixin, CreateVie
                 sale.customer_phone = form.cleaned_data.get('customer_phone', '')
                 
                 # Campos para nota fiscal
-                sale.product_code = form.cleaned_data.get('product_code', '')
-                sale.ncm_code = form.cleaned_data.get('ncm_code', '')
-                sale.cfop_code = form.cleaned_data.get('cfop_code', '')
+                sale.product_code = form.cleaned_data.get('product_code', '') or 'SERV'
+                sale.municipal_service_code = form.cleaned_data.get('municipal_service_code', '')
+                sale.ncm_code = form.cleaned_data.get('ncm_code', '') or '00000000'
+                sale.cfop_code = form.cleaned_data.get('cfop_code', '') or '0000'
                 sale.quantity = form.cleaned_data.get('quantity', 1)
                 sale.unit_value = form.cleaned_data.get('unit_value', sale.amount)
                 sale.invoice_type = form.cleaned_data.get('invoice_type', 'nfse')
@@ -1206,9 +1230,10 @@ class SingleSaleUpdateView(LoginRequiredMixin, ProfessorRequiredMixin, UpdateVie
                 sale.customer_phone = form.cleaned_data.get('customer_phone', '')
                 
                 # Campos para nota fiscal
-                sale.product_code = form.cleaned_data.get('product_code', '')
-                sale.ncm_code = form.cleaned_data.get('ncm_code', '')
-                sale.cfop_code = form.cleaned_data.get('cfop_code', '')
+                sale.product_code = form.cleaned_data.get('product_code', '') or 'SERV'
+                sale.municipal_service_code = form.cleaned_data.get('municipal_service_code', '')
+                sale.ncm_code = form.cleaned_data.get('ncm_code', '') or '00000000'
+                sale.cfop_code = form.cleaned_data.get('cfop_code', '') or '0000'
                 sale.quantity = form.cleaned_data.get('quantity', 1)
                 sale.unit_value = form.cleaned_data.get('unit_value', sale.amount)
                 sale.invoice_type = form.cleaned_data.get('invoice_type', 'nfse')
@@ -1372,9 +1397,10 @@ def create_singlesale_api(request):
         sale.customer_phone = data.get('customer_phone', '')
         
         # Dados para nota fiscal (opcional)
-        sale.product_code = data.get('product_code', '')
-        sale.ncm_code = data.get('ncm_code', '')
-        sale.cfop_code = data.get('cfop_code', '')
+        sale.product_code = data.get('product_code', '') or 'SERV'
+        sale.municipal_service_code = data.get('municipal_service_code', '')
+        sale.ncm_code = data.get('ncm_code', '') or '00000000'
+        sale.cfop_code = data.get('cfop_code', '') or '0000'
         
         try:
             quantity = float(data.get('quantity', 1))
