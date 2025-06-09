@@ -203,8 +203,8 @@
                                                             <i class="fas fa-sync-alt"></i>
                                                         </button>
                                                     {% elif invoice.status == 'error' %}
-                                                        <span class="badge bg-danger ms-1 me-1">
-                                                            <i class="fas fa-exclamation-circle me-1"></i> Erro na NF
+                                                        <span class="badge bg-warning ms-1 me-1">
+                                                            <i class="fas fa-clock me-1"></i> Aguardando
                                                         </span>
                                                         <button class="btn btn-sm btn-outline-secondary check-status-btn" data-invoice-id="{{ invoice.id }}" title="{% translate 'Sincronizar Status' %}">
                                                             <i class="fas fa-sync"></i>
@@ -212,7 +212,7 @@
                                                     {% endif %}
                                                 {% endwith %}
                                             {% else %}
-                                                <a href="{% url 'invoices:emit_sale' sale_id=sale.id %}" class="btn btn-sm btn-outline-success" title="{% translate 'Emitir NFe' %}">
+                                                <a href="{% url 'invoices:emit_sale' sale_id=sale.id %}" class="btn btn-sm btn-outline-success emit-nfe-btn" title="{% translate 'Emitir NFe' %}">
                                                     <i class="fas fa-file-invoice"></i> Emitir NFe
                                                 </a>
                                             {% endif %}
@@ -569,6 +569,35 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Call the sync API endpoint
             syncInvoiceStatus(invoiceId, syncButton);
+        }
+
+        // Verificar se o botão de emitir NFe foi clicado
+        const emitButton = event.target.closest('.emit-nfe-btn');
+        if (emitButton) {
+            event.preventDefault();
+            const href = emitButton.getAttribute('href');
+            
+            // Mostrar mensagem de loading
+            const loadingMessage = document.createElement('div');
+            loadingMessage.className = 'alert alert-info alert-dismissible fade show';
+            loadingMessage.innerHTML = `
+                <strong><i class="fas fa-spinner fa-spin me-2"></i> Sua nota fiscal está sendo criada.</strong>
+                <p class="mb-0">Por favor, aguarde enquanto processamos sua solicitação.</p>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            `;
+            
+            // Adicionar a mensagem no topo da página
+            const container = document.querySelector('.container.py-4');
+            container.insertBefore(loadingMessage, container.firstChild);
+            
+            // Substituir o botão por um spinner
+            emitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processando...';
+            emitButton.disabled = true;
+            
+            // Redirecionar para a URL de emissão
+            setTimeout(() => {
+                window.location.href = href;
+            }, 500);
         }
     });
     
