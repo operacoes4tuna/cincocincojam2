@@ -283,6 +283,87 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Função para formatar valores no padrão brasileiro (R$)
+    function formatarMoedaBR(valor) {
+        return valor.toLocaleString('pt-BR', { 
+            style: 'currency', 
+            currency: 'BRL',
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+    }
+
+    // Função para extrair o valor numérico de um texto com formato monetário
+    function extrairValor(texto) {
+        return parseFloat(texto.replace(/[^\d,.-]/g, '').replace('.', '').replace(',', '.').trim());
+    }
+
+    // Calcular os totais com base nos valores da tabela
+    function calcularTotais() {
+        let totalVendas = 0;
+        let totalRecebido = 0;
+        let totalPendente = 0;
+        
+        // Selecionar todas as linhas da tabela (exceto o cabeçalho)
+        const linhas = document.querySelectorAll('table tbody tr');
+        
+        linhas.forEach(linha => {
+            // Encontrar a coluna de valor (5ª coluna)
+            const colunaValor = linha.querySelector('td:nth-child(5)');
+            // Encontrar a coluna de status (6ª coluna)
+            const colunaStatus = linha.querySelector('td:nth-child(6)');
+            
+            if (colunaValor && colunaStatus) {
+                const valor = extrairValor(colunaValor.textContent);
+                
+                if (!isNaN(valor)) {
+                    // Adicionar ao total geral
+                    totalVendas += valor;
+                    
+                    // Verificar o status e adicionar ao total correspondente
+                    if (colunaStatus.textContent.includes('PAID') || 
+                        colunaStatus.querySelector('.badge.bg-success')) {
+                        totalRecebido += valor;
+                    } else if (colunaStatus.textContent.includes('PENDING') || 
+                               colunaStatus.querySelector('.badge.bg-warning')) {
+                        totalPendente += valor;
+                    }
+                }
+            }
+        });
+        
+        // Atualizar os elementos na página
+        const totalVendasElement = document.querySelector('.card-title.text-primary + .display-6');
+        const totalRecebidoElement = document.querySelector('.card-title.text-success + .display-6');
+        const totalPendenteElement = document.querySelector('.card-title.text-warning + .display-6');
+        
+        if (totalVendasElement) {
+            totalVendasElement.textContent = formatarMoedaBR(totalVendas);
+        }
+        
+        if (totalRecebidoElement) {
+            totalRecebidoElement.textContent = formatarMoedaBR(totalRecebido);
+        }
+        
+        if (totalPendenteElement) {
+            totalPendenteElement.textContent = formatarMoedaBR(totalPendente);
+        }
+    }
+    
+    // Executar o cálculo dos totais
+    calcularTotais();
+    
+    // Formatar os valores na tabela
+    const celulasValores = document.querySelectorAll('td');
+    celulasValores.forEach(celula => {
+        if (celula.textContent.trim().startsWith('R$')) {
+            const valor = extrairValor(celula.textContent);
+            if (!isNaN(valor)) {
+                celula.textContent = formatarMoedaBR(valor);
+            }
+        }
+    });
+
     // Handlers para os novos botões
     document.querySelectorAll('.send-email-btn').forEach(button => {
         button.addEventListener('click', function(e) {
