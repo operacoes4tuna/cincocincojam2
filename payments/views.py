@@ -159,10 +159,10 @@ class ProfessorTransactionListView(LoginRequiredMixin, ProfessorRequiredMixin, L
             enrollment__course__professor=self.request.user
         ).select_related('enrollment', 'enrollment__student', 'enrollment__course')
         
-        # Adicionar prefetch_related para carregar as notas fiscais associadas
+        # Adicionar prefetch_related para carregar as notas fiscais e boletos associados
         try:
-            from invoices.models import Invoice
-            queryset = queryset.prefetch_related('invoices')
+            from invoices.models import Invoice, BoletoBancario
+            queryset = queryset.prefetch_related('invoices', 'invoices__boleto')
         except ImportError:
             pass  # O app de invoices pode não estar disponível
         
@@ -772,6 +772,13 @@ class SingleSaleListView(LoginRequiredMixin, ProfessorRequiredMixin, ListView):
             'id', 'description', 'amount', 'status', 'customer_name', 
             'customer_email', 'created_at', 'updated_at', 'paid_at'
         )
+        
+        # Adicionar prefetch_related para carregar as notas fiscais e boletos associados
+        try:
+            from invoices.models import Invoice, BoletoBancario
+            queryset = queryset.prefetch_related('invoices', 'invoices__boleto')
+        except ImportError:
+            pass  # O app de invoices pode não estar disponível
         
         # Filtro por status
         status = self.request.GET.get('status')

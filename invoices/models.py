@@ -429,3 +429,187 @@ class Invoice(models.Model):
     
     def __str__(self):
         return f"NFe #{self.id} - {self.transaction.id if self.transaction else self.singlesale.id} - {self.get_status_display()}"
+
+
+class BoletoBancario(models.Model):
+    """
+    Modelo para armazenar informações sobre boletos bancários gerados para notas fiscais
+    """
+    STATUS_CHOICES = [
+        ('draft', _('Rascunho')),
+        ('generated', _('Gerado')),
+        ('sent', _('Enviado')),
+        ('paid', _('Pago')),
+        ('expired', _('Vencido')),
+        ('cancelled', _('Cancelado')),
+        ('error', _('Erro'))
+    ]
+    
+    # Relacionamento com a nota fiscal
+    invoice = models.OneToOneField(
+        Invoice,
+        on_delete=models.CASCADE,
+        related_name='boleto',
+        verbose_name=_('nota fiscal')
+    )
+    
+    # Dados do boleto
+    numero_documento = models.CharField(
+        _('número do documento'),
+        max_length=50,
+        blank=True,
+        null=True
+    )
+    nosso_numero = models.CharField(
+        _('nosso número'),
+        max_length=50,
+        blank=True,
+        null=True
+    )
+    codigo_barras = models.CharField(
+        _('código de barras'),
+        max_length=44,
+        blank=True,
+        null=True
+    )
+    linha_digitavel = models.CharField(
+        _('linha digitável'),
+        max_length=47,
+        blank=True,
+        null=True
+    )
+    
+    # Valores
+    valor_documento = models.DecimalField(
+        _('valor do documento'),
+        max_digits=10,
+        decimal_places=2
+    )
+    valor_juros = models.DecimalField(
+        _('valor de juros'),
+        max_digits=10,
+        decimal_places=2,
+        default=0.00
+    )
+    valor_multa = models.DecimalField(
+        _('valor de multa'),
+        max_digits=10,
+        decimal_places=2,
+        default=0.00
+    )
+    
+    # Datas
+    data_emissao = models.DateField(
+        _('data de emissão'),
+        default=timezone.now
+    )
+    data_vencimento = models.DateField(
+        _('data de vencimento')
+    )
+    data_pagamento = models.DateField(
+        _('data de pagamento'),
+        blank=True,
+        null=True
+    )
+    
+    # Status e controle
+    status = models.CharField(
+        _('status'),
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='draft'
+    )
+    
+    # URLs e arquivos
+    url_pdf = models.URLField(
+        _('URL do PDF'),
+        blank=True,
+        null=True
+    )
+    arquivo_pdf = models.FileField(
+        _('arquivo PDF'),
+        upload_to='boletos/%Y/%m/',
+        blank=True,
+        null=True
+    )
+    
+    # Dados da API externa (se usar um provedor de boletos)
+    external_id = models.CharField(
+        _('ID externo'),
+        max_length=100,
+        blank=True,
+        null=True
+    )
+    external_data = models.JSONField(
+        _('dados externos'),
+        blank=True,
+        null=True
+    )
+    
+    # Informações bancárias (caso seja necessário)
+    banco_codigo = models.CharField(
+        _('código do banco'),
+        max_length=3,
+        blank=True,
+        null=True,
+        help_text=_('Código FEBRABAN do banco')
+    )
+    agencia = models.CharField(
+        _('agência'),
+        max_length=10,
+        blank=True,
+        null=True
+    )
+    conta = models.CharField(
+        _('conta'),
+        max_length=20,
+        blank=True,
+        null=True
+    )
+    
+    # Campos de controle
+    created_at = models.DateTimeField(
+        _('criado em'),
+        auto_now_add=True
+    )
+    updated_at = models.DateTimeField(
+        _('atualizado em'),
+        auto_now=True
+    )
+    
+    # Metadados adicionais
+    metadata = models.JSONField(
+        _('metadados'),
+        default=dict,
+        blank=True
+    )
+    
+    class Meta:
+        verbose_name = _('boleto bancário')
+        verbose_name_plural = _('boletos bancários')
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"Boleto #{self.id} - NFe #{self.invoice.id} - {self.get_status_display()}"
+    
+    def is_expired(self):
+        """Verifica se o boleto está vencido"""
+        return timezone.now().date() > self.data_vencimento and self.status not in ['paid', 'cancelled']
+    
+    def days_until_expiration(self):
+        """Retorna quantos dias restam até o vencimento"""
+        if self.data_vencimento:
+            delta = self.data_vencimento - timezone.now().date()
+            return delta.days
+        return None
+    
+    def mark_as_paid(self, payment_date=None):
+        """Marca o boleto como pago"""
+        self.status = 'paid'
+        self.data_pagamento = payment_date or timezone.now().date()
+        self.save()
+    
+    def cancel(self):
+        """Cancela o boleto"""
+        self.status = 'cancelled'
+        self.save()

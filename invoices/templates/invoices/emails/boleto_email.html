@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Boleto Bancário - {{ boleto.numero_documento }}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .boleto-info {
+            background-color: #fff;
+            border: 2px solid #dee2e6;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .info-label {
+            font-weight: bold;
+            color: #495057;
+        }
+        .info-value {
+            color: #212529;
+        }
+        .linha-digitavel {
+            background-color: #e9ecef;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 16px;
+            font-weight: bold;
+            text-align: center;
+            margin: 20px 0;
+            word-break: break-all;
+        }
+        .alert {
+            padding: 15px;
+            margin-bottom: 20px;
+            border: 1px solid transparent;
+            border-radius: 5px;
+        }
+        .alert-warning {
+            color: #856404;
+            background-color: #fff3cd;
+            border-color: #ffeaa7;
+        }
+        .alert-info {
+            color: #0c5460;
+            background-color: #d1ecf1;
+            border-color: #bee5eb;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #dee2e6;
+            font-size: 12px;
+            color: #6c757d;
+        }
+        .btn {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .valor-destaque {
+            font-size: 24px;
+            font-weight: bold;
+            color: #28a745;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Boleto Bancário</h1>
+        <p>Documento Nº {{ boleto.numero_documento }}</p>
+    </div>
+
+    <div class="alert alert-info">
+        <strong>Olá, {{ cliente_nome }}!</strong><br>
+        Segue em anexo o boleto bancário para pagamento da sua nota fiscal.
+    </div>
+
+    <div class="boleto-info">
+        <h3>Informações do Boleto</h3>
+        
+        <div class="info-row">
+            <span class="info-label">Beneficiário:</span>
+            <span class="info-value">555JAM - Plataforma de Ensino</span>
+        </div>
+        
+        <div class="info-row">
+            <span class="info-label">Pagador:</span>
+            <span class="info-value">{{ cliente_nome }}</span>
+        </div>
+        
+        <div class="info-row">
+            <span class="info-label">Documento:</span>
+            <span class="info-value">{{ boleto.numero_documento }}</span>
+        </div>
+        
+        <div class="info-row">
+            <span class="info-label">Nosso Número:</span>
+            <span class="info-value">{{ boleto.nosso_numero }}</span>
+        </div>
+        
+        <div class="info-row">
+            <span class="info-label">Valor:</span>
+            <span class="info-value valor-destaque">{{ valor_formatado }}</span>
+        </div>
+        
+        <div class="info-row">
+            <span class="info-label">Vencimento:</span>
+            <span class="info-value">{{ data_vencimento_formatada }}</span>
+        </div>
+        
+        <div class="info-row">
+            <span class="info-label">Descrição:</span>
+            <span class="info-value">{{ boleto.metadata.descricao }}</span>
+        </div>
+    </div>
+
+    <div class="boleto-info">
+        <h3>Linha Digitável</h3>
+        <div class="linha-digitavel">
+            {{ boleto.linha_digitavel }}
+        </div>
+        <p><small>Copie e cole esta linha no internet banking ou aplicativo do seu banco para realizar o pagamento.</small></p>
+    </div>
+
+    <div class="alert alert-warning">
+        <strong>Instruções de Pagamento:</strong><br>
+        • Este boleto pode ser pago em qualquer banco, casa lotérica ou via internet banking<br>
+        • Após o vencimento, consulte o nosso site para emissão de segunda via<br>
+        • Em caso de dúvidas, entre em contato conosco<br>
+        • Guarde este boleto até a data do pagamento
+    </div>
+
+    {% if boleto.days_until_expiration != None %}
+        {% if boleto.days_until_expiration > 0 %}
+        <div class="alert alert-info">
+            <strong>Prazo:</strong> Este boleto vence em {{ boleto.days_until_expiration }} dia{{ boleto.days_until_expiration|pluralize }}.
+        </div>
+        {% elif boleto.days_until_expiration == 0 %}
+        <div class="alert alert-warning">
+            <strong>Atenção:</strong> Este boleto vence hoje!
+        </div>
+        {% else %}
+        <div class="alert alert-warning">
+            <strong>Boleto Vencido:</strong> Este boleto venceu há {{ boleto.days_until_expiration|neg }} dia{{ boleto.days_until_expiration|neg|pluralize }}. Entre em contato conosco para obter uma segunda via.
+        </div>
+        {% endif %}
+    {% endif %}
+
+    <div class="footer">
+        <p>Este é um email automático, por favor não responda.</p>
+        <p>© 2024 555JAM - Plataforma de Ensino Musical</p>
+        <p>Em caso de dúvidas, entre em contato através do nosso site ou email de suporte.</p>
+    </div>
+</body>
+</html> 

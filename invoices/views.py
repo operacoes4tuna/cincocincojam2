@@ -14,9 +14,9 @@ import json
 from payments.models import PaymentTransaction, SingleSale
 from users.decorators import professor_required, admin_required
 
-from .models import CompanyConfig, Invoice, MunicipalServiceCode
+from .models import CompanyConfig, Invoice, MunicipalServiceCode, BoletoBancario
 from .forms import CompanyConfigForm, MunicipalServiceCodeFormSet
-from .services import NFEioService
+from .services import NFEioService, BoletoService
 
 # Configuração do logger
 logger = logging.getLogger('invoices')
@@ -924,3 +924,313 @@ def invoice_detail_json(request, invoice_id):
         logger.error(f"Erro ao retornar detalhes da nota fiscal em JSON: {str(e)}")
         logger.error(traceback.format_exc())
         return JsonResponse({'error': str(e)}, status=500)
+
+# Views para boletos bancários
+
+@login_required
+@professor_required
+def generate_boleto(request, invoice_id):
+    """
+    Gera um boleto bancário para uma nota fiscal emitida
+    """
+    try:
+        # Verificar se o usuário tem permissão para acessar esta nota fiscal
+        try:
+            # Tentar obter via transação
+            invoice = get_object_or_404(
+                Invoice,
+                id=invoice_id,
+                transaction__enrollment__course__professor=request.user
+            )
+        except (Invoice.DoesNotExist, Http404):
+            # Se não encontrou, tentar via venda avulsa
+            invoice = get_object_or_404(
+                Invoice,
+                id=invoice_id,
+                singlesale__seller=request.user
+            )
+        
+        logger.info(f"Iniciando geração de boleto para nota fiscal {invoice_id}")
+        
+        # Verificar se já existe um boleto
+        if hasattr(invoice, 'boleto') and invoice.boleto:
+            messages.info(request, _('Já existe um boleto para esta nota fiscal.'))
+            return JsonResponse({
+                'success': False,
+                'error': 'Já existe um boleto para esta nota fiscal',
+                'boleto_id': invoice.boleto.id
+            })
+        
+        # Verificar se a nota fiscal está em status válido
+        if invoice.status not in ['approved', 'issued']:
+            error_msg = f'A nota fiscal deve estar emitida/aprovada para gerar boleto. Status atual: {invoice.get_status_display()}'
+            messages.error(request, _(error_msg))
+            return JsonResponse({
+                'success': False,
+                'error': error_msg
+            })
+        
+        # Obter data de vencimento dos parâmetros
+        data_vencimento = request.POST.get('data_vencimento') or request.GET.get('data_vencimento')
+        
+        # Gerar o boleto
+        boleto_service = BoletoService()
+        result = boleto_service.generate_boleto(
+            invoice=invoice,
+            data_vencimento=data_vencimento,
+            gerar_pdf=True
+        )
+        
+        if result['success']:
+            boleto = result['boleto']
+            messages.success(request, _('Boleto gerado com sucesso!'))
+            
+            logger.info(f"Boleto {boleto.id} gerado com sucesso para nota fiscal {invoice_id}")
+            
+            return JsonResponse({
+                'success': True,
+                'message': 'Boleto gerado com sucesso',
+                'boleto': {
+                    'id': boleto.id,
+                    'numero_documento': boleto.numero_documento,
+                    'linha_digitavel': boleto.linha_digitavel,
+                    'data_vencimento': boleto.data_vencimento.strftime('%d/%m/%Y'),
+                    'valor': str(boleto.valor_documento),
+                    'status': boleto.get_status_display(),
+                    'pdf_url': result.get('pdf_url')
+                }
+            })
+        else:
+            error_msg = result.get('error', 'Erro desconhecido ao gerar boleto')
+            messages.error(request, _(f'Erro ao gerar boleto: {error_msg}'))
+            logger.error(f"Erro ao gerar boleto para nota fiscal {invoice_id}: {error_msg}")
+            
+            return JsonResponse({
+                'success': False,
+                'error': error_msg
+            })
+        
+    except Exception as e:
+        error_msg = f"Erro interno ao gerar boleto: {str(e)}"
+        logger.error(f"Exceção ao gerar boleto para nota fiscal {invoice_id}: {error_msg}")
+        logger.error(traceback.format_exc())
+        messages.error(request, _(error_msg))
+        
+        return JsonResponse({
+            'success': False,
+            'error': error_msg
+        })
+
+@login_required
+@professor_required
+def send_boleto_email(request, boleto_id):
+    """
+    Envia um boleto por email
+    """
+    try:
+        # Obter o boleto
+        boleto = get_object_or_404(BoletoBancario, id=boleto_id)
+        
+        # Verificar se o usuário tem permissão
+        invoice = boleto.invoice
+        try:
+            # Tentar verificar via transação
+            if invoice.transaction:
+                if invoice.transaction.enrollment.course.professor != request.user:
+                    raise PermissionError("Sem permissão")
+            # Tentar verificar via venda avulsa
+            elif invoice.singlesale:
+                if invoice.singlesale.seller != request.user:
+                    raise PermissionError("Sem permissão")
+            else:
+                raise PermissionError("Sem permissão")
+        except:
+            messages.error(request, _('Você não tem permissão para enviar este boleto.'))
+            return JsonResponse({
+                'success': False,
+                'error': 'Sem permissão para enviar este boleto'
+            })
+        
+        # Obter email do destinatário (opcional)
+        recipient_email = request.POST.get('email') or request.GET.get('email')
+        
+        # Enviar o boleto
+        boleto_service = BoletoService()
+        result = boleto_service.send_boleto_email(boleto, recipient_email)
+        
+        if result['success']:
+            messages.success(request, _(result['message']))
+            logger.info(f"Boleto {boleto_id} enviado por email com sucesso")
+            
+            return JsonResponse({
+                'success': True,
+                'message': result['message']
+            })
+        else:
+            error_msg = result.get('error', 'Erro desconhecido ao enviar email')
+            messages.error(request, _(f'Erro ao enviar boleto: {error_msg}'))
+            logger.error(f"Erro ao enviar boleto {boleto_id} por email: {error_msg}")
+            
+            return JsonResponse({
+                'success': False,
+                'error': error_msg
+            })
+        
+    except Exception as e:
+        error_msg = f"Erro interno ao enviar boleto: {str(e)}"
+        logger.error(f"Exceção ao enviar boleto {boleto_id}: {error_msg}")
+        logger.error(traceback.format_exc())
+        messages.error(request, _(error_msg))
+        
+        return JsonResponse({
+            'success': False,
+            'error': error_msg
+        })
+
+@login_required
+@professor_required
+def boleto_detail(request, boleto_id):
+    """
+    Exibe detalhes de um boleto bancário
+    """
+    try:
+        # Obter o boleto
+        boleto = get_object_or_404(BoletoBancario, id=boleto_id)
+        
+        # Verificar permissão
+        invoice = boleto.invoice
+        try:
+            if invoice.transaction:
+                if invoice.transaction.enrollment.course.professor != request.user:
+                    raise PermissionError()
+            elif invoice.singlesale:
+                if invoice.singlesale.seller != request.user:
+                    raise PermissionError()
+            else:
+                raise PermissionError()
+        except:
+            messages.error(request, _('Você não tem permissão para visualizar este boleto.'))
+            return redirect('payments:professor_transactions')
+        
+        # Verificar status de pagamento
+        boleto_service = BoletoService()
+        payment_status = boleto_service.check_payment_status(boleto)
+        
+        context = {
+            'boleto': boleto,
+            'invoice': invoice,
+            'payment_status': payment_status,
+            'days_until_expiration': boleto.days_until_expiration(),
+            'is_expired': boleto.is_expired()
+        }
+        
+        return render(request, 'invoices/boleto_detail.html', context)
+        
+    except Exception as e:
+        logger.error(f"Erro ao exibir detalhes do boleto {boleto_id}: {str(e)}")
+        messages.error(request, _('Erro ao carregar detalhes do boleto.'))
+        return redirect('payments:professor_transactions')
+
+@login_required
+@professor_required
+def cancel_boleto(request, boleto_id):
+    """
+    Cancela um boleto bancário
+    """
+    try:
+        # Obter o boleto
+        boleto = get_object_or_404(BoletoBancario, id=boleto_id)
+        
+        # Verificar permissão
+        invoice = boleto.invoice
+        try:
+            if invoice.transaction:
+                if invoice.transaction.enrollment.course.professor != request.user:
+                    raise PermissionError()
+            elif invoice.singlesale:
+                if invoice.singlesale.seller != request.user:
+                    raise PermissionError()
+            else:
+                raise PermissionError()
+        except:
+            messages.error(request, _('Você não tem permissão para cancelar este boleto.'))
+            return JsonResponse({
+                'success': False,
+                'error': 'Sem permissão para cancelar este boleto'
+            })
+        
+        # Obter razão do cancelamento
+        reason = request.POST.get('reason', 'Cancelamento solicitado pelo professor')
+        
+        # Cancelar o boleto
+        boleto_service = BoletoService()
+        result = boleto_service.cancel_boleto(boleto, reason)
+        
+        if result['success']:
+            messages.success(request, _(result['message']))
+            logger.info(f"Boleto {boleto_id} cancelado com sucesso")
+            
+            return JsonResponse({
+                'success': True,
+                'message': result['message']
+            })
+        else:
+            error_msg = result.get('error', 'Erro desconhecido ao cancelar boleto')
+            messages.error(request, _(f'Erro ao cancelar boleto: {error_msg}'))
+            logger.error(f"Erro ao cancelar boleto {boleto_id}: {error_msg}")
+            
+            return JsonResponse({
+                'success': False,
+                'error': error_msg
+            })
+        
+    except Exception as e:
+        error_msg = f"Erro interno ao cancelar boleto: {str(e)}"
+        logger.error(f"Exceção ao cancelar boleto {boleto_id}: {error_msg}")
+        logger.error(traceback.format_exc())
+        messages.error(request, _(error_msg))
+        
+        return JsonResponse({
+            'success': False,
+            'error': error_msg
+        })
+
+@login_required
+def boleto_pdf(request, boleto_id):
+    """
+    Gera e retorna o PDF do boleto
+    """
+    try:
+        # Obter o boleto
+        boleto = get_object_or_404(BoletoBancario, id=boleto_id)
+        
+        # Verificar permissão (professor ou aluno/cliente)
+        invoice = boleto.invoice
+        has_permission = False
+        
+        try:
+            if invoice.transaction:
+                # Verificar se é o professor ou o aluno
+                if (invoice.transaction.enrollment.course.professor == request.user or 
+                    invoice.transaction.enrollment.student == request.user):
+                    has_permission = True
+            elif invoice.singlesale:
+                # Verificar se é o vendedor
+                if invoice.singlesale.seller == request.user:
+                    has_permission = True
+        except:
+            pass
+        
+        if not has_permission:
+            messages.error(request, _('Você não tem permissão para visualizar este boleto.'))
+            return redirect('dashboard')
+        
+        # Redirecionar para a página de detalhes do boleto que é mais completa e funcional
+        # Em produção, seria necessário gerar um PDF real do boleto
+        logger.info(f"Redirecionando para detalhes do boleto {boleto_id}")
+        return redirect('invoices:boleto_detail', boleto_id=boleto_id)
+        
+    except Exception as e:
+        logger.error(f"Erro ao gerar PDF do boleto {boleto_id}: {str(e)}")
+        messages.error(request, _('Erro ao gerar PDF do boleto.'))
+        return redirect('dashboard')

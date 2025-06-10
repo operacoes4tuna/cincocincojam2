@@ -125,6 +125,15 @@
                                             <button class="btn btn-sm btn-outline-info ms-2 send-nf-email" data-invoice-id="{{ invoice.id }}" title="Enviar por email">
                                                 <i class="fas fa-envelope"></i>
                                             </button>
+                                            {% if not invoice.boleto %}
+                                            <button class="btn btn-sm btn-outline-warning ms-2 generate-boleto-btn" data-invoice-id="{{ invoice.id }}" title="Gerar Boleto">
+                                                <i class="fas fa-file-invoice-dollar"></i>
+                                            </button>
+                                            {% else %}
+                                            <a href="{% url 'invoices:boleto_pdf' invoice.boleto.id %}" target="_blank" class="btn btn-sm btn-outline-success ms-2" title="Visualizar Boleto">
+                                                <i class="fas fa-file-invoice-dollar"></i>
+                                            </a>
+                                            {% endif %}
                                             <a href="{% url 'invoices:delete' invoice.id %}" class="btn btn-sm btn-outline-danger ms-2" title="Excluir (apenas teste)">
                                                 <i class="fas fa-trash-alt"></i>
                                             </a>
@@ -516,6 +525,97 @@
                     }
                 }, 5000);
             }, 1500);
+        });
+    });
+
+    // Adicionar evento para os botões de geração de boleto
+    const generateBoletoButtons = document.querySelectorAll('.generate-boleto-btn');
+    generateBoletoButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const invoiceId = this.getAttribute('data-invoice-id');
+            
+            // Alterar o botão para indicar processamento
+            const originalContent = this.innerHTML;
+            this.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            this.disabled = true;
+            
+            // Fazer requisição para gerar boleto
+            fetch(`/invoices/boleto/generate/${invoiceId}/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({})
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Restaurar botão
+                this.innerHTML = originalContent;
+                this.disabled = false;
+                
+                if (data.success) {
+                    // Mostrar mensagem de sucesso
+                    const alertHtml = `
+                        <div class="alert alert-success alert-dismissible fade show mt-3" role="alert">
+                            <strong>Sucesso!</strong> Boleto gerado com sucesso! Número: ${data.boleto.numero_documento}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    `;
+                    
+                    // Inserir alerta após a tabela
+                    const table = document.querySelector('.table-responsive');
+                    table.insertAdjacentHTML('afterend', alertHtml);
+                    
+                    // Esconder o botão de gerar e mostrar botão para visualizar
+                    this.style.display = 'none';
+                    const viewBoletoBtn = document.createElement('a');
+                    viewBoletoBtn.href = `/invoices/boleto/pdf/${data.boleto.id}/`;
+                    viewBoletoBtn.target = '_blank';
+                    viewBoletoBtn.className = 'btn btn-sm btn-outline-success ms-2';
+                    viewBoletoBtn.title = 'Visualizar Boleto';
+                    viewBoletoBtn.innerHTML = '<i class="fas fa-file-invoice-dollar"></i>';
+                    this.parentNode.insertBefore(viewBoletoBtn, this.nextSibling);
+                    
+                    // Configurar auto-fechamento do alerta
+                    const alert = document.querySelector('.alert-success');
+                    setTimeout(() => {
+                        if (alert) {
+                            const bsAlert = new bootstrap.Alert(alert);
+                            bsAlert.close();
+                        }
+                    }, 5000);
+                } else {
+                    // Mostrar mensagem de erro
+                    const alertHtml = `
+                        <div class="alert alert-danger alert-dismissible fade show mt-3" role="alert">
+                            <strong>Erro!</strong> ${data.error}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    `;
+                    
+                    // Inserir alerta após a tabela
+                    const table = document.querySelector('.table-responsive');
+                    table.insertAdjacentHTML('afterend', alertHtml);
+                    
+                    // Configurar auto-fechamento do alerta
+                    const alert = document.querySelector('.alert-danger');
+                    setTimeout(() => {
+                        if (alert) {
+                            const bsAlert = new bootstrap.Alert(alert);
+                            bsAlert.close();
+                        }
+                    }, 8000);
+                }
+            })
+            .catch(error => {
+                // Restaurar botão
+                this.innerHTML = originalContent;
+                this.disabled = false;
+                
+                console.error('Erro:', error);
+                alert('Erro de comunicação ao gerar boleto');
+            });
         });
     });
 </script>

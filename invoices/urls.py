@@ -26,6 +26,13 @@ urlpatterns = [
     path('view_pdf/<int:invoice_id>/', views.view_pdf, name='view_pdf'),
     path('pdf/<str:invoice_id>/', views.download_pdf, name='download_pdf'),
     
+    # URLs para boletos bancários
+    path('boleto/generate/<int:invoice_id>/', views.generate_boleto, name='generate_boleto'),
+    path('boleto/send/<int:boleto_id>/', views.send_boleto_email, name='send_boleto_email'),
+    path('boleto/detail/<int:boleto_id>/', views.boleto_detail, name='boleto_detail'),
+    path('boleto/cancel/<int:boleto_id>/', views.cancel_boleto, name='cancel_boleto'),
+    path('boleto/pdf/<int:boleto_id>/', views.boleto_pdf, name='boleto_pdf'),
+    
     # URLs administrativas
     path('admin/approve/<int:invoice_id>/', views.approve_invoice_manually, name='admin_approve'),
 ]

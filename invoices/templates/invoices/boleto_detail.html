@@ -1,0 +1,285 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Boleto Bancário" %} - {{ boleto.numero_documento }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <!-- Header -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>
+                    <i class="fas fa-file-invoice-dollar me-2 text-warning"></i>
+                    {% trans "Boleto Bancário" %}
+                </h2>
+                <div>
+                    <a href="{% url 'payments:professor_transactions' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-1"></i> {% trans "Voltar" %}
+                    </a>
+                    <a href="{% url 'payments:singlesale_list' %}" class="btn btn-outline-secondary ms-2">
+                        <i class="fas fa-shopping-cart me-1"></i> {% trans "Notas Avulsas" %}
+                    </a>
+                </div>
+            </div>
+
+            <!-- Status do Boleto -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">{% trans "Status do Boleto" %}</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>{% trans "Status:" %}</strong> 
+                                {% if boleto.status == 'paid' %}
+                                    <span class="badge bg-success">{{ boleto.get_status_display }}</span>
+                                {% elif boleto.status == 'cancelled' %}
+                                    <span class="badge bg-danger">{{ boleto.get_status_display }}</span>
+                                {% elif boleto.status == 'expired' or is_expired %}
+                                    <span class="badge bg-warning">{% trans "Vencido" %}</span>
+                                {% else %}
+                                    <span class="badge bg-info">{{ boleto.get_status_display }}</span>
+                                {% endif %}
+                            </p>
+                            {% if days_until_expiration != None %}
+                                <p><strong>{% trans "Vencimento:" %}</strong>
+                                    {% if days_until_expiration > 0 %}
+                                        <span class="text-info">{% blocktrans %}Vence em {{ days_until_expiration }} dia(s){% endblocktrans %}</span>
+                                    {% elif days_until_expiration == 0 %}
+                                        <span class="text-warning">{% trans "Vence hoje!" %}</span>
+                                    {% else %}
+                                        <span class="text-danger">{% blocktrans %}Vencido há {{ days_until_expiration|neg }} dia(s){% endblocktrans %}</span>
+                                    {% endif %}
+                                </p>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            {% if boleto.status not in 'paid,cancelled' %}
+                                <button class="btn btn-outline-primary" onclick="sendBoletoEmail()">
+                                    <i class="fas fa-envelope me-1"></i> {% trans "Enviar por Email" %}
+                                </button>
+                                {% if boleto.status not in 'paid' %}
+                                    <button class="btn btn-outline-danger ms-2" onclick="cancelBoleto()">
+                                        <i class="fas fa-ban me-1"></i> {% trans "Cancelar Boleto" %}
+                                    </button>
+                                {% endif %}
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Informações do Boleto -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">{% trans "Informações do Boleto" %}</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td><strong>{% trans "Número do Documento:" %}</strong></td>
+                                    <td>{{ boleto.numero_documento }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>{% trans "Nosso Número:" %}</strong></td>
+                                    <td>{{ boleto.nosso_numero }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>{% trans "Valor:" %}</strong></td>
+                                    <td class="fs-5 text-success"><strong>R$ {{ boleto.valor_documento|floatformat:2 }}</strong></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>{% trans "Data de Emissão:" %}</strong></td>
+                                    <td>{{ boleto.data_emissao|date:"d/m/Y" }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>{% trans "Data de Vencimento:" %}</strong></td>
+                                    <td>{{ boleto.data_vencimento|date:"d/m/Y" }}</td>
+                                </tr>
+                                {% if boleto.data_pagamento %}
+                                <tr>
+                                    <td><strong>{% trans "Data de Pagamento:" %}</strong></td>
+                                    <td>{{ boleto.data_pagamento|date:"d/m/Y" }}</td>
+                                </tr>
+                                {% endif %}
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td><strong>{% trans "Cliente:" %}</strong></td>
+                                    <td>{{ boleto.metadata.cliente_nome|default:"N/A" }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>{% trans "CPF/CNPJ:" %}</strong></td>
+                                    <td>{{ boleto.metadata.cliente_cpf|default:"N/A" }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>{% trans "Descrição:" %}</strong></td>
+                                    <td>{{ boleto.metadata.descricao|default:"N/A" }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>{% trans "Banco:" %}</strong></td>
+                                    <td>{{ boleto.banco_codigo|default:"N/A" }}</td>
+                                </tr>
+                                {% if boleto.agencia %}
+                                <tr>
+                                    <td><strong>{% trans "Agência:" %}</strong></td>
+                                    <td>{{ boleto.agencia }}</td>
+                                </tr>
+                                {% endif %}
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Linha Digitável -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">{% trans "Linha Digitável" %}</h5>
+                </div>
+                <div class="card-body">
+                    <div class="bg-light p-3 rounded">
+                        <code class="fs-6">{{ boleto.linha_digitavel }}</code>
+                        <button class="btn btn-sm btn-outline-primary ms-2" onclick="copyLinhaDigitavel()">
+                            <i class="fas fa-copy me-1"></i> {% trans "Copiar" %}
+                        </button>
+                    </div>
+                    <small class="text-muted">
+                        {% trans "Copie esta linha e cole no internet banking ou aplicativo do seu banco para realizar o pagamento." %}
+                    </small>
+                </div>
+            </div>
+
+            <!-- Informações da Nota Fiscal -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">{% trans "Nota Fiscal Relacionada" %}</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>{% trans "ID da Nota:" %}</strong> #{{ invoice.id }}</p>
+                            <p><strong>{% trans "Status da Nota:" %}</strong> {{ invoice.get_status_display }}</p>
+                            {% if invoice.external_id %}
+                                <p><strong>{% trans "ID Externo:" %}</strong> {{ invoice.external_id }}</p>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>{% trans "Criada em:" %}</strong> {{ invoice.created_at|date:"d/m/Y H:i" }}</p>
+                            {% if invoice.emitted_at %}
+                                <p><strong>{% trans "Emitida em:" %}</strong> {{ invoice.emitted_at|date:"d/m/Y H:i" }}</p>
+                            {% endif %}
+                            {% if invoice.focus_pdf_url %}
+                                <a href="{{ invoice.focus_pdf_url }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-file-pdf me-1"></i> {% trans "Ver Nota Fiscal" %}
+                                </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function copyLinhaDigitavel() {
+    const linhaDigitavel = "{{ boleto.linha_digitavel }}";
+    navigator.clipboard.writeText(linhaDigitavel).then(function() {
+        alert('Linha digitável copiada para a área de transferência!');
+    }).catch(function(err) {
+        console.error('Erro ao copiar: ', err);
+        // Fallback para navegadores mais antigos
+        const textArea = document.createElement('textarea');
+        textArea.value = linhaDigitavel;
+        document.body.appendChild(textArea);
+        textArea.select();
+        try {
+            document.execCommand('copy');
+            alert('Linha digitável copiada para a área de transferência!');
+        } catch(err) {
+            alert('Erro ao copiar linha digitável');
+        }
+        document.body.removeChild(textArea);
+    });
+}
+
+function sendBoletoEmail() {
+    if (confirm('Deseja enviar este boleto por email?')) {
+        const button = event.target;
+        const originalContent = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...';
+        button.disabled = true;
+        
+        fetch(`/invoices/boleto/send/{{ boleto.id }}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({})
+        })
+        .then(response => response.json())
+        .then(data => {
+            button.innerHTML = originalContent;
+            button.disabled = false;
+            
+            if (data.success) {
+                alert('Boleto enviado por email com sucesso!');
+            } else {
+                alert('Erro ao enviar boleto: ' + data.error);
+            }
+        })
+        .catch(error => {
+            button.innerHTML = originalContent;
+            button.disabled = false;
+            console.error('Erro:', error);
+            alert('Erro de comunicação ao enviar boleto');
+        });
+    }
+}
+
+function cancelBoleto() {
+    const reason = prompt('Motivo do cancelamento (opcional):');
+    if (reason !== null) { // User didn't cancel the prompt
+        const button = event.target;
+        const originalContent = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Cancelando...';
+        button.disabled = true;
+        
+        fetch(`/invoices/boleto/cancel/{{ boleto.id }}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({reason: reason})
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Boleto cancelado com sucesso!');
+                location.reload();
+            } else {
+                button.innerHTML = originalContent;
+                button.disabled = false;
+                alert('Erro ao cancelar boleto: ' + data.error);
+            }
+        })
+        .catch(error => {
+            button.innerHTML = originalContent;
+            button.disabled = false;
+            console.error('Erro:', error);
+            alert('Erro de comunicação ao cancelar boleto');
+        });
+    }
+}
+</script>
+
+{% csrf_token %}
+{% endblock %} 

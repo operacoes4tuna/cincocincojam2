@@ -1004,3 +1004,347 @@ class NFEioService:
                 'error': 1,
                 'error_message': str(e)
             }
+
+class BoletoService:
+    """
+    Serviço para geração e gerenciamento de boletos bancários
+    """
+    
+    def __init__(self):
+        # Configurações do boleto (podem vir do settings ou banco de dados)
+        self.banco_codigo = getattr(settings, 'BOLETO_BANCO_CODIGO', '033')  # Santander como padrão
+        self.agencia = getattr(settings, 'BOLETO_AGENCIA', '0000')
+        self.conta = getattr(settings, 'BOLETO_CONTA', '00000000')
+        self.carteira = getattr(settings, 'BOLETO_CARTEIRA', '101')
+        
+        # Configurações de prazo padrão
+        self.dias_vencimento_padrao = getattr(settings, 'BOLETO_DIAS_VENCIMENTO', 30)
+        
+        # Configurações de multa e juros
+        self.percentual_multa = getattr(settings, 'BOLETO_PERCENTUAL_MULTA', 2.0)  # 2%
+        self.percentual_juros_mes = getattr(settings, 'BOLETO_PERCENTUAL_JUROS_MES', 1.0)  # 1% ao mês
+        
+        logger.info("BoletoService inicializado")
+
+    def generate_boleto(self, invoice, data_vencimento=None, gerar_pdf=True):
+        """
+        Gera um boleto bancário para uma nota fiscal
+        
+        Args:
+            invoice: Instância do modelo Invoice
+            data_vencimento: Data de vencimento (opcional, se não informado usa padrão)
+            gerar_pdf: Se deve gerar o PDF do boleto
+            
+        Returns:
+            dict: Resultado da geração com sucesso/erro e dados do boleto
+        """
+        from .models import BoletoBancario
+        from datetime import datetime, timedelta
+        
+        try:
+            logger.info(f"Iniciando geração de boleto para a nota fiscal {invoice.id}")
+            
+            # Verificar se já existe um boleto para esta invoice
+            if hasattr(invoice, 'boleto') and invoice.boleto:
+                logger.warning(f"Já existe um boleto para a nota fiscal {invoice.id}")
+                return {
+                    'success': False,
+                    'error': 'Já existe um boleto para esta nota fiscal',
+                    'boleto': invoice.boleto
+                }
+            
+            # Verificar se a invoice está em status válido para gerar boleto
+            if invoice.status not in ['approved', 'issued']:
+                logger.error(f"Nota fiscal {invoice.id} não está em status válido para gerar boleto. Status atual: {invoice.status}")
+                return {
+                    'success': False,
+                    'error': f'Nota fiscal deve estar emitida/aprovada para gerar boleto. Status atual: {invoice.get_status_display()}'
+                }
+            
+            # Determinar valor do boleto
+            if invoice.transaction:
+                valor = invoice.transaction.amount
+                cliente_nome = f"{invoice.transaction.enrollment.student.first_name} {invoice.transaction.enrollment.student.last_name}".strip()
+                cliente_cpf = getattr(invoice.transaction.enrollment.student, 'cpf', '')
+                descricao = f"Pagamento da aula: {invoice.transaction.enrollment.course.title}"
+            elif invoice.singlesale:
+                valor = invoice.singlesale.amount
+                cliente_nome = invoice.singlesale.customer_name
+                cliente_cpf = invoice.singlesale.customer_cpf or ''
+                descricao = f"Pagamento: {invoice.singlesale.description}"
+            else:
+                valor = invoice.amount or 0
+                cliente_nome = invoice.customer_name or 'Cliente'
+                cliente_cpf = invoice.customer_tax_id or ''
+                descricao = invoice.description or 'Pagamento de serviço'
+            
+            # Determinar data de vencimento
+            if not data_vencimento:
+                data_vencimento = (timezone.now() + timedelta(days=self.dias_vencimento_padrao)).date()
+            elif isinstance(data_vencimento, str):
+                data_vencimento = datetime.strptime(data_vencimento, '%Y-%m-%d').date()
+            
+            # Gerar número do documento único
+            numero_documento = f"NF{invoice.id:06d}"
+            
+            # Gerar nosso número (simplificado para exemplo)
+            nosso_numero = f"{invoice.id:08d}"
+            
+            # Criar o boleto no banco de dados
+            boleto = BoletoBancario.objects.create(
+                invoice=invoice,
+                numero_documento=numero_documento,
+                nosso_numero=nosso_numero,
+                valor_documento=valor,
+                data_emissao=timezone.now().date(),
+                data_vencimento=data_vencimento,
+                status='generated',
+                banco_codigo=self.banco_codigo,
+                agencia=self.agencia,
+                conta=self.conta,
+                metadata={
+                    'cliente_nome': cliente_nome,
+                    'cliente_cpf': cliente_cpf,
+                    'descricao': descricao,
+                    'invoice_id': invoice.id
+                }
+            )
+            
+            # Gerar código de barras e linha digitável (simulado)
+            codigo_barras, linha_digitavel = self._generate_barcode_and_digitable_line(boleto, valor, data_vencimento)
+            
+            boleto.codigo_barras = codigo_barras
+            boleto.linha_digitavel = linha_digitavel
+            boleto.save()
+            
+            logger.info(f"Boleto {boleto.id} gerado com sucesso para a nota fiscal {invoice.id}")
+            
+            # Gerar PDF se solicitado
+            pdf_url = None
+            if gerar_pdf:
+                pdf_result = self._generate_pdf(boleto)
+                if pdf_result['success']:
+                    pdf_url = pdf_result['url']
+                    boleto.url_pdf = pdf_url
+                    boleto.save()
+            
+            return {
+                'success': True,
+                'boleto': boleto,
+                'pdf_url': pdf_url,
+                'message': 'Boleto gerado com sucesso'
+            }
+            
+        except Exception as e:
+            logger.error(f"Erro ao gerar boleto para nota fiscal {invoice.id}: {str(e)}")
+            logger.error(traceback.format_exc())
+            return {
+                'success': False,
+                'error': f'Erro interno ao gerar boleto: {str(e)}'
+            }
+
+    def _generate_barcode_and_digitable_line(self, boleto, valor, data_vencimento):
+        """
+        Gera código de barras e linha digitável do boleto (versão simplificada)
+        Em uma implementação real, seria necessário seguir as especificações FEBRABAN
+        """
+        try:
+            # Cálculo simplificado para exemplo
+            # Em produção, usar biblioteca específica como python-boleto
+            
+            # Fator de vencimento (dias desde 07/10/1997)
+            from datetime import date
+            base_date = date(1997, 10, 7)
+            fator_vencimento = (data_vencimento - base_date).days
+            
+            # Valor formatado (10 dígitos, sem vírgula)
+            valor_formatado = f"{int(valor * 100):010d}"
+            
+            # Código de barras simplificado (44 dígitos)
+            # Formato: BBB V FFFFF VVVVVVVVVV CCCCC CCCCC CCCCC CCCCC
+            # BBB = código do banco, V = dígito verificador, FFFFF = fator vencimento
+            # VVVVVVVVVV = valor, CCCCC = campos livres
+            
+            codigo_barras = f"{self.banco_codigo}9{fator_vencimento:04d}{valor_formatado}{boleto.nosso_numero:08d}0000000000000000"
+            
+            # Linha digitável simplificada (47 dígitos com espaços)
+            # Implementação básica para exemplo
+            linha_digitavel = f"{self.banco_codigo}.{boleto.nosso_numero[:5]} {boleto.nosso_numero[5:8]}.{valor_formatado[:6]} {valor_formatado[6:]}.{fator_vencimento:04d} 9 {int(valor):010d}"
+            
+            return codigo_barras, linha_digitavel
+            
+        except Exception as e:
+            logger.error(f"Erro ao gerar código de barras e linha digitável: {str(e)}")
+            # Retornar valores de exemplo em caso de erro
+            return "00000000000000000000000000000000000000000000", "00000.00000 00000.000000 00000.000000 0 00000000000"
+
+    def _generate_pdf(self, boleto):
+        """
+        Gera o PDF do boleto
+        Em uma implementação real, usaria uma biblioteca como ReportLab ou WeasyPrint
+        """
+        try:
+            # Para este exemplo, vamos simular a geração do PDF
+            # Em produção, seria necessário gerar um PDF real com o layout do boleto
+            
+            pdf_filename = f"boleto_{boleto.id}_{boleto.numero_documento}.pdf"
+            pdf_path = f"boletos/{timezone.now().year}/{timezone.now().month:02d}/{pdf_filename}"
+            
+            # Simular URL do PDF (em produção seria gerado um arquivo real)
+            pdf_url = f"/media/{pdf_path}"
+            
+            logger.info(f"PDF do boleto {boleto.id} gerado com sucesso (simulado)")
+            
+            return {
+                'success': True,
+                'url': pdf_url,
+                'path': pdf_path
+            }
+            
+        except Exception as e:
+            logger.error(f"Erro ao gerar PDF do boleto {boleto.id}: {str(e)}")
+            return {
+                'success': False,
+                'error': str(e)
+            }
+
+    def send_boleto_email(self, boleto, recipient_email=None):
+        """
+        Envia o boleto por email
+        """
+        try:
+            from django.core.mail import EmailMessage
+            from django.template.loader import render_to_string
+            from django.conf import settings
+            
+            # Determinar email do destinatário
+            if not recipient_email:
+                if boleto.invoice.transaction:
+                    recipient_email = boleto.invoice.transaction.enrollment.student.email
+                elif boleto.invoice.singlesale:
+                    recipient_email = boleto.invoice.singlesale.customer_email
+                else:
+                    recipient_email = boleto.invoice.customer_email
+            
+            if not recipient_email:
+                return {
+                    'success': False,
+                    'error': 'Email do destinatário não encontrado'
+                }
+            
+            # Preparar dados para o template
+            context = {
+                'boleto': boleto,
+                'invoice': boleto.invoice,
+                'cliente_nome': boleto.metadata.get('cliente_nome', 'Cliente'),
+                'valor_formatado': f"R$ {boleto.valor_documento:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'),
+                'data_vencimento_formatada': boleto.data_vencimento.strftime('%d/%m/%Y')
+            }
+            
+            # Renderizar template do email
+            subject = f"Boleto Bancário - Nota Fiscal #{boleto.invoice.id}"
+            message = render_to_string('invoices/emails/boleto_email.html', context)
+            
+            # Criar email
+            email = EmailMessage(
+                subject=subject,
+                body=message,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                to=[recipient_email]
+            )
+            email.content_subtype = 'html'
+            
+            # Anexar PDF se disponível
+            if boleto.arquivo_pdf:
+                email.attach_file(boleto.arquivo_pdf.path)
+            
+            # Enviar email
+            email.send()
+            
+            # Marcar boleto como enviado
+            boleto.status = 'sent'
+            boleto.save()
+            
+            logger.info(f"Boleto {boleto.id} enviado por email para {recipient_email}")
+            
+            return {
+                'success': True,
+                'message': f'Boleto enviado com sucesso para {recipient_email}'
+            }
+            
+        except Exception as e:
+            logger.error(f"Erro ao enviar boleto {boleto.id} por email: {str(e)}")
+            return {
+                'success': False,
+                'error': f'Erro ao enviar email: {str(e)}'
+            }
+
+    def check_payment_status(self, boleto):
+        """
+        Verifica o status de pagamento do boleto
+        Em uma implementação real, consultaria a API do banco ou sistema de cobrança
+        """
+        try:
+            # Simulação de verificação de pagamento
+            # Em produção, faria consulta à API do banco
+            
+            logger.info(f"Verificando status de pagamento do boleto {boleto.id}")
+            
+            # Se o boleto está vencido há mais de 60 dias, marcar como expirado
+            if boleto.is_expired() and boleto.days_until_expiration() < -60:
+                boleto.status = 'expired'
+                boleto.save()
+                return {
+                    'paid': False,
+                    'status': 'expired',
+                    'message': 'Boleto expirado'
+                }
+            
+            # Simulação: retornar status atual
+            return {
+                'paid': boleto.status == 'paid',
+                'status': boleto.status,
+                'payment_date': boleto.data_pagamento,
+                'message': f'Status atual: {boleto.get_status_display()}'
+            }
+            
+        except Exception as e:
+            logger.error(f"Erro ao verificar status do boleto {boleto.id}: {str(e)}")
+            return {
+                'paid': False,
+                'status': 'error',
+                'error': str(e)
+            }
+
+    def cancel_boleto(self, boleto, reason=None):
+        """
+        Cancela um boleto
+        """
+        try:
+            if boleto.status == 'paid':
+                return {
+                    'success': False,
+                    'error': 'Não é possível cancelar um boleto que já foi pago'
+                }
+            
+            boleto.cancel()
+            
+            # Adicionar razão do cancelamento aos metadados
+            if reason:
+                boleto.metadata['cancel_reason'] = reason
+                boleto.metadata['cancelled_at'] = timezone.now().isoformat()
+                boleto.save()
+            
+            logger.info(f"Boleto {boleto.id} cancelado. Razão: {reason}")
+            
+            return {
+                'success': True,
+                'message': 'Boleto cancelado com sucesso'
+            }
+            
+        except Exception as e:
+            logger.error(f"Erro ao cancelar boleto {boleto.id}: {str(e)}")
+            return {
+                'success': False,
+                'error': str(e)
+            }

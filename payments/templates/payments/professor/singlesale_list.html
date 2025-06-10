@@ -190,9 +190,15 @@
                                                         <a href="#" class="btn btn-sm btn-outline-info send-email-btn" data-invoice-id="{{ invoice.id }}" title="{% translate 'Enviar por Email' %}">
                                                             <i class="fas fa-envelope"></i>
                                                         </a>
+                                                        {% if not invoice.boleto %}
                                                         <a href="#" class="btn btn-sm btn-outline-warning generate-boleto-btn" data-invoice-id="{{ invoice.id }}" title="{% translate 'Gerar Boleto' %}">
                                                             <i class="fas fa-file-invoice-dollar"></i>
                                                         </a>
+                                                        {% else %}
+                                                        <a href="{% url 'invoices:boleto_pdf' invoice.boleto.id %}" target="_blank" class="btn btn-sm btn-outline-success" title="{% translate 'Visualizar Boleto' %}">
+                                                            <i class="fas fa-file-invoice-dollar"></i>
+                                                        </a>
+                                                        {% endif %}
                                                     {% elif invoice.status == 'pending' or invoice.status == 'processing' %}
                                                         <span class="badge bg-warning ms-1 me-1">
                                                             <i class="fas fa-clock me-1"></i> NF Em processamento
@@ -353,6 +359,34 @@ document.addEventListener('DOMContentLoaded', function() {
     // Executar o cálculo dos totais
     calcularTotais();
     
+    // Função para mostrar mensagens
+    function showMessage(type, message) {
+        const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
+        const iconClass = type === 'success' ? 'fas fa-check-circle' : 'fas fa-exclamation-triangle';
+        
+        const alertHtml = `
+            <div class="alert ${alertClass} alert-dismissible fade show mt-3" role="alert">
+                <i class="${iconClass} me-2"></i><strong>${type === 'success' ? 'Sucesso!' : 'Erro!'}</strong> ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        `;
+        
+        // Inserir alerta no topo da página
+        const container = document.querySelector('.container-fluid') || document.querySelector('.container');
+        if (container) {
+            container.insertAdjacentHTML('afterbegin', alertHtml);
+            
+            // Auto-fechar após 5 segundos
+            setTimeout(() => {
+                const alert = container.querySelector('.alert');
+                if (alert) {
+                    const bsAlert = new bootstrap.Alert(alert);
+                    bsAlert.close();
+                }
+            }, 5000);
+        }
+    }
+    
     // Formatar os valores na tabela
     const celulasValores = document.querySelectorAll('td');
     celulasValores.forEach(celula => {
@@ -378,8 +412,52 @@ document.addEventListener('DOMContentLoaded', function() {
         button.addEventListener('click', function(e) {
             e.preventDefault();
             const invoiceId = this.getAttribute('data-invoice-id');
-            alert(`Gerando boleto para a nota fiscal ${invoiceId}...`);
-            // Implementação futura
+            
+            // Mostrar loading no botão
+            const originalContent = this.innerHTML;
+            this.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            this.disabled = true;
+            
+            // Fazer requisição para gerar boleto
+            fetch(`/invoices/boleto/generate/${invoiceId}/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({})
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Restaurar botão
+                this.innerHTML = originalContent;
+                this.disabled = false;
+                
+                if (data.success) {
+                    // Mostrar sucesso
+                    showMessage('success', `Boleto gerado com sucesso! Número: ${data.boleto.numero_documento}`);
+                    
+                    // Opcional: atualizar a interface para mostrar que o boleto foi gerado
+                    const boletoInfo = document.createElement('div');
+                    boletoInfo.className = 'mt-2 text-success small';
+                    boletoInfo.innerHTML = `<i class="fas fa-check-circle"></i> Boleto ${data.boleto.numero_documento} gerado`;
+                    this.parentNode.appendChild(boletoInfo);
+                    
+                    // Esconder o botão de gerar (já foi gerado)
+                    this.style.display = 'none';
+                    
+                } else {
+                    showMessage('error', `Erro ao gerar boleto: ${data.error}`);
+                }
+            })
+            .catch(error => {
+                // Restaurar botão
+                this.innerHTML = originalContent;
+                this.disabled = false;
+                
+                console.error('Erro:', error);
+                showMessage('error', 'Erro de comunicação ao gerar boleto');
+            });
         });
     });
     
