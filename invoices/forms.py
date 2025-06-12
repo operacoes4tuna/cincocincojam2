@@ -156,3 +156,29 @@ class CompanyConfigForm(forms.ModelForm):
                     self.add_error(field, _('Este campo é obrigatório quando a emissão de nota fiscal está habilitada.'))
                     
         return cleaned_data
+
+class SendEmailForm(forms.Form):
+    """Formulário para envio de nota fiscal por email"""
+    
+    recipient_email = forms.EmailField(
+        label='Email do Destinatário',
+        max_length=254,
+        widget=forms.EmailInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'exemplo@email.com',
+            'required': True
+        }),
+        help_text='Digite o email para onde deseja enviar a nota fiscal'
+    )
+    
+    custom_message = forms.CharField(
+        label='Mensagem Personalizada (Opcional)',
+        max_length=500,
+        required=False,
+        widget=forms.Textarea(attrs={
+            'class': 'form-control',
+            'rows': 4,
+            'placeholder': 'Digite uma mensagem personalizada que será incluída no email (opcional)...'
+        }),
+        help_text='Esta mensagem será incluída no corpo do email junto com a nota fiscal'
+    )

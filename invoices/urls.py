@@ -26,6 +26,10 @@ urlpatterns = [
     path('view_pdf/<int:invoice_id>/', views.view_pdf, name='view_pdf'),
     path('pdf/<str:invoice_id>/', views.download_pdf, name='download_pdf'),
     
+    # URLs para envio de email
+    path('send-email/<int:invoice_id>/', views.send_invoice_email, name='send_email'),
+    path('send-email-ajax/<int:invoice_id>/', views.send_invoice_email_ajax, name='send_email_ajax'),
+    
     # URLs administrativas
     path('admin/approve/<int:invoice_id>/', views.approve_invoice_manually, name='admin_approve'),
 ]

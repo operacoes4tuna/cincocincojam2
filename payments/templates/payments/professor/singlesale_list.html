@@ -187,7 +187,7 @@
                                                         {% endif %}
                                                         
                                                         <!-- Novos botões: email e boleto -->
-                                                        <a href="#" class="btn btn-sm btn-outline-info send-email-btn" data-invoice-id="{{ invoice.id }}" title="{% translate 'Enviar por Email' %}">
+                                                        <a href="{% url 'invoices:send_email' invoice.id %}" class="btn btn-sm btn-outline-info" title="{% translate 'Enviar por Email' %}" target="_blank">
                                                             <i class="fas fa-envelope"></i>
                                                         </a>
                                                         <a href="#" class="btn btn-sm btn-outline-warning generate-boleto-btn" data-invoice-id="{{ invoice.id }}" title="{% translate 'Gerar Boleto' %}">

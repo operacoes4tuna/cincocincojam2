@@ -48,3 +48,4 @@ staticfiles/
 # Misc
 .DS_Store
 Thumbs.db
+sendgrid.env

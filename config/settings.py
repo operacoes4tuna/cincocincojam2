@@ -218,6 +218,19 @@ NFEIO_API_KEY = config('NFEIO_API_KEY', default='')
 NFEIO_COMPANY_ID = config('NFEIO_COMPANY_ID', default='')
 NFEIO_ENVIRONMENT = config('NFEIO_ENVIRONMENT', default='Development')
 
+# Configurações do SendGrid
+SENDGRID_API_KEY = config('SENDGRID_API_KEY', default='')
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@cincocincojam.com')
+
+
+# Configurações de email processadas no email_service.py
+
+
+
+
+
+
+
 # Configuração de logging
 LOGGING = {
     'version': 1,
