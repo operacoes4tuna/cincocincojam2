@@ -220,7 +220,7 @@ NFEIO_ENVIRONMENT = config('NFEIO_ENVIRONMENT', default='Development')
 
 # Configurações do SendGrid
 SENDGRID_API_KEY = config('SENDGRID_API_KEY', default='')
-DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@cincocincojam.com')
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='')
 
 
 # Configurações de email processadas no email_service.py

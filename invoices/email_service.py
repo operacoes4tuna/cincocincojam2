@@ -1,10 +1,13 @@
 import os
 import logging
 import ssl
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from email.mime.base import MIMEBase
+from email import encoders
 from django.conf import settings
 from django.template.loader import render_to_string
-from sendgrid import SendGridAPIClient
-from sendgrid.helpers.mail import Mail, Attachment, FileContent, FileName, FileType, Disposition
 import base64
 import requests
 import urllib3
@@ -15,11 +18,17 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 logger = logging.getLogger('invoices')
 
 class EmailService:
-    """Serviço para envio de emails usando SendGrid"""
+    """Serviço para envio de emails usando SendGrid SMTP"""
     
     def __init__(self):
         self.api_key = settings.SENDGRID_API_KEY
         self.from_email = settings.DEFAULT_FROM_EMAIL
+        
+        # Configurações SMTP do SendGrid
+        self.smtp_server = "smtp.sendgrid.net"
+        self.smtp_port = 587
+        self.smtp_username = "apikey"
+        self.smtp_password = self.api_key
         
         # Configurar SSL para desenvolvimento
         self._configure_ssl_for_development()
@@ -37,9 +46,9 @@ class EmailService:
             dict: Resultado do envio (success: bool, message: str)
         """
         
-        # Em desenvolvimento, sempre simular envio bem-sucedido
-        if settings.DEBUG and (not self.api_key or self.api_key == '' or 'sua_chave' in self.api_key):
-            logger.info("Modo desenvolvimento: simulando envio de email")
+        # Em desenvolvimento, só simular se a chave API estiver claramente vazia ou fake
+        if settings.DEBUG and (not self.api_key or self.api_key == '' or 'sua_chave' in self.api_key or 'YOUR_' in self.api_key):
+            logger.info("Modo desenvolvimento: simulando envio de email (chave API não configurada)")
             return self._simulate_email_send(invoice, recipient_email, custom_message)
         
         if not self.api_key:
@@ -64,75 +73,36 @@ class EmailService:
                 'recipient_email': recipient_email
             })
             
-            # Criar o email
-            message = Mail(
-                from_email=self.from_email,
-                to_emails=recipient_email,
-                subject=subject,
-                html_content=html_content
-            )
-            
-            # Anexar o PDF da nota fiscal (se disponível)
-            pdf_attachment = self._get_pdf_attachment(invoice)
-            if pdf_attachment:
-                message.attachment = pdf_attachment
-                logger.info(f"PDF anexado com sucesso para nota fiscal {invoice.id}")
-            else:
-                logger.info(f"Enviando email sem PDF para nota fiscal {invoice.id} (PDF não disponível)")
-            
-            # Enviar o email (com configuração SSL mais flexível)
-            try:
-                # Em ambientes de desenvolvimento, usar configuração SSL mais flexível
-                if settings.DEBUG:
-                    # Criar contexto SSL mais permissivo para desenvolvimento
-                    ssl_context = ssl.create_default_context()
-                    ssl_context.check_hostname = False
-                    ssl_context.verify_mode = ssl.CERT_NONE
-                
-                sg = SendGridAPIClient(api_key=self.api_key)
-                response = sg.send(message)
-            except Exception as ssl_error:
-                # Se falhar por SSL, tentar método alternativo
-                logger.warning(f"Erro SSL ao enviar via SendGrid: {str(ssl_error)}")
-                
-                # Método alternativo: desabilitar verificação SSL temporariamente
-                import ssl
-                old_context = ssl._create_default_https_context
-                ssl._create_default_https_context = ssl._create_unverified_context
-                
-                try:
-                    sg = SendGridAPIClient(api_key=self.api_key)
-                    response = sg.send(message)
-                finally:
-                    # Restaurar contexto SSL original
-                    ssl._create_default_https_context = old_context
-            
-            logger.info(f"Email enviado com sucesso para {recipient_email}. Status: {response.status_code}")
-            
-            return {
-                'success': True,
-                'message': f'Email enviado com sucesso para {recipient_email}'
-            }
+            # Enviar o email via SMTP
+            return self._send_email_smtp(subject, html_content, recipient_email, invoice)
             
         except Exception as e:
             # Log detalhado do erro
             logger.error(f"Erro ao enviar email da nota fiscal {invoice.id}: {str(e)}")
             
-            # Se for erro de API key (403 Forbidden) ou SSL, usar fallback
-            if ('403' in str(e) or 'Forbidden' in str(e) or 
-                'SSL' in str(e) or 'certificate' in str(e).lower() or
-                'authentication' in str(e).lower()):
-                
-                logger.info("Tentando método de fallback para contornar problema de autenticação/SSL")
-                try:
-                    return self._send_email_fallback(invoice, recipient_email, custom_message)
-                except Exception as fallback_error:
-                    logger.error(f"Erro no método de fallback: {str(fallback_error)}")
+            # Analisar tipo de erro e dar mensagem específica
+            error_message = str(e)
             
-            return {
-                'success': False,
-                'message': f'Erro ao enviar email: {str(e)}'
-            }
+            if '403' in error_message or 'Forbidden' in error_message:
+                return {
+                    'success': False,
+                    'message': 'Erro de permissão no SendGrid. Verifique se a chave API está válida e tem permissões para envio de email. Chave pode estar expirada ou sem permissões adequadas.'
+                }
+            elif '401' in error_message or 'Unauthorized' in error_message:
+                return {
+                    'success': False,
+                    'message': 'Chave API do SendGrid inválida ou não autorizada. Verifique se a chave está correta e ainda válida.'
+                }
+            elif 'SSL' in error_message or 'certificate' in error_message.lower():
+                return {
+                    'success': False,
+                    'message': 'Erro de SSL/certificado. Tente novamente em alguns minutos ou entre em contato com o suporte.'
+                }
+            else:
+                return {
+                    'success': False,
+                    'message': f'Erro ao enviar email: {error_message}'
+                }
     
     def _get_invoice_data(self, invoice):
         """Extrai dados relevantes da nota fiscal"""
@@ -156,34 +126,7 @@ class EmailService:
             
         return data
     
-    def _get_pdf_attachment(self, invoice):
-        """Baixa e prepara o PDF da nota fiscal como anexo"""
-        try:
-            if not invoice.focus_pdf_url:
-                return None
-                
-            # Baixar o PDF (com configuração SSL mais flexível)
-            session = requests.Session()
-            session.verify = False  # Desabilitar verificação SSL em desenvolvimento
-            response = session.get(invoice.focus_pdf_url, timeout=30)
-            response.raise_for_status()
-            
-            # Codificar em base64
-            pdf_content = base64.b64encode(response.content).decode()
-            
-            # Criar o anexo
-            attachment = Attachment(
-                FileContent(pdf_content),
-                FileName(f"nota_fiscal_{invoice.external_id or invoice.id}.pdf"),
-                FileType("application/pdf"),
-                Disposition("attachment")
-            )
-            
-            return attachment
-            
-        except Exception as e:
-            logger.error(f"Erro ao baixar PDF da nota fiscal {invoice.id}: {str(e)}")
-            return None 
+ 
     
     def _configure_ssl_for_development(self):
         """Configura SSL para ambiente de desenvolvimento"""
@@ -194,8 +137,8 @@ class EmailService:
                 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
                 
                 # Configurar SSL global para desenvolvimento
-                import ssl
-                ssl._create_default_https_context = ssl._create_unverified_context
+                import ssl as ssl_module
+                ssl_module._create_default_https_context = ssl_module._create_unverified_context
                 
                 logger.info("Configuração SSL flexível aplicada para desenvolvimento")
             except Exception as e:
@@ -236,6 +179,110 @@ class EmailService:
                 'message': f'Email enviado com sucesso (modo desenvolvimento)'
             }
     
+    def _send_email_smtp(self, subject, html_content, recipient_email, invoice):
+        """Envia email usando SMTP do SendGrid (baseado no código que funciona)"""
+        try:
+            # Criar mensagem
+            message = MIMEMultipart("alternative")
+            message["Subject"] = subject
+            message["From"] = self.from_email
+            message["To"] = recipient_email
+
+            # Conteúdo do email (texto e HTML)
+            text_content = f"Nota Fiscal {invoice.external_id or invoice.id}\n\nEste email contém informações da sua nota fiscal."
+            
+            # Criar partes do email
+            part1 = MIMEText(text_content, "plain", "utf-8")
+            part2 = MIMEText(html_content, "html", "utf-8")
+
+            # Adicionar partes à mensagem
+            message.attach(part1)
+            message.attach(part2)
+            
+            # Tentar anexar PDF se disponível
+            pdf_attachment = self._get_pdf_attachment_smtp(invoice)
+            if pdf_attachment:
+                message.attach(pdf_attachment)
+                logger.info(f"PDF anexado com sucesso para nota fiscal {invoice.id}")
+            else:
+                logger.info(f"Enviando email sem PDF para nota fiscal {invoice.id} (PDF não disponível)")
+
+            # Conectar e enviar via SMTP
+            logger.info("🔌 Conectando ao servidor SMTP SendGrid...")
+            server = smtplib.SMTP(self.smtp_server, self.smtp_port)
+            
+            # Iniciar TLS para conexão segura
+            logger.info("🔒 Iniciando conexão TLS...")
+            server.starttls()
+            
+            # Login no servidor
+            logger.info("🔑 Fazendo login no SendGrid...")
+            server.login(self.smtp_username, self.smtp_password)
+            
+            # Enviar email
+            logger.info("📧 Enviando email...")
+            text = message.as_string()
+            server.sendmail(self.from_email, recipient_email, text)
+            
+            # Fechar conexão
+            server.quit()
+            
+            logger.info(f"✅ Email enviado com sucesso via SMTP para {recipient_email}")
+            
+            return {
+                'success': True,
+                'message': f'Email enviado com sucesso para {recipient_email}'
+            }
+            
+        except Exception as e:
+            logger.error(f"❌ Erro ao enviar email via SMTP: {str(e)}")
+            
+            # Analisar tipo de erro específico para SMTP
+            error_message = str(e)
+            
+            if 'authentication failed' in error_message.lower():
+                return {
+                    'success': False,
+                    'message': 'Erro de autenticação SMTP. Verifique se a chave API está correta.'
+                }
+            elif 'connection refused' in error_message.lower() or 'timeout' in error_message.lower():
+                return {
+                    'success': False,
+                    'message': 'Erro de conexão com servidor SMTP. Verifique sua conexão de internet ou firewall.'
+                }
+            else:
+                return {
+                    'success': False,
+                    'message': f'Erro ao enviar email: {error_message}'
+                }
+    
+    def _get_pdf_attachment_smtp(self, invoice):
+        """Baixa e prepara o PDF da nota fiscal como anexo para SMTP"""
+        try:
+            if not invoice.focus_pdf_url:
+                return None
+                
+            # Baixar o PDF
+            session = requests.Session()
+            session.verify = False  # Desabilitar verificação SSL em desenvolvimento
+            response = session.get(invoice.focus_pdf_url, timeout=30)
+            response.raise_for_status()
+            
+            # Criar anexo SMTP
+            attachment = MIMEBase('application', 'pdf')
+            attachment.set_payload(response.content)
+            encoders.encode_base64(attachment)
+            attachment.add_header(
+                'Content-Disposition',
+                f'attachment; filename="nota_fiscal_{invoice.external_id or invoice.id}.pdf"'
+            )
+            
+            return attachment
+            
+        except Exception as e:
+            logger.error(f"Erro ao baixar PDF da nota fiscal {invoice.id}: {str(e)}")
+            return None
+
     def _send_email_fallback(self, invoice, recipient_email, custom_message=""):
         """Método de fallback para envio de email quando há problemas de autenticação ou SSL"""
         logger.info("Executando método de fallback para envio de email")
