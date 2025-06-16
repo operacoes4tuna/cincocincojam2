@@ -396,7 +396,8 @@ def invoice_detail(request, invoice_id):
         return render(request, 'invoices/invoice_detail.html', {
             'invoice': invoice,
             'return_url': return_url,
-            'is_admin': is_admin
+            'is_admin': is_admin,
+            'debug': settings.DEBUG,
         })
     except Exception as e:
         logger.error(f"Erro ao exibir detalhes da nota fiscal {invoice_id}: {str(e)}")
@@ -965,8 +966,8 @@ def send_invoice_email(request, invoice_id):
         if invoice.status != 'approved':
             info_messages.append('Nota: Esta nota fiscal ainda não foi aprovada, mas o email será enviado mesmo assim.')
         
-        if not invoice.focus_pdf_url:
-            info_messages.append('Nota: PDF não disponível, o email será enviado sem anexo.')
+        # ✅ REMOVIDO: Não verificar PDF aqui - deixar o sistema de email decidir
+        # O sistema de anexo melhorado tentará baixar o PDF automaticamente
         
         # Mostrar mensagens informativas
         if info_messages:
@@ -1060,11 +1061,8 @@ def send_invoice_email_ajax(request, invoice_id):
                 'message': 'Apenas notas fiscais aprovadas podem ser enviadas por email.'
             })
         
-        if not invoice.focus_pdf_url:
-            return JsonResponse({
-                'success': False, 
-                'message': 'PDF da nota fiscal não disponível.'
-            })
+        # ✅ REMOVIDO: Não verificar PDF aqui - deixar o sistema de email decidir
+        # O sistema de anexo melhorado tentará baixar o PDF automaticamente
         
         # Obter email do cliente
         recipient_email = None
@@ -1094,3 +1092,73 @@ def send_invoice_email_ajax(request, invoice_id):
             'success': False, 
             'message': f'Erro ao enviar email: {str(e)}'
         })
+
+@login_required
+def test_pdf_attachment_view(request, invoice_id):
+    """
+    View para testar o anexo de PDF de uma nota fiscal específica.
+    Útil para debug via navegador.
+    """
+    if not settings.DEBUG:
+        messages.error(request, _('Esta funcionalidade só está disponível em ambiente de desenvolvimento.'))
+        return redirect('dashboard')
+    
+    try:
+        # Verificar se o usuário tem permissão
+        is_admin = hasattr(request.user, 'is_admin') and request.user.is_admin
+        is_professor = hasattr(request.user, 'is_professor') and request.user.is_professor
+        
+        if not (is_admin or is_professor):
+            messages.error(request, _('Acesso negado.'))
+            return redirect('dashboard')
+        
+        # Buscar a nota fiscal
+        if is_admin:
+            invoice = get_object_or_404(Invoice, id=invoice_id)
+        else:
+            # Professores podem acessar apenas suas próprias notas fiscais
+            try:
+                invoice = get_object_or_404(
+                    Invoice,
+                    id=invoice_id,
+                    transaction__enrollment__course__professor=request.user
+                )
+            except (Invoice.DoesNotExist, Http404):
+                invoice = get_object_or_404(
+                    Invoice,
+                    id=invoice_id,
+                    singlesale__seller=request.user
+                )
+        
+        from .email_service import EmailService
+        email_service = EmailService()
+        
+        # Executar teste de debug
+        success = email_service.debug_pdf_attachment(invoice)
+        
+        if success:
+            messages.success(request, f'✅ PDF da nota fiscal #{invoice.id} pode ser anexado com sucesso!')
+        else:
+            messages.error(request, f'❌ Falha ao anexar PDF da nota fiscal #{invoice.id}. Verifique os logs.')
+        
+        # Informações adicionais para o usuário
+        info_messages = []
+        
+        if not invoice.focus_pdf_url:
+            info_messages.append('📎 Esta nota fiscal não possui URL de PDF.')
+        
+        if invoice.status != 'approved':
+            info_messages.append(f'📋 Status da nota fiscal: {invoice.get_status_display()}')
+        
+        if not email_service.nfeio_api_key:
+            info_messages.append('🔑 Credenciais NFE.io não configuradas.')
+            
+        for msg in info_messages:
+            messages.info(request, msg)
+        
+        return redirect('invoices:invoice_detail', invoice_id=invoice_id)
+        
+    except Exception as e:
+        logger.error(f"Erro ao testar anexo PDF da nota fiscal {invoice_id}: {str(e)}")
+        messages.error(request, f'Erro ao testar anexo: {str(e)}')
+        return redirect('dashboard')

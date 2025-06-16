@@ -30,6 +30,9 @@ urlpatterns = [
     path('send-email/<int:invoice_id>/', views.send_invoice_email, name='send_email'),
     path('send-email-ajax/<int:invoice_id>/', views.send_invoice_email_ajax, name='send_email_ajax'),
     
+    # URLs para teste e debug
+    path('test-pdf-attachment/<int:invoice_id>/', views.test_pdf_attachment_view, name='test_pdf_attachment'),
+    
     # URLs administrativas
     path('admin/approve/<int:invoice_id>/', views.approve_invoice_manually, name='admin_approve'),
 ]

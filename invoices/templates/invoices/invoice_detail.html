@@ -145,6 +145,20 @@
                         </a>
                         {% endif %}
                         
+                        <!-- Enviar por Email -->
+                        {% if invoice.status == 'approved' %}
+                        <a href="{% url 'invoices:send_email' invoice.id %}" class="btn btn-primary">
+                            <i class="fas fa-envelope"></i> {% translate "Enviar por Email" %}
+                        </a>
+                        {% endif %}
+                        
+                        <!-- Testar Anexo PDF (Desenvolvimento) -->
+                        {% if debug %}
+                        <a href="{% url 'invoices:test_pdf_attachment' invoice.id %}" class="btn btn-outline-warning">
+                            <i class="fas fa-bug"></i> {% translate "Testar Anexo PDF" %}
+                        </a>
+                        {% endif %}
+                        
                         <!-- Download do PDF (se disponível) -->
                         {% if invoice.focus_pdf_url %}
                         <a href="{{ invoice.focus_pdf_url }}" target="_blank" class="btn btn-success">
