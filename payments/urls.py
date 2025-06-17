@@ -1,7 +1,8 @@
 from django.urls import path
 from . import views
 from . import pix_views
-from . import card_views
+from . import admin_views
+# from . import card_views  # DESABILITADO - pagamentos por cartão removidos
 
 app_name = 'payments'
 
@@ -24,6 +25,11 @@ admin_patterns = [
     path('admin/dashboard/', views.AdminFinancialDashboardView.as_view(), name='admin_dashboard'),
     path('admin/transactions/', views.AdminTransactionListView.as_view(), name='admin_transactions'),
     path('admin/professor/<int:pk>/', views.AdminProfessorDetailView.as_view(), name='admin_professor_detail'),
+    # Gestão PIX fixo
+    path('admin/pix/', admin_views.payment_admin_dashboard, name='admin_pix_dashboard'),
+    path('admin/pix/mark-paid/<int:payment_id>/', admin_views.mark_payment_as_paid, name='admin_mark_payment_paid'),
+    path('admin/pix/cancel/<int:payment_id>/', admin_views.cancel_payment, name='admin_cancel_payment'),
+    path('admin/pix/search/', admin_views.search_payments, name='admin_search_payments'),
 ]
 
 # URLs para alunos
@@ -44,15 +50,23 @@ pix_patterns = [
     path('pix/webhook/', pix_views.pix_webhook, name='pix_webhook'),
     path('pix/check_status/<int:payment_id>/', pix_views.check_payment_status, name='check_pix_status'),
     path('pix/simulate/<int:payment_id>/', pix_views.simulate_pix_payment, name='simulate_pix_payment'),
+    
+    # Novas URLs para monitoramento e gestão PIX
+    path('pix/dashboard/', views.pix_dashboard, name='pix_dashboard'),
+    path('pix/analytics/', views.pix_analytics, name='pix_analytics'),
+    path('pix/health-check/', views.pix_health_check, name='pix_health_check'),
+    path('pix/retry/<int:transaction_id>/', views.retry_pix_payment, name='retry_pix_payment'),
+    path('pix/bulk-check/', views.bulk_check_pix_status, name='bulk_check_pix_status'),
 ]
 
-# URLs para pagamentos com cartão
-card_patterns = [
-    path('card/create/<int:course_id>/', card_views.create_card_payment, name='create_card_payment'),
-    path('card/detail/<int:payment_id>/', card_views.card_payment_detail, name='card_payment_detail'),
-    path('card/webhook/', card_views.card_webhook, name='card_webhook'),
-    path('card/simulate/<int:payment_id>/', card_views.simulate_card_payment, name='simulate_card_payment'),
-]
+# URLs para pagamentos com cartão (DESABILITADO)
+# card_patterns = [
+#     path('card/create/<int:course_id>/', card_views.create_card_payment, name='create_card_payment'),
+#     path('card/detail/<int:payment_id>/', card_views.card_payment_detail, name='card_payment_detail'),
+#     path('card/webhook/', card_views.card_webhook, name='card_webhook'),
+#     path('card/simulate/<int:payment_id>/', card_views.simulate_card_payment, name='simulate_card_payment'),
+# ]
+card_patterns = []
 
 # URLs para vendas avulsas
 singlesale_patterns = [

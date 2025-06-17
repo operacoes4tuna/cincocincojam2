@@ -15,11 +15,21 @@ from .models import PaymentTransaction
 
 # Serviços
 from .openpix_service import OpenPixService
+from .fixed_pix_config import (
+    get_fixed_qr_code_url, 
+    get_pix_key, 
+    get_payment_instructions,
+    get_payment_description,
+    generate_pix_code,
+    get_bank_deep_links,
+    FIXED_PIX_CONFIG
+)
 
 @login_required
 def create_pix_payment(request, course_id):
     """
     Cria um pagamento via Pix para o curso selecionado.
+    MODIFICADO: Agora usa QR Code fixo ao invés de dinâmico.
     """
     course = get_object_or_404(Course, id=course_id, status=Course.Status.PUBLISHED)
     
@@ -51,20 +61,20 @@ def create_pix_payment(request, course_id):
         enrollment.status = Enrollment.Status.PENDING
         enrollment.save()
     
-    # Criar cobrança na OpenPix
-    openpix = OpenPixService()
+    # NOVO: Usar QR Code fixo ao invés de gerar via OpenPix
     try:
-        charge_data = openpix.create_charge(enrollment)
+        # Gerar um ID único para tracking, mas não usar API externa
+        import uuid
+        correlation_id = str(uuid.uuid4())
         
-        # Salvar informações do pagamento
+        # Salvar informações do pagamento SEM dados da OpenPix
         payment = PaymentTransaction.objects.create(
             enrollment=enrollment,
             amount=course.price,
             status=PaymentTransaction.Status.PENDING,
             payment_method='PIX',
-            correlation_id=charge_data.get('correlationID'),
-            brcode=charge_data.get('brCode'),
-            qrcode_image=charge_data.get('qrCodeImage')
+            correlation_id=correlation_id,
+            # REMOVIDO: brcode e qrcode_image não são mais necessários
         )
         
         return redirect('payments:pix_payment_detail', payment_id=payment.id)
@@ -73,7 +83,7 @@ def create_pix_payment(request, course_id):
         if created:
             enrollment.delete()
         
-        messages.error(request, _('Erro ao gerar cobrança Pix. Por favor, tente novamente.'))
+        messages.error(request, _('Erro ao processar pagamento Pix. Por favor, tente novamente.'))
         return redirect('courses:student:course_detail', pk=course.id)
 
 @login_required
@@ -93,31 +103,33 @@ def pix_payment_detail(request, payment_id):
         messages.success(request, _('Seu pagamento já foi confirmado. Você está matriculado no curso.'))
         return redirect('courses:student:course_learn', pk=payment.enrollment.course.id)
     
-    # Atualizar status do pagamento se ainda estiver pendente
-    if payment.status == PaymentTransaction.Status.PENDING:
-        try:
-            openpix = OpenPixService()
-            status_data = openpix.get_charge_status(payment.correlation_id)
-            
-            if status_data.get('status') == 'COMPLETED':
-                payment.status = PaymentTransaction.Status.PAID
-                payment.payment_date = timezone.now()
-                payment.save()
-                
-                # Atualizar status da matrícula
-                enrollment = payment.enrollment
-                enrollment.status = Enrollment.Status.ACTIVE
-                enrollment.save()
-                
-                messages.success(request, _('Pagamento confirmado! Você foi matriculado no curso.'))
-                return redirect('courses:student:course_learn', pk=enrollment.course.id)
-        except Exception as e:
-            messages.error(request, _('Erro ao verificar status do pagamento: {}').format(str(e)))
+    # MODIFICADO: Como usamos QR Code fixo, não verificamos status automaticamente via API
+    # O status do pagamento deve ser atualizado manualmente via webhook ou admin
+    pass
     
-    # Preparar contexto
+    # Preparar contexto com dados PIX fixos
+    course = payment.enrollment.course
+    student = payment.enrollment.student
+    
+    # Gerar código PIX único para esta transação
+    pix_code = generate_pix_code(course, student, payment.amount)
+    
     context = {
         'payment': payment,
-        'course': payment.enrollment.course,
+        'course': course,
+        'student': student,
+        # Dados PIX fixos
+        'pix_qr_code_url': get_fixed_qr_code_url(),
+        'pix_key': get_pix_key(),
+        'pix_code': pix_code,
+        'payment_description': get_payment_description(course),
+        'payment_instructions': get_payment_instructions(),
+        'bank_deep_links': get_bank_deep_links(pix_code),
+        'beneficiary_name': FIXED_PIX_CONFIG['beneficiary_name'],
+        'beneficiary_city': FIXED_PIX_CONFIG['beneficiary_city'],
+        'bank_info': FIXED_PIX_CONFIG['bank_info'],
+        'payment_expiry_minutes': FIXED_PIX_CONFIG['payment_expiry_minutes'],
+        # Debug
         'debug': settings.DEBUG,
         'debug_payments': getattr(settings, 'DEBUG_PAYMENTS', False)
     }

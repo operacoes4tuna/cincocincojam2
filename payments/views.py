@@ -982,7 +982,7 @@ def create_singlesale_pix(request, sale_id):
         return redirect('payments:singlesale_pix_detail', sale_id=sale.id)
     
     # Inicia o serviço de Pix
-    openpix_service = OpenPixService()
+    openpix = OpenPixService()
     
     # Define os dados para a cobrança
     charge_data = {
@@ -999,7 +999,7 @@ def create_singlesale_pix(request, sale_id):
     
     # Cria a cobrança via API
     try:
-        response = openpix_service.create_charge_dict(charge_data)
+        response = openpix.create_charge_dict(charge_data)
         
         if response and response.get('brCode'):
             # Atualiza a venda com os dados do Pix
@@ -1461,3 +1461,249 @@ def create_singlesale_api(request):
             'error': f'Erro interno: {str(e)}',
             'details': traceback.format_exc()
         }, status=500)
+
+
+@login_required
+def pix_health_check(request):
+    """
+    Verifica a saúde da API PIX e retorna status em JSON.
+    """
+    if not request.user.is_admin:
+        return JsonResponse({'error': 'Acesso negado'}, status=403)
+    
+    openpix = OpenPixService()
+    health_status = openpix.health_check()
+    
+    return JsonResponse(health_status)
+
+@login_required 
+def pix_dashboard(request):
+    """
+    Dashboard em tempo real para monitoramento de pagamentos PIX.
+    """
+    if not request.user.is_admin and not request.user.is_professor:
+        messages.error(request, 'Acesso negado.')
+        return redirect('dashboard_redirect')
+    
+    # Filtrar transações baseado no tipo de usuário
+    if request.user.is_admin:
+        transactions = PaymentTransaction.objects.filter(payment_method='PIX')
+    else:  # Professor
+        transactions = PaymentTransaction.objects.filter(
+            payment_method='PIX',
+            enrollment__course__professor=request.user
+        )
+    
+    # Estatísticas gerais
+    total_pix = transactions.count()
+    total_pending = transactions.filter(status=PaymentTransaction.Status.PENDING).count()
+    total_paid = transactions.filter(status=PaymentTransaction.Status.PAID).count()
+    total_failed = transactions.filter(status=PaymentTransaction.Status.FAILED).count()
+    
+    # Valor total
+    total_amount = transactions.filter(status=PaymentTransaction.Status.PAID).aggregate(
+        total=Sum('amount')
+    )['total'] or 0
+    
+    # Transações das últimas 24 horas
+    last_24h = timezone.now() - timedelta(hours=24)
+    recent_transactions = transactions.filter(created_at__gte=last_24h).order_by('-created_at')[:10]
+    
+    # Estatísticas por período
+    today = timezone.now().date()
+    today_count = transactions.filter(created_at__date=today).count()
+    today_amount = transactions.filter(
+        created_at__date=today,
+        status=PaymentTransaction.Status.PAID
+    ).aggregate(total=Sum('amount'))['total'] or 0
+    
+    # Health check da API
+    openpix = OpenPixService()
+    api_health = openpix.health_check()
+    
+    context = {
+        'total_pix': total_pix,
+        'total_pending': total_pending,
+        'total_paid': total_paid,
+        'total_failed': total_failed,
+        'total_amount': total_amount,
+        'today_count': today_count,
+        'today_amount': today_amount,
+        'recent_transactions': recent_transactions,
+        'api_health': api_health,
+        'is_admin': request.user.is_admin,
+    }
+    
+    return render(request, 'payments/pix_dashboard.html', context)
+
+@login_required
+def retry_pix_payment(request, transaction_id):
+    """
+    Retenta criar um pagamento PIX que falhou.
+    """
+    transaction = get_object_or_404(
+        PaymentTransaction, 
+        id=transaction_id
+    )
+    
+    # Verificar permissões
+    if request.user.is_student and transaction.enrollment.student != request.user:
+        messages.error(request, 'Acesso negado.')
+        return redirect('dashboard_redirect')
+    elif request.user.is_professor and transaction.enrollment.course.professor != request.user:
+        messages.error(request, 'Acesso negado.')
+        return redirect('dashboard_redirect')
+    elif not request.user.is_admin and not request.user.is_professor and not request.user.is_student:
+        messages.error(request, 'Acesso negado.')
+        return redirect('dashboard_redirect')
+    
+    # Só permitir retry se o status for FAILED ou se for muito antigo
+    if transaction.status not in [PaymentTransaction.Status.FAILED, PaymentTransaction.Status.PENDING]:
+        messages.warning(request, 'Este pagamento não pode ser retentado.')
+        return redirect('payments:pix_payment_detail', payment_id=transaction.id)
+    
+    try:
+        # Criar nova cobrança
+        openpix = OpenPixService()
+        
+        # Gerar novo correlation_id
+        timestamp = int(timezone.now().timestamp())
+        new_correlation_id = f"retry-{transaction.enrollment.course.id}-{transaction.enrollment.student.id}-{timestamp}"
+        
+        charge_data = openpix.create_charge(transaction.enrollment, new_correlation_id)
+        
+        # Atualizar a transação existente
+        transaction.correlation_id = charge_data.get('correlationID')
+        transaction.brcode = charge_data.get('brCode')
+        transaction.qrcode_image = charge_data.get('qrCodeImage')
+        transaction.status = PaymentTransaction.Status.PENDING
+        transaction.save()
+        
+        messages.success(request, 'Novo código PIX gerado com sucesso!')
+        return redirect('payments:pix_payment_detail', payment_id=transaction.id)
+        
+    except Exception as e:
+        messages.error(request, f'Erro ao gerar novo código PIX: {str(e)}')
+        return redirect('payments:pix_payment_detail', payment_id=transaction.id)
+
+@login_required
+def bulk_check_pix_status(request):
+    """
+    Verifica o status de múltiplos pagamentos PIX pendentes.
+    """
+    if not request.user.is_admin:
+        return JsonResponse({'error': 'Acesso negado'}, status=403)
+    
+    # Buscar todas as transações PIX pendentes
+    pending_transactions = PaymentTransaction.objects.filter(
+        payment_method='PIX',
+        status=PaymentTransaction.Status.PENDING,
+        correlation_id__isnull=False
+    ).exclude(correlation_id='')
+    
+    openpix = OpenPixService()
+    updated_count = 0
+    
+    for transaction in pending_transactions:
+        try:
+            status_data = openpix.get_charge_status(transaction.correlation_id)
+            
+            if status_data.get('status') == 'COMPLETED':
+                transaction.status = PaymentTransaction.Status.PAID
+                transaction.payment_date = timezone.now()
+                transaction.save()
+                
+                # Atualizar status da matrícula
+                enrollment = transaction.enrollment
+                enrollment.status = Enrollment.Status.ACTIVE
+                enrollment.save()
+                
+                updated_count += 1
+                
+        except Exception as e:
+            logging.getLogger('payments').error(f"Erro ao verificar status do pagamento {transaction.id}: {str(e)}")
+    
+    return JsonResponse({
+        'success': True,
+        'checked': pending_transactions.count(),
+        'updated': updated_count,
+        'message': f'Verificados {pending_transactions.count()} pagamentos, {updated_count} atualizados.'
+    })
+
+@login_required
+def pix_analytics(request):
+    """
+    Analytics detalhados dos pagamentos PIX.
+    """
+    if not request.user.is_admin:
+        messages.error(request, 'Acesso negado.')
+        return redirect('dashboard_redirect')
+    
+    # Período de análise (últimos 30 dias)
+    end_date = timezone.now().date()
+    start_date = end_date - timedelta(days=30)
+    
+    # Dados por dia
+    daily_data = []
+    current_date = start_date
+    
+    while current_date <= end_date:
+        day_transactions = PaymentTransaction.objects.filter(
+            payment_method='PIX',
+            created_at__date=current_date
+        )
+        
+        day_paid = day_transactions.filter(status=PaymentTransaction.Status.PAID)
+        
+        daily_data.append({
+            'date': current_date.strftime('%Y-%m-%d'),
+            'date_br': current_date.strftime('%d/%m'),
+            'total_count': day_transactions.count(),
+            'paid_count': day_paid.count(),
+            'paid_amount': day_paid.aggregate(total=Sum('amount'))['total'] or 0,
+            'success_rate': (day_paid.count() / day_transactions.count() * 100) if day_transactions.count() > 0 else 0
+        })
+        
+        current_date += timedelta(days=1)
+    
+    # Estatísticas por curso
+    course_stats = []
+    
+    # Agrupar por curso
+    course_data = PaymentTransaction.objects.filter(
+        payment_method='PIX',
+        created_at__date__gte=start_date
+    ).values(
+        'enrollment__course__title',
+        'enrollment__course__professor__first_name',
+        'enrollment__course__professor__last_name'
+    ).annotate(
+        total_transactions=Count('id'),
+        paid_transactions=Count('id', filter=Q(status=PaymentTransaction.Status.PAID)),
+        total_amount=Sum('amount', filter=Q(status=PaymentTransaction.Status.PAID))
+    ).order_by('-paid_transactions')
+    
+    for course in course_data:
+        if course['total_transactions'] > 0:
+            course_stats.append({
+                'course_title': course['enrollment__course__title'],
+                'professor_name': f"{course['enrollment__course__professor__first_name']} {course['enrollment__course__professor__last_name']}",
+                'total_transactions': course['total_transactions'],
+                'paid_transactions': course['paid_transactions'],
+                'total_amount': course['total_amount'] or 0,
+                'success_rate': (course['paid_transactions'] / course['total_transactions'] * 100)
+            })
+    
+    # Top 5 cursos
+    top_courses = course_stats[:5]
+    
+    context = {
+        'daily_data': daily_data,
+        'course_stats': course_stats,
+        'top_courses': top_courses,
+        'start_date': start_date,
+        'end_date': end_date,
+        'total_days': (end_date - start_date).days + 1
+    }
+    
+    return render(request, 'payments/pix_analytics.html', context)

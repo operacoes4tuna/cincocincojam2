@@ -432,8 +432,8 @@ class CourseEnrollView(LoginRequiredMixin, View):
         print(f"[DEBUG] Curso: {course.id} - {course.title}")
 
         # Verifica se é um curso pago
-        is_paid_course = hasattr(course, 'payment_details') and course.payment_details.price > 0
-        print(f"[DEBUG] Curso pago? {is_paid_course}")
+        is_paid_course = course.price > 0
+        print(f"[DEBUG] Curso pago? {is_paid_course} (preço: R$ {course.price})")
 
         # Verifica se o curso está restrito a turmas
         is_class_restricted = hasattr(course, 'is_class_restricted') and course.is_class_restricted
@@ -451,6 +451,10 @@ class CourseEnrollView(LoginRequiredMixin, View):
                 messages.error(request, 'A turma especificada não existe ou você não tem acesso a ela.')
                 return redirect('courses:student:dashboard')
                 
+        # Inicializar variáveis
+        enrollment = None
+        created = False
+        
         # Verifica se o aluno já está matriculado
         try:
             print(f"[DEBUG] Tentando matricular {self.request.user.email} no curso {course.id} - {course.title}")
@@ -516,22 +520,13 @@ class CourseEnrollView(LoginRequiredMixin, View):
             print(f"[DEBUG] ERRO na matrícula: {str(e)}")
             messages.error(self.request, f'Erro ao processar a matrícula: {str(e)}')
         
-        # Não redirecionar para a página de aprendizado se o pagamento está pendente
-        # ou se já foi redirecionado para o pagamento
-        if is_paid_course and (created or enrollment.status == Enrollment.Status.PENDING):
-            # Um redirecionamento para pagamento já deve ter ocorrido em outra parte do código
-            # Esta linha provavelmente nunca será alcançada, mas é uma proteção adicional
-            print(f"[DEBUG] Tentando redirecionar novamente para pagamento PIX")
+        # Verificar se precisa redirecionar para pagamento ou para página de aprendizado
+        if enrollment and enrollment.status == Enrollment.Status.PENDING and is_paid_course:
+            print(f"[DEBUG] Matrícula pendente - redirecionando para pagamento")
             return redirect('payments:payment_options', course_id=course.id)
         else:
-            print(f"[DEBUG] Redirecionando para página de aprendizado do curso {self.course_id}")
-            return HttpResponseRedirect(self.get_success_url())
-    
-    def get_success_url(self):
-        # Importante: usar o ID do curso que acabou de ser processado
-        url = reverse('courses:student:course_learn', kwargs={'pk': self.course_id})
-        print(f"[DEBUG] URL de redirecionamento: {url}")
-        return url
+            print(f"[DEBUG] Redirecionando para página de aprendizado do curso {course.id}")
+            return redirect('courses:student:course_learn', pk=course.id)
 
 
 class CourseLearnView(LoginRequiredMixin, DetailView):

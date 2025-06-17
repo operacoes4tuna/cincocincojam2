@@ -1,0 +1,452 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load humanize %}
+
+{% block title %}Dashboard PIX{% endblock %}
+
+{% block extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.css" rel="stylesheet">
+<style>
+    .stat-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 15px;
+        color: white;
+        transition: transform 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-5px);
+    }
+    
+    .stat-card::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="2" fill="white" opacity="0.1"/></svg>') repeat;
+        animation: float 20s infinite linear;
+    }
+    
+    @keyframes float {
+        0% { transform: translateX(-50%) translateY(-50%) rotate(0deg); }
+        100% { transform: translateX(-50%) translateY(-50%) rotate(360deg); }
+    }
+    
+    .stat-card-content {
+        position: relative;
+        z-index: 2;
+        padding: 1.5rem;
+    }
+    
+    .stat-number {
+        font-size: 2.5rem;
+        font-weight: 700;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+    
+    .stat-label {
+        font-size: 0.9rem;
+        opacity: 0.9;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .stat-icon {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        font-size: 2rem;
+        opacity: 0.7;
+    }
+    
+    .health-status {
+        padding: 1rem;
+        border-radius: 10px;
+        border-left: 4px solid;
+    }
+    
+    .health-healthy {
+        background: linear-gradient(45deg, #e6fff2, #d4edda);
+        border-left-color: #28a745;
+    }
+    
+    .health-unhealthy {
+        background: linear-gradient(45deg, #ffebee, #f8d7da);
+        border-left-color: #dc3545;
+    }
+    
+    .recent-transaction {
+        padding: 1rem;
+        border-radius: 10px;
+        border-left: 4px solid #667eea;
+        background: rgba(102, 126, 234, 0.05);
+        margin-bottom: 0.5rem;
+        transition: all 0.3s ease;
+    }
+    
+    .recent-transaction:hover {
+        background: rgba(102, 126, 234, 0.1);
+        transform: translateX(5px);
+    }
+    
+    .status-badge {
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .refresh-btn {
+        background: linear-gradient(45deg, #32bc9b, #00d4aa);
+        border: none;
+        color: white;
+        padding: 10px 20px;
+        border-radius: 25px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    
+    .refresh-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(50, 188, 155, 0.4);
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<script>
+// Auto-refresh a cada 30 segundos
+let refreshInterval;
+
+function startAutoRefresh() {
+    refreshInterval = setInterval(() => {
+        location.reload();
+    }, 30000); // 30 segundos
+}
+
+function stopAutoRefresh() {
+    if (refreshInterval) {
+        clearInterval(refreshInterval);
+        refreshInterval = null;
+    }
+}
+
+// Verificar saúde da API
+function checkAPIHealth() {
+    fetch('{% url "payments:pix_health_check" %}')
+        .then(response => response.json())
+        .then(data => {
+            const healthElement = document.getElementById('api-health');
+            if (data.status === 'healthy') {
+                healthElement.className = 'health-status health-healthy';
+                healthElement.innerHTML = `
+                    <strong><i class="fas fa-check-circle me-2"></i>API Saudável</strong>
+                    <div class="small">Última verificação: ${new Date().toLocaleTimeString()}</div>
+                `;
+            } else {
+                healthElement.className = 'health-status health-unhealthy';
+                healthElement.innerHTML = `
+                    <strong><i class="fas fa-exclamation-triangle me-2"></i>API com Problemas</strong>
+                    <div class="small">Erro: ${data.error || 'Desconhecido'}</div>
+                `;
+            }
+        })
+        .catch(error => {
+            console.error('Erro ao verificar API:', error);
+        });
+}
+
+// Verificação em lote de pagamentos
+function bulkCheckPayments() {
+    const bulkBtn = document.getElementById('bulk-check-btn');
+    const originalText = bulkBtn.innerHTML;
+    
+    bulkBtn.disabled = true;
+    bulkBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Verificando...';
+    
+    fetch('{% url "payments:bulk_check_pix_status" %}', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(`✅ ${data.message}`);
+            if (data.updated > 0) {
+                location.reload();
+            }
+        } else {
+            alert(`❌ Erro: ${data.error}`);
+        }
+    })
+    .catch(error => {
+        console.error('Erro:', error);
+        alert('❌ Erro ao verificar pagamentos');
+    })
+    .finally(() => {
+        bulkBtn.disabled = false;
+        bulkBtn.innerHTML = originalText;
+    });
+}
+
+// Inicializar quando o DOM carregar
+document.addEventListener('DOMContentLoaded', function() {
+    startAutoRefresh();
+    checkAPIHealth();
+    
+    // Verificar API a cada 2 minutos
+    setInterval(checkAPIHealth, 120000);
+});
+
+// Parar refresh quando sair da página
+window.addEventListener('beforeunload', stopAutoRefresh);
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="fw-bold">
+                        <i class="fab fa-pix me-2 text-primary"></i>
+                        Dashboard PIX
+                    </h2>
+                    <p class="text-muted mb-0">Monitoramento em tempo real dos pagamentos PIX</p>
+                </div>
+                <div>
+                    <button class="btn refresh-btn me-2" onclick="location.reload()">
+                        <i class="fas fa-sync-alt me-2"></i>
+                        Atualizar
+                    </button>
+                    {% if is_admin %}
+                    <button class="btn btn-outline-primary" id="bulk-check-btn" onclick="bulkCheckPayments()">
+                        <i class="fas fa-search me-2"></i>
+                        Verificar Todos
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Estatísticas Principais -->
+    <div class="row mb-4">
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="stat-card">
+                <div class="stat-card-content">
+                    <div class="stat-icon">
+                        <i class="fab fa-pix"></i>
+                    </div>
+                    <div class="stat-number">{{ total_pix }}</div>
+                    <div class="stat-label">Total PIX</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="stat-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                <div class="stat-card-content">
+                    <div class="stat-icon">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                    <div class="stat-number">{{ total_pending }}</div>
+                    <div class="stat-label">Pendentes</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="stat-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                <div class="stat-card-content">
+                    <div class="stat-icon">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div class="stat-number">{{ total_paid }}</div>
+                    <div class="stat-label">Pagos</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="stat-card" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
+                <div class="stat-card-content">
+                    <div class="stat-icon">
+                        <i class="fas fa-dollar-sign"></i>
+                    </div>
+                    <div class="stat-number">R$ {{ total_amount|floatformat:0 }}</div>
+                    <div class="stat-label">Valor Total</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Estatísticas do Dia -->
+        <div class="col-lg-8">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white border-0">
+                    <h5 class="mb-0 fw-bold">
+                        <i class="fas fa-calendar-day me-2 text-primary"></i>
+                        Hoje ({{ "now"|date:"d/m/Y" }})
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="bg-primary rounded-circle p-3 me-3">
+                                    <i class="fas fa-chart-line text-white"></i>
+                                </div>
+                                <div>
+                                    <h4 class="mb-0 fw-bold">{{ today_count }}</h4>
+                                    <p class="text-muted mb-0">Transações hoje</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="bg-success rounded-circle p-3 me-3">
+                                    <i class="fas fa-money-bill-wave text-white"></i>
+                                </div>
+                                <div>
+                                    <h4 class="mb-0 fw-bold">R$ {{ today_amount|floatformat:2 }}</h4>
+                                    <p class="text-muted mb-0">Recebido hoje</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Status da API -->
+                    <div class="mt-4">
+                        <h6 class="fw-bold mb-3">Status da API PIX</h6>
+                        <div id="api-health" class="health-status">
+                            <div class="d-flex align-items-center">
+                                <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                                Verificando...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Transações Recentes -->
+        <div class="col-lg-4">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white border-0">
+                    <h5 class="mb-0 fw-bold">
+                        <i class="fas fa-history me-2 text-primary"></i>
+                        Últimas 24h
+                    </h5>
+                </div>
+                <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                    {% for transaction in recent_transactions %}
+                    <div class="recent-transaction">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div>
+                                <strong class="d-block">
+                                    {{ transaction.enrollment.student.get_full_name|default:transaction.enrollment.student.email }}
+                                </strong>
+                                <small class="text-muted">
+                                    {{ transaction.enrollment.course.title|truncatechars:30 }}
+                                </small>
+                            </div>
+                            <div class="text-end">
+                                {% if transaction.status == 'PENDING' %}
+                                    <span class="status-badge bg-warning text-dark">
+                                        <i class="fas fa-clock me-1"></i>Pendente
+                                    </span>
+                                {% elif transaction.status == 'PAID' %}
+                                    <span class="status-badge bg-success text-white">
+                                        <i class="fas fa-check me-1"></i>Pago
+                                    </span>
+                                {% elif transaction.status == 'FAILED' %}
+                                    <span class="status-badge bg-danger text-white">
+                                        <i class="fas fa-times me-1"></i>Falhou
+                                    </span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-muted">
+                                <i class="fas fa-clock me-1"></i>
+                                {{ transaction.created_at|timesince }} atrás
+                            </small>
+                            <strong class="text-success">
+                                R$ {{ transaction.amount|floatformat:2 }}
+                            </strong>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-inbox fa-3x mb-3"></i>
+                        <p>Nenhuma transação nas últimas 24 horas</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Links Rápidos -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white border-0">
+                    <h5 class="mb-0 fw-bold">
+                        <i class="fas fa-tools me-2 text-primary"></i>
+                        Ações Rápidas
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% if is_admin %}
+                        <div class="col-md-3 mb-3">
+                            <a href="{% url 'payments:pix_analytics' %}" class="btn btn-outline-primary w-100">
+                                <i class="fas fa-chart-bar me-2"></i>
+                                Analytics Detalhados
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <a href="{% url 'payments:admin_transactions' %}" class="btn btn-outline-secondary w-100">
+                                <i class="fas fa-list me-2"></i>
+                                Todas as Transações
+                            </a>
+                        </div>
+                        {% endif %}
+                        <div class="col-md-3 mb-3">
+                            <a href="{% url 'payments:professor_transactions' %}" class="btn btn-outline-info w-100">
+                                <i class="fas fa-user-tie me-2"></i>
+                                Minhas Transações
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <button class="btn btn-outline-success w-100" onclick="location.reload()">
+                                <i class="fas fa-sync-alt me-2"></i>
+                                Atualizar Agora
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- CSRF Token -->
+<input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+{% endblock %} 
