@@ -101,13 +101,13 @@
                             </button>
                         </li>
                         <li>
-                            <button class="dropdown-item bulk-action" data-action="generate-boletos" type="button">
-                                <i class="fas fa-file-invoice-dollar me-2"></i> {% translate "Gerar todos os boletos" %}
+                            <button class="dropdown-item bulk-action" data-action="generate-pix" type="button">
+                                <i class="fas fa-qrcode me-2"></i> {% translate "Gerar PIX para todas" %}
                             </button>
                         </li>
                         <li>
-                            <button class="dropdown-item bulk-action" data-action="send-boletos" type="button">
-                                <i class="fas fa-paper-plane me-2"></i> {% translate "Enviar todos os boletos" %}
+                            <button class="dropdown-item bulk-action" data-action="send-pix" type="button">
+                                <i class="fas fa-paper-plane me-2"></i> {% translate "Enviar todos os PIX" %}
                             </button>
                         </li>
                         <li>
@@ -190,8 +190,8 @@
                                                         <a href="{% url 'invoices:send_email' invoice.id %}" class="btn btn-sm btn-outline-info" title="{% translate 'Enviar por Email' %}" target="_blank">
                                                             <i class="fas fa-envelope"></i>
                                                         </a>
-                                                        <a href="#" class="btn btn-sm btn-outline-warning generate-boleto-btn" data-invoice-id="{{ invoice.id }}" title="{% translate 'Gerar Boleto' %}">
-                                                            <i class="fas fa-file-invoice-dollar"></i>
+                                                        <a href="#" class="btn btn-sm btn-outline-success generate-pix-btn" data-invoice-id="{{ invoice.id }}" title="{% translate 'Gerar PIX' %}">
+                                                            <i class="fas fa-qrcode"></i>
                                                         </a>
                                                     {% elif invoice.status == 'pending' or invoice.status == 'processing' %}
                                                         <span class="badge bg-warning ms-1 me-1">
@@ -374,12 +374,11 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
     
-    document.querySelectorAll('.generate-boleto-btn').forEach(button => {
+    document.querySelectorAll('.generate-pix-btn').forEach(button => {
         button.addEventListener('click', function(e) {
             e.preventDefault();
             const invoiceId = this.getAttribute('data-invoice-id');
-            alert(`Gerando boleto para a nota fiscal ${invoiceId}...`);
-            // Implementação futura
+            generatePixForInvoice(invoiceId);
         });
     });
     
@@ -401,12 +400,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 alert(`Ação: Gerar notas para os IDs: ${selectedSales.join(', ')}`);
                 // Implementação futura do backend
             } 
-            else if (action === 'generate-boletos') {
-                alert('Ação: Gerar todos os boletos');
+            else if (action === 'generate-pix') {
+                alert('Ação: Gerar PIX para todas as notas (em desenvolvimento)');
                 // Implementação futura do backend
             }
-            else if (action === 'send-boletos') {
-                alert('Ação: Enviar todos os boletos');
+            else if (action === 'send-pix') {
+                alert('Ação: Enviar todos os PIX (em desenvolvimento)');
                 // Implementação futura do backend
             }
         });
@@ -682,6 +681,150 @@ document.addEventListener('DOMContentLoaded', function() {
                 showStatusMessage('danger', 'Erro ao sincronizar status da nota fiscal. Tente novamente.');
             });
     }
+    
+    // Função para gerar PIX para uma nota fiscal
+    function generatePixForInvoice(invoiceId) {
+        // Mostrar loading
+        const button = document.querySelector(`[data-invoice-id="${invoiceId}"].generate-pix-btn`);
+        const originalContent = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        button.disabled = true;
+        
+        // Fazer requisição para gerar PIX
+        fetch(`/invoices/generate-pix/${invoiceId}/`, {
+            method: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            // Restaurar botão
+            button.innerHTML = originalContent;
+            button.disabled = false;
+            
+            if (data.success) {
+                // Exibir modal com QR Code
+                showPixModal(data);
+            } else {
+                alert(`Erro ao gerar PIX: ${data.error}`);
+            }
+        })
+        .catch(error => {
+            // Restaurar botão
+            button.innerHTML = originalContent;
+            button.disabled = false;
+            
+            console.error('Erro:', error);
+            alert('Erro ao gerar PIX. Tente novamente.');
+        });
+    }
+    
+    // Função para exibir modal com QR Code PIX
+    function showPixModal(pixData) {
+        // Remover modal existente se houver
+        const existingModal = document.getElementById('pixModal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+        
+        // Criar modal
+        const modalHtml = `
+            <div class="modal fade" id="pixModal" tabindex="-1" aria-labelledby="pixModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header bg-success text-white">
+                            <h5 class="modal-title" id="pixModalLabel">
+                                <i class="fas fa-qrcode me-2"></i>PIX Gerado
+                            </h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="row">
+                                <div class="col-md-6 text-center">
+                                    <h6 class="mb-3">QR Code PIX</h6>
+                                    <img src="${pixData.qr_code_image}" alt="QR Code PIX" class="img-fluid border rounded p-2 mb-3" style="max-width: 250px;" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                                    <div class="alert alert-warning" style="display: none;">
+                                        <i class="fas fa-exclamation-triangle me-2"></i>
+                                        QR Code não pôde ser carregado
+                                    </div>
+                                    <p class="small text-muted">Escaneie o QR Code com seu app do banco</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6 class="mb-3">PIX Copia e Cola</h6>
+                                    <div class="mb-3">
+                                        <label class="form-label small">Valor:</label>
+                                        <div class="h5 text-success">R$ ${pixData.amount.toFixed(2).replace('.', ',')}</div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label small">Descrição:</label>
+                                        <div class="text-muted">${pixData.description}</div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label small">Código PIX:</label>
+                                        <div class="input-group">
+                                            <input type="text" class="form-control" id="pixCode" value="${pixData.br_code}" readonly>
+                                            <button class="btn btn-outline-primary" type="button" onclick="copyPixCode()">
+                                                <i class="fas fa-copy"></i>
+                                            </button>
+                                        </div>
+                                        <div id="copySuccess" class="text-success mt-1" style="display: none;">
+                                            <i class="fas fa-check-circle"></i> Código copiado!
+                                        </div>
+                                    </div>
+                                    <div class="alert alert-info">
+                                        <i class="fas fa-info-circle me-1"></i>
+                                        <small>Cole este código no seu app do banco para pagar via PIX</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Adicionar modal ao body
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        
+        // Mostrar modal
+        const modal = new bootstrap.Modal(document.getElementById('pixModal'));
+        modal.show();
+        
+        // Remover modal do DOM quando fechado
+        document.getElementById('pixModal').addEventListener('hidden.bs.modal', function() {
+            this.remove();
+        });
+    }
+    
+    // Função para copiar código PIX
+    function copyPixCode() {
+        const pixCodeInput = document.getElementById('pixCode');
+        const copySuccess = document.getElementById('copySuccess');
+        
+        pixCodeInput.select();
+        pixCodeInput.setSelectionRange(0, 99999); // Para dispositivos móveis
+        
+        try {
+            document.execCommand('copy');
+            copySuccess.style.display = 'block';
+            setTimeout(() => {
+                copySuccess.style.display = 'none';
+            }, 3000);
+        } catch (err) {
+            console.error('Erro ao copiar:', err);
+            alert('Erro ao copiar código. Tente selecioná-lo manualmente.');
+        }
+    }
+    
+    // Tornar as funções globais
+    window.generatePixForInvoice = generatePixForInvoice;
+    window.showPixModal = showPixModal;
+    window.copyPixCode = copyPixCode;
 });
 </script>
 {% endblock %} 

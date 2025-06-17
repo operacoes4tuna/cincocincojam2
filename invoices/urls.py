@@ -20,6 +20,9 @@ urlpatterns = [
     path('retry-waiting/', views.retry_waiting_invoices, name='retry_waiting'),
     path('test-mode/', views.test_mode, name='test_mode'),
     
+    # URLs para PIX
+    path('generate-pix/<int:invoice_id>/', views.generate_pix_for_invoice, name='generate_pix'),
+    
     # URLs para visualização de notas fiscais
     path('detail/<int:invoice_id>/', views.invoice_detail, name='invoice_detail'),
     path('detail/<int:invoice_id>/json/', views.invoice_detail_json, name='invoice_detail_json'),

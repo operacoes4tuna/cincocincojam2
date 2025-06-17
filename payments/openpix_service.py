@@ -117,12 +117,20 @@ class OpenPixService:
         if use_local_simulation or self.is_sandbox:
             self.logger.info(f"Usando simulação LOCAL para criar cobrança: {charge_data['correlationID']}")
             # Gerar um QR code fictício para testes
+            from django.conf import settings
+            
+            # Construir URL correta para o QR code estático
+            if hasattr(settings, 'STATIC_URL'):
+                qr_code_url = f"{settings.STATIC_URL}img/qrcode/qrcodeteste.png"
+            else:
+                qr_code_url = "/static/img/qrcode/qrcodeteste.png"
+            
             return {
                 "correlationID": charge_data["correlationID"],
                 "value": charge_data["value"],
                 "status": "ACTIVE",
-                "brCode": "00020101021226930014br.gov.bcb.pix2571pix.example.com/simulation/123451520400005303986540510.005802BR5925Usuario Simulado6009Sao Paulo62070503***6304E2CA",
-                "qrCodeImage": "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=00020101021226930014br.gov.bcb.pix2571pix.example.com/simulation/12345",
+                "brCode": "00020126330014BR.GOV.BCB.PIX0111159922027065204000053039865802BR5913Fred Carvalho6014Rio de janeiro610822440-03362070503***6304BD29",
+                "qrCodeImage": qr_code_url,
                 "expiresIn": charge_data.get("expiresIn", 3600),
                 "additionalInfo": charge_data.get("additionalInfo", [])
             }

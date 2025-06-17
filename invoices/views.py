@@ -1162,3 +1162,119 @@ def test_pdf_attachment_view(request, invoice_id):
         logger.error(f"Erro ao testar anexo PDF da nota fiscal {invoice_id}: {str(e)}")
         messages.error(request, f'Erro ao testar anexo: {str(e)}')
         return redirect('dashboard')
+
+@login_required
+@professor_required
+def generate_pix_for_invoice(request, invoice_id):
+    """
+    Gera um PIX para uma nota fiscal já emitida usando OpenPix
+    """
+    try:
+        # Buscar a nota fiscal
+        invoice = get_object_or_404(Invoice, id=invoice_id)
+        
+        # Verificar se o usuário tem permissão (é o professor da transação/venda)
+        if invoice.transaction:
+            if invoice.transaction.enrollment.course.professor != request.user:
+                messages.error(request, _('Você não tem permissão para acessar esta nota fiscal.'))
+                return redirect('payments:professor_singlesale_list')
+        elif invoice.singlesale:
+            if invoice.singlesale.seller != request.user:
+                messages.error(request, _('Você não tem permissão para acessar esta nota fiscal.'))
+                return redirect('payments:professor_singlesale_list')
+        else:
+            messages.error(request, _('Nota fiscal inválida.'))
+            return redirect('payments:professor_singlesale_list')
+        
+        # Verificar se a nota fiscal foi aprovada/emitida
+        if invoice.status not in ['issued', 'approved']:
+            messages.error(request, _('Só é possível gerar PIX para notas fiscais aprovadas/emitidas.'))
+            return redirect('payments:professor_singlesale_list')
+        
+        # Obter valor da nota fiscal
+        invoice_amount = None
+        customer_name = None
+        customer_email = None
+        customer_tax_id = None
+        description = None
+        
+        if invoice.transaction:
+            # Para transações de matrícula
+            invoice_amount = invoice.transaction.amount
+            customer_name = invoice.transaction.enrollment.student.get_full_name() or invoice.transaction.enrollment.student.username
+            customer_email = invoice.transaction.enrollment.student.email
+            customer_tax_id = getattr(invoice.transaction.enrollment.student, 'cpf', '')
+            description = f"Pagamento - {invoice.transaction.enrollment.course.title}"
+        elif invoice.singlesale:
+            # Para vendas avulsas
+            invoice_amount = invoice.singlesale.amount
+            customer_name = invoice.singlesale.customer_name
+            customer_email = invoice.singlesale.customer_email
+            customer_tax_id = invoice.singlesale.customer_cpf
+            description = f"Pagamento - {invoice.singlesale.description}"
+        elif invoice.amount:
+            # Para notas diretas
+            invoice_amount = invoice.amount
+            customer_name = invoice.customer_name
+            customer_email = invoice.customer_email
+            customer_tax_id = invoice.customer_tax_id
+            description = invoice.description
+        
+        if not invoice_amount:
+            messages.error(request, _('Não foi possível determinar o valor da nota fiscal.'))
+            return redirect('payments:professor_singlesale_list')
+        
+        # Importar o OpenPixService
+        from payments.openpix_service import OpenPixService
+        import uuid
+        
+        # Inicializar o serviço OpenPix
+        openpix_service = OpenPixService()
+        
+        # Preparar dados para a cobrança PIX
+        correlation_id = f"invoice-{invoice.id}-{int(timezone.now().timestamp())}"
+        charge_data = {
+            'correlationID': correlation_id,
+            'value': int(invoice_amount * 100),  # Converter para centavos
+            'comment': description or f"Pagamento da Nota Fiscal #{invoice.id}",
+            'customer': {
+                'name': customer_name or 'Cliente',
+                'email': customer_email or '',
+                'phone': '',
+                'taxID': customer_tax_id or ''
+            },
+            'expiresIn': 3600,  # 1 hora
+            'additionalInfo': [
+                {
+                    'key': 'Nota Fiscal',
+                    'value': f'#{invoice.id}'
+                }
+            ]
+        }
+        
+        # Gerar a cobrança PIX
+        pix_response = openpix_service.create_charge_dict(charge_data)
+        
+        if pix_response and pix_response.get('brCode'):
+            # Sucesso - retornar dados do PIX em JSON para exibir no modal
+            return JsonResponse({
+                'success': True,
+                'qr_code_image': pix_response.get('qrCodeImage'),
+                'br_code': pix_response.get('brCode'),
+                'correlation_id': correlation_id,
+                'amount': float(invoice_amount),
+                'description': description
+            })
+        else:
+            logger.error(f"Erro ao gerar PIX para nota fiscal {invoice_id}: {pix_response}")
+            return JsonResponse({
+                'success': False,
+                'error': 'Erro ao gerar QR Code PIX. Tente novamente.'
+            })
+    
+    except Exception as e:
+        logger.error(f"Erro ao gerar PIX para nota fiscal {invoice_id}: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': 'Erro interno. Tente novamente.'
+        })
