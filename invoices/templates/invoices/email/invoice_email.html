@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nota Fiscal - {{ invoice_data.empresa }}</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+        
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            background-color: #ffffff;
+            padding: 0;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #007bff, #0056b3);
+            color: white;
+            text-align: center;
+            padding: 30px 20px;
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 300;
+        }
+        
+        .header p {
+            margin: 10px 0 0 0;
+            opacity: 0.9;
+            font-size: 16px;
+        }
+        
+        .content {
+            padding: 30px;
+        }
+        
+        .invoice-details {
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            border-left: 4px solid #007bff;
+        }
+        
+        .invoice-details h3 {
+            margin-top: 0;
+            color: #333;
+            font-size: 18px;
+        }
+        
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 10px 0;
+            padding: 8px 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+        
+        .detail-label {
+            font-weight: 600;
+            color: #555;
+        }
+        
+        .detail-value {
+            color: #333;
+        }
+        
+        .custom-message {
+            background-color: #e3f2fd;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            border-left: 4px solid #2196f3;
+        }
+        
+        .custom-message h4 {
+            margin-top: 0;
+            color: #1976d2;
+        }
+        
+        .attachment-info {
+            display: flex;
+            align-items: center;
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        
+        .attachment-icon {
+            font-size: 24px;
+            margin-right: 15px;
+        }
+        
+        .footer {
+            background-color: #f8f9fa;
+            text-align: center;
+            padding: 30px 20px;
+            color: #6c757d;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        
+        .footer a {
+            color: #007bff;
+            text-decoration: none;
+        }
+        
+        .footer a:hover {
+            text-decoration: underline;
+        }
+        
+        .btn {
+            display: inline-block;
+            padding: 12px 24px;
+            background-color: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: 500;
+            margin: 10px 5px;
+        }
+        
+        .btn:hover {
+            background-color: #0056b3;
+        }
+        
+        @media (max-width: 600px) {
+            .container {
+                margin: 10px;
+                border-radius: 0;
+            }
+            
+            .content {
+                padding: 20px;
+            }
+            
+            .detail-row {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .detail-label {
+                margin-bottom: 5px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🎵 {{ invoice_data.empresa }}</h1>
+            <p>Nota Fiscal Eletrônica</p>
+        </div>
+
+        <!-- Content -->
+        <div class="content">
+            <h2>Olá!</h2>
+            {% if invoice.focus_pdf_url %}
+                <p>Segue em anexo a sua <strong>Nota Fiscal Eletrônica</strong> referente ao pagamento realizado em nossa plataforma.</p>
+            {% else %}
+                <p>Enviamos as informações da sua <strong>Nota Fiscal</strong> referente ao pagamento realizado em nossa plataforma.</p>
+            {% endif %}
+
+            <!-- Custom Message -->
+            {% if custom_message %}
+            <div class="custom-message">
+                <h4>📝 Mensagem Personalizada</h4>
+                <p>{{ custom_message }}</p>
+            </div>
+            {% endif %}
+
+            <!-- Invoice Details -->
+            <div class="invoice-details">
+                <h3>📋 Detalhes da Nota Fiscal</h3>
+                
+                <div class="detail-row">
+                    <span class="detail-label">Número da Nota:</span>
+                    <span class="detail-value"><strong>{{ invoice_data.numero }}</strong></span>
+                </div>
+                
+                <div class="detail-row">
+                    <span class="detail-label">Cliente:</span>
+                    <span class="detail-value">{{ invoice_data.cliente }}</span>
+                </div>
+                
+                <div class="detail-row">
+                    <span class="detail-label">Valor:</span>
+                    <span class="detail-value"><strong>R$ {{ invoice_data.valor|floatformat:2 }}</strong></span>
+                </div>
+                
+                <div class="detail-row">
+                    <span class="detail-label">Status:</span>
+                    <span class="detail-value" style="color: #28a745;">✅ {{ invoice.get_status_display }}</span>
+                </div>
+                
+                <div class="detail-row">
+                    <span class="detail-label">Data de Emissão:</span>
+                    <span class="detail-value">{{ invoice.emitted_at|date:"d/m/Y H:i" }}</span>
+                </div>
+            </div>
+
+            <!-- Attachment Info -->
+            {% if invoice.focus_pdf_url %}
+            <div class="attachment-info">
+                <div class="attachment-icon">📎</div>
+                <div>
+                    <strong>PDF em Anexo</strong><br>
+                    O arquivo <code>nota_fiscal_{{ invoice_data.numero }}.pdf</code> está anexado a este email.
+                </div>
+            </div>
+            {% else %}
+            <div class="attachment-info" style="background-color: #e8f4fd; border-color: #bee5eb;">
+                <div class="attachment-icon">ℹ️</div>
+                <div>
+                    <strong>Informações da Nota Fiscal</strong><br>
+                    O PDF da nota fiscal será disponibilizado assim que o processamento for concluído.
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Call to Action -->
+            <div style="text-align: center; margin: 30px 0;">
+                <p>Em caso de dúvidas, entre em contato conosco:</p>
+                {% if invoice.focus_pdf_url %}
+                <a href="{{ invoice.focus_pdf_url }}" class="btn" target="_blank">
+                    📄 Visualizar Nota Online
+                </a>
+                {% endif %}
+            </div>
+
+            <p style="font-size: 14px; color: #6c757d; margin-top: 30px;">
+                Esta é uma nota fiscal eletrônica gerada automaticamente pelo sistema {{ invoice_data.empresa }}.
+                Para verificar a autenticidade desta nota fiscal, acesse o site da prefeitura do município emissor.
+            </p>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <div style="margin-bottom: 10px;">
+                <strong>🎵 {{ invoice_data.empresa }} - Plataforma de Ensino Musical</strong>
+            </div>
+            <div>
+                Este email foi enviado automaticamente. Por favor, não responda diretamente a este email.
+            </div>
+            <div style="margin-top: 10px;">
+                <a href="#">Política de Privacidade</a> |
+                <a href="#">Termos de Uso</a> |
+                <a href="#">Suporte</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html> 

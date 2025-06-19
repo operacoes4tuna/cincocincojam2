@@ -14,8 +14,8 @@ import json
 from payments.models import PaymentTransaction, SingleSale
 from users.decorators import professor_required, admin_required
 
-from .models import CompanyConfig, Invoice
-from .forms import CompanyConfigForm
+from .models import CompanyConfig, Invoice, MunicipalServiceCode
+from .forms import CompanyConfigForm, MunicipalServiceCodeFormSet
 from .services import NFEioService
 
 # Configuração do logger
@@ -36,17 +36,31 @@ def company_settings(request):
     
     if request.method == 'POST':
         form = CompanyConfigForm(request.POST, instance=company_config)
-        if form.is_valid():
-            form.save()
+        service_codes_formset = MunicipalServiceCodeFormSet(request.POST, instance=company_config)
+        
+        if form.is_valid() and service_codes_formset.is_valid():
+            with db_transaction.atomic():
+                company_config = form.save()
+                service_codes_formset.save()
+                
+                # Atualiza o campo city_service_code se ele estiver vazio
+                # ou se não estiver entre os códigos cadastrados
+                selected_code = form.cleaned_data.get('city_service_code')
+                if selected_code:
+                    company_config.city_service_code = selected_code
+                    company_config.save()
+                
             messages.success(request, _('Configurações fiscais atualizadas com sucesso!'))
             return redirect('invoices:company_settings')
     else:
         form = CompanyConfigForm(instance=company_config)
+        service_codes_formset = MunicipalServiceCodeFormSet(instance=company_config)
     
     is_complete = company_config.is_complete() if company_config.pk else False
     
     return render(request, 'invoices/company_settings.html', {
         'form': form,
+        'service_codes_formset': service_codes_formset,
         'company_config': company_config,
         'is_complete': is_complete,
     })
@@ -382,7 +396,8 @@ def invoice_detail(request, invoice_id):
         return render(request, 'invoices/invoice_detail.html', {
             'invoice': invoice,
             'return_url': return_url,
-            'is_admin': is_admin
+            'is_admin': is_admin,
+            'debug': settings.DEBUG,
         })
     except Exception as e:
         logger.error(f"Erro ao exibir detalhes da nota fiscal {invoice_id}: {str(e)}")
@@ -910,3 +925,240 @@ def invoice_detail_json(request, invoice_id):
         logger.error(f"Erro ao retornar detalhes da nota fiscal em JSON: {str(e)}")
         logger.error(traceback.format_exc())
         return JsonResponse({'error': str(e)}, status=500)
+
+@login_required
+def send_invoice_email(request, invoice_id):
+    """
+    Página para envio de nota fiscal por email via SendGrid
+    """
+    try:
+        # Verificar se o usuário tem permissão para acessar esta nota fiscal
+        is_admin = hasattr(request.user, 'is_admin') and request.user.is_admin
+        is_professor = hasattr(request.user, 'is_professor') and request.user.is_professor
+        
+        if not (is_admin or is_professor):
+            messages.error(request, _('Acesso negado.'))
+            return redirect('dashboard')
+        
+        # Buscar a nota fiscal
+        if is_admin:
+            invoice = get_object_or_404(Invoice, id=invoice_id)
+        else:
+            # Professores podem acessar apenas suas próprias notas fiscais
+            try:
+                # Tentar obter via transação
+                invoice = get_object_or_404(
+                    Invoice,
+                    id=invoice_id,
+                    transaction__enrollment__course__professor=request.user
+                )
+            except (Invoice.DoesNotExist, Http404):
+                # Se não encontrou, tentar via venda avulsa
+                invoice = get_object_or_404(
+                    Invoice,
+                    id=invoice_id,
+                    singlesale__seller=request.user
+                )
+        
+        # Avisos informativos (mas não impedem o envio)
+        info_messages = []
+        
+        if invoice.status != 'approved':
+            info_messages.append('Nota: Esta nota fiscal ainda não foi aprovada, mas o email será enviado mesmo assim.')
+        
+        # ✅ REMOVIDO: Não verificar PDF aqui - deixar o sistema de email decidir
+        # O sistema de anexo melhorado tentará baixar o PDF automaticamente
+        
+        # Mostrar mensagens informativas
+        if info_messages:
+            for msg in info_messages:
+                messages.info(request, msg)
+        
+        if request.method == 'POST':
+            from .forms import SendEmailForm
+            form = SendEmailForm(request.POST)
+            
+            if form.is_valid():
+                recipient_email = form.cleaned_data['recipient_email']
+                custom_message = form.cleaned_data.get('custom_message', '')
+                
+                # Enviar o email usando o serviço
+                from .email_service import EmailService
+                email_service = EmailService()
+                result = email_service.send_invoice_email(invoice, recipient_email, custom_message)
+                
+                if result['success']:
+                    messages.success(request, result['message'])
+                    # Permanecer na página para permitir novos envios
+                    return redirect('invoices:send_email', invoice_id=invoice_id)
+                else:
+                    messages.error(request, result['message'])
+        else:
+            from .forms import SendEmailForm
+            # Pré-preencher com email do cliente se disponível
+            initial_data = {}
+            if invoice.customer_email:
+                initial_data['recipient_email'] = invoice.customer_email
+            
+            form = SendEmailForm(initial=initial_data)
+        
+        # Obter dados da nota fiscal para exibição
+        invoice_data = {
+            'numero': invoice.external_id or invoice.id,
+            'valor': invoice.amount or (invoice.transaction.amount if invoice.transaction else (invoice.singlesale.amount if invoice.singlesale else 0)),
+            'cliente': invoice.customer_name or (invoice.transaction.enrollment.student.get_full_name() if invoice.transaction else (invoice.singlesale.customer_name if invoice.singlesale else 'Cliente'))
+        }
+        
+        return render(request, 'invoices/send_email.html', {
+            'invoice': invoice,
+            'invoice_data': invoice_data,
+            'form': form,
+        })
+        
+    except Exception as e:
+        logger.error(f"Erro ao exibir página de envio de email para nota fiscal {invoice_id}: {str(e)}")
+        messages.error(request, _('Erro ao carregar página de envio de email.'))
+        # Tentar ir para dashboard em vez de transações
+        return redirect('dashboard')
+
+@login_required
+def send_invoice_email_ajax(request, invoice_id):
+    """
+    Endpoint AJAX para envio rápido de email da nota fiscal
+    """
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'message': 'Método não permitido'}, status=405)
+    
+    try:
+        # Verificar permissões
+        is_admin = hasattr(request.user, 'is_admin') and request.user.is_admin
+        is_professor = hasattr(request.user, 'is_professor') and request.user.is_professor
+        
+        if not (is_admin or is_professor):
+            return JsonResponse({'success': False, 'message': 'Acesso negado'}, status=403)
+        
+        # Buscar a nota fiscal
+        if is_admin:
+            invoice = get_object_or_404(Invoice, id=invoice_id)
+        else:
+            try:
+                invoice = get_object_or_404(
+                    Invoice,
+                    id=invoice_id,
+                    transaction__enrollment__course__professor=request.user
+                )
+            except (Invoice.DoesNotExist, Http404):
+                invoice = get_object_or_404(
+                    Invoice,
+                    id=invoice_id,
+                    singlesale__seller=request.user
+                )
+        
+        # Verificações básicas
+        if invoice.status != 'approved':
+            return JsonResponse({
+                'success': False, 
+                'message': 'Apenas notas fiscais aprovadas podem ser enviadas por email.'
+            })
+        
+        # ✅ REMOVIDO: Não verificar PDF aqui - deixar o sistema de email decidir
+        # O sistema de anexo melhorado tentará baixar o PDF automaticamente
+        
+        # Obter email do cliente
+        recipient_email = None
+        if invoice.customer_email:
+            recipient_email = invoice.customer_email
+        elif invoice.transaction and invoice.transaction.enrollment.student.email:
+            recipient_email = invoice.transaction.enrollment.student.email
+        elif invoice.singlesale and invoice.singlesale.customer_email:
+            recipient_email = invoice.singlesale.customer_email
+        
+        if not recipient_email:
+            return JsonResponse({
+                'success': False, 
+                'message': 'Email do cliente não disponível. Use a página de envio personalizado.'
+            })
+        
+        # Enviar o email
+        from .email_service import EmailService
+        email_service = EmailService()
+        result = email_service.send_invoice_email(invoice, recipient_email)
+        
+        return JsonResponse(result)
+        
+    except Exception as e:
+        logger.error(f"Erro ao enviar email via AJAX para nota fiscal {invoice_id}: {str(e)}")
+        return JsonResponse({
+            'success': False, 
+            'message': f'Erro ao enviar email: {str(e)}'
+        })
+
+@login_required
+def test_pdf_attachment_view(request, invoice_id):
+    """
+    View para testar o anexo de PDF de uma nota fiscal específica.
+    Útil para debug via navegador.
+    """
+    if not settings.DEBUG:
+        messages.error(request, _('Esta funcionalidade só está disponível em ambiente de desenvolvimento.'))
+        return redirect('dashboard')
+    
+    try:
+        # Verificar se o usuário tem permissão
+        is_admin = hasattr(request.user, 'is_admin') and request.user.is_admin
+        is_professor = hasattr(request.user, 'is_professor') and request.user.is_professor
+        
+        if not (is_admin or is_professor):
+            messages.error(request, _('Acesso negado.'))
+            return redirect('dashboard')
+        
+        # Buscar a nota fiscal
+        if is_admin:
+            invoice = get_object_or_404(Invoice, id=invoice_id)
+        else:
+            # Professores podem acessar apenas suas próprias notas fiscais
+            try:
+                invoice = get_object_or_404(
+                    Invoice,
+                    id=invoice_id,
+                    transaction__enrollment__course__professor=request.user
+                )
+            except (Invoice.DoesNotExist, Http404):
+                invoice = get_object_or_404(
+                    Invoice,
+                    id=invoice_id,
+                    singlesale__seller=request.user
+                )
+        
+        from .email_service import EmailService
+        email_service = EmailService()
+        
+        # Executar teste de debug
+        success = email_service.debug_pdf_attachment(invoice)
+        
+        if success:
+            messages.success(request, f'✅ PDF da nota fiscal #{invoice.id} pode ser anexado com sucesso!')
+        else:
+            messages.error(request, f'❌ Falha ao anexar PDF da nota fiscal #{invoice.id}. Verifique os logs.')
+        
+        # Informações adicionais para o usuário
+        info_messages = []
+        
+        if not invoice.focus_pdf_url:
+            info_messages.append('📎 Esta nota fiscal não possui URL de PDF.')
+        
+        if invoice.status != 'approved':
+            info_messages.append(f'📋 Status da nota fiscal: {invoice.get_status_display()}')
+        
+        if not email_service.nfeio_api_key:
+            info_messages.append('🔑 Credenciais NFE.io não configuradas.')
+            
+        for msg in info_messages:
+            messages.info(request, msg)
+        
+        return redirect('invoices:invoice_detail', invoice_id=invoice_id)
+        
+    except Exception as e:
+        logger.error(f"Erro ao testar anexo PDF da nota fiscal {invoice_id}: {str(e)}")
+        messages.error(request, f'Erro ao testar anexo: {str(e)}')
+        return redirect('dashboard')

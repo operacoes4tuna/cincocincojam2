@@ -70,6 +70,65 @@
                                 </div>
                             </div>
                             
+                            <h5 class="border-bottom pb-2 mb-4 mt-4">Códigos de Serviço Municipal</h5>
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle"></i> Adicione múltiplos códigos de serviço municipal caso ofereça diferentes tipos de serviços educacionais.
+                            </div>
+                            
+                            <div id="service-codes-formset">
+                                {{ service_codes_formset.management_form }}
+                                
+                                <div class="table-responsive">
+                                    <table class="table table-striped" id="service-codes-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Código</th>
+                                                <th>Descrição</th>
+                                                <th>Remover</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for form in service_codes_formset %}
+                                            <tr class="service-code-form">
+                                                <td>
+                                                    {{ form.id }}
+                                                    <div class="{% if form.code.errors %}is-invalid{% endif %}">
+                                                        {{ form.code }}
+                                                    </div>
+                                                    {% if form.code.errors %}
+                                                    <div class="invalid-feedback">
+                                                        {{ form.code.errors }}
+                                                    </div>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    <div class="{% if form.description.errors %}is-invalid{% endif %}">
+                                                        {{ form.description }}
+                                                    </div>
+                                                    {% if form.description.errors %}
+                                                    <div class="invalid-feedback">
+                                                        {{ form.description.errors }}
+                                                    </div>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    {% if form.instance.pk %}
+                                                    <div class="form-check">
+                                                        {{ form.DELETE }}
+                                                    </div>
+                                                    {% endif %}
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                
+                                <button type="button" class="btn btn-sm btn-outline-primary" id="add-service-code">
+                                    <i class="fas fa-plus"></i> Adicionar Código
+                                </button>
+                            </div>
+                            
                             <h5 class="border-bottom pb-2 mb-4 mt-5">Endereço</h5>
                             
                             <div class="row mb-3">
@@ -176,6 +235,136 @@
         enabledCheckbox.addEventListener('change', function() {
             headerCheckbox.checked = this.checked;
         });
+
+        // Gerenciamento do formset de códigos de serviço
+        const addButton = document.getElementById('add-service-code');
+        const totalFormsInput = document.getElementById('id_service_codes-TOTAL_FORMS');
+        const formsetContainer = document.querySelector('#service-codes-table tbody');
+        const defaultCodeSelect = document.getElementById('id_city_service_code');
+        
+        // Função para atualizar os índices dos formulários
+        function updateElementIndex(el, prefix, ndx) {
+            const id_regex = new RegExp('(' + prefix + '-\\d+)');
+            const replacement = prefix + '-' + ndx;
+            
+            if (el.id) el.id = el.id.replace(id_regex, replacement);
+            if (el.name) el.name = el.name.replace(id_regex, replacement);
+        }
+        
+        // Função para atualizar o dropdown de código padrão
+        function updateDefaultCodeDropdown() {
+            // Pegar todos os códigos da tabela
+            const codeInputs = document.querySelectorAll('.service-code-form input[name$="-code"]');
+            const descInputs = document.querySelectorAll('.service-code-form input[name$="-description"]');
+            
+            // Guardar o valor selecionado atualmente
+            const currentValue = defaultCodeSelect.value;
+            
+            // Limpar o dropdown, mantendo apenas a opção vazia
+            while (defaultCodeSelect.options.length > 1) {
+                defaultCodeSelect.remove(1);
+            }
+            
+            // Adicionar os códigos da tabela ao dropdown
+            for (let i = 0; i < codeInputs.length; i++) {
+                if (codeInputs[i].value) {
+                    const option = document.createElement('option');
+                    option.value = codeInputs[i].value;
+                    
+                    let text = codeInputs[i].value;
+                    if (descInputs[i] && descInputs[i].value) {
+                        text += ` - ${descInputs[i].value}`;
+                    }
+                    
+                    option.text = text;
+                    defaultCodeSelect.appendChild(option);
+                    
+                    // Se for o valor que estava selecionado, selecionar novamente
+                    if (codeInputs[i].value === currentValue) {
+                        option.selected = true;
+                    }
+                }
+            }
+        }
+        
+        // Função para clonar um formulário
+        function cloneMore() {
+            const forms = document.querySelectorAll('.service-code-form');
+            const formCount = forms.length;
+            const newForm = forms[forms.length - 1].cloneNode(true);
+            
+            // Limpar os valores dos campos no novo formulário
+            const inputs = newForm.querySelectorAll('input, select');
+            inputs.forEach(input => {
+                if (input.type !== 'checkbox') {
+                    input.value = '';
+                } else {
+                    input.checked = false;
+                }
+                
+                // Atualizar o ID e o nome do campo
+                updateElementIndex(input, 'service_codes', formCount);
+                
+                // Adicionar evento para atualizar o dropdown quando o valor mudar
+                if (input.name.endsWith('-code') || input.name.endsWith('-description')) {
+                    input.addEventListener('change', updateDefaultCodeDropdown);
+                }
+            });
+            
+            // Remover o botão de excluir se estiver presente
+            const deleteCheckbox = newForm.querySelector('input[type="checkbox"][name$="-DELETE"]');
+            if (deleteCheckbox) {
+                deleteCheckbox.parentElement.parentElement.innerHTML = '';
+            }
+            
+            // Atualizar o contador de formulários
+            totalFormsInput.value = formCount + 1;
+            
+            // Adicionar o novo formulário ao container
+            formsetContainer.appendChild(newForm);
+            
+            // Atualizar o dropdown de código padrão
+            updateDefaultCodeDropdown();
+        }
+        
+        // Adicionar evento ao botão de adicionar
+        if (addButton) {
+            addButton.addEventListener('click', function(e) {
+                e.preventDefault();
+                cloneMore();
+            });
+        }
+        
+        // Adicionar evento de change para todos os inputs de código e descrição existentes
+        document.querySelectorAll('.service-code-form input[name$="-code"], .service-code-form input[name$="-description"]')
+            .forEach(input => {
+                input.addEventListener('change', updateDefaultCodeDropdown);
+            });
+        
+        // Adicionar evento para todos os checkboxes de DELETE
+        document.querySelectorAll('.service-code-form input[type="checkbox"][name$="-DELETE"]')
+            .forEach(checkbox => {
+                checkbox.addEventListener('change', function() {
+                    // Se o checkbox for marcado, atualizar o dropdown
+                    if (this.checked) {
+                        // Encontrar o código associado a este DELETE
+                        const row = this.closest('.service-code-form');
+                        const codeInput = row.querySelector('input[name$="-code"]');
+                        
+                        // Se o código que está sendo excluído for o selecionado atualmente no dropdown
+                        if (codeInput && codeInput.value === defaultCodeSelect.value) {
+                            // Selecionar a primeira opção (vazia)
+                            defaultCodeSelect.selectedIndex = 0;
+                        }
+                        
+                        // Esconder visualmente a linha (mas não remover do DOM)
+                        row.style.opacity = '0.5';
+                        
+                        // Atualizar o dropdown
+                        setTimeout(updateDefaultCodeDropdown, 100);
+                    }
+                });
+            });
     });
 </script>
 {% endblock %}

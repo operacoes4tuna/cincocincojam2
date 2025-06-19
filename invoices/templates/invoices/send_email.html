@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% load static %}
+{% load crispy_forms_tags %}
+
+{% block title %}Enviar Nota Fiscal por Email{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <!-- Cabeçalho da página -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2><i class="fas fa-envelope"></i> Enviar Nota Fiscal por Email</h2>
+                <a href="{% url 'payments:professor_transactions' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> Voltar
+                </a>
+            </div>
+
+            <!-- Card com detalhes da nota fiscal -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-file-invoice"></i> Detalhes da Nota Fiscal</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Número:</strong> {{ invoice_data.numero }}</p>
+                            <p><strong>Cliente:</strong> {{ invoice_data.cliente }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Valor:</strong> R$ {{ invoice_data.valor|floatformat:2 }}</p>
+                            <p><strong>Status:</strong> 
+                                <span class="badge bg-success">{{ invoice.get_status_display }}</span>
+                            </p>
+                        </div>
+                    </div>
+                    {% if invoice.focus_pdf_url %}
+                    <div class="mt-3">
+                        <a href="{{ invoice.focus_pdf_url }}" target="_blank" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-file-pdf"></i> Visualizar PDF
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Formulário de envio de email -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="fas fa-paper-plane"></i> Dados para Envio</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" id="email-form">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            {{ form.recipient_email|as_crispy_field }}
+                        </div>
+                        
+                        <div class="mb-3">
+                            {{ form.custom_message|as_crispy_field }}
+                        </div>
+                        
+                        <!-- Preview do email -->
+                        <div class="alert alert-info">
+                            <h6><i class="fas fa-info-circle"></i> Como será o email:</h6>
+                            <ul class="mb-0">
+                                <li><strong>Assunto:</strong> "Nota Fiscal {{ invoice_data.numero }} - CincoCincoJAM"</li>
+                                <li><strong>Anexo:</strong> PDF da nota fiscal</li>
+                                <li><strong>Conteúdo:</strong> Email formatado com detalhes da nota fiscal</li>
+                                <li><strong>Remetente:</strong> {{ request.user.get_full_name|default:request.user.email }}</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <button type="button" class="btn btn-secondary me-md-2" onclick="window.close()">
+                                <i class="fas fa-times"></i> Fechar
+                            </button>
+                            <button type="submit" class="btn btn-primary" id="send-btn">
+                                <i class="fas fa-paper-plane"></i> Enviar Email
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Informações adicionais -->
+            <div class="alert alert-warning mt-4">
+                <h6><i class="fas fa-exclamation-triangle"></i> Importante:</h6>
+                <ul class="mb-0">
+                    <li>O email será enviado via SendGrid com o PDF da nota fiscal em anexo</li>
+                    <li>Certifique-se de que o endereço de email está correto</li>
+                    <li>O destinatário receberá uma cópia profissional da nota fiscal</li>
+                    <li>Você pode adicionar uma mensagem personalizada que aparecerá no email</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('email-form');
+    const sendBtn = document.getElementById('send-btn');
+    
+    form.addEventListener('submit', function(e) {
+        // Desabilitar o botão para evitar cliques múltiplos
+        sendBtn.disabled = true;
+        sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...';
+        
+        // Se houver erro no formulário, reabilitar o botão
+        setTimeout(() => {
+            if (form.querySelector('.is-invalid')) {
+                sendBtn.disabled = false;
+                sendBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Enviar Email';
+            }
+        }, 100);
+    });
+});
+</script>
+{% endblock %} 

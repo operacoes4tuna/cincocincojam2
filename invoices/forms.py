@@ -1,7 +1,8 @@
 from django import forms
 from django.utils.translation import gettext_lazy as _
 from django.core.validators import RegexValidator
-from .models import CompanyConfig
+from django.forms import inlineformset_factory
+from .models import CompanyConfig, MunicipalServiceCode
 
 # Validadores
 cnpj_validator = RegexValidator(
@@ -14,10 +15,49 @@ cep_validator = RegexValidator(
     message=_('Digite um CEP válido no formato XXXXX-XXX')
 )
 
+class MunicipalServiceCodeForm(forms.ModelForm):
+    """
+    Formulário para código de serviço municipal.
+    """
+    class Meta:
+        model = MunicipalServiceCode
+        fields = ['code', 'description']
+        widgets = {
+            'code': forms.TextInput(attrs={
+                'class': 'form-control', 
+                'placeholder': '0107',
+                'autocomplete': 'off',
+                'pattern': '[0-9]+',
+                'maxlength': '10'
+            }),
+            'description': forms.TextInput(attrs={
+                'class': 'form-control', 
+                'placeholder': 'Descrição do serviço (opcional)',
+                'autocomplete': 'off'
+            }),
+        }
+
+# Criação do formset para os códigos de serviço municipal
+MunicipalServiceCodeFormSet = inlineformset_factory(
+    CompanyConfig,
+    MunicipalServiceCode,
+    form=MunicipalServiceCodeForm,
+    extra=1,
+    can_delete=True
+)
+
 class CompanyConfigForm(forms.ModelForm):
     """
     Formulário para configuração dos dados da empresa do professor para emissão de notas fiscais.
     """
+    city_service_code = forms.CharField(
+        max_length=10,
+        required=False,
+        widget=forms.Select(attrs={'class': 'form-select'}),
+        label=_('código de serviço municipal padrão'),
+        help_text=_('Selecione um dos códigos cadastrados para definir como padrão')
+    )
+    
     class Meta:
         model = CompanyConfig
         fields = [
@@ -42,7 +82,6 @@ class CompanyConfigForm(forms.ModelForm):
             'cep': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '00000-000'}),
             'telefone': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '(00) 00000-0000'}),
             'email': forms.EmailInput(attrs={'class': 'form-control'}),
-            'city_service_code': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '0107'}),
             'rps_serie': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '1'}),
             'rps_numero_atual': forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}),
             'rps_lote': forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}),
@@ -56,7 +95,32 @@ class CompanyConfigForm(forms.ModelForm):
             for field_name, field in self.fields.items():
                 if field_name != 'enabled':
                     field.required = False
-                    
+        
+        # Configura as opções do campo city_service_code
+        if self.instance and self.instance.pk:
+            # Se já existe uma instância, carrega os códigos cadastrados
+            service_codes = MunicipalServiceCode.objects.filter(company_config=self.instance)
+            
+            # Adiciona uma opção para o valor padrão atual, se não estiver nas opções
+            choices = [('', '---------')]
+            current_value = self.instance.city_service_code
+            
+            # Adiciona o valor atual como primeira opção se ele não estiver nas opções
+            if current_value and not service_codes.filter(code=current_value).exists():
+                choices.append((current_value, f"{current_value} (Atual)"))
+            
+            # Adiciona os códigos cadastrados
+            for service_code in service_codes:
+                desc = f"{service_code.code}"
+                if service_code.description:
+                    desc += f" - {service_code.description}"
+                choices.append((service_code.code, desc))
+            
+            self.fields['city_service_code'].widget.choices = choices
+        else:
+            # Se não existe instância, mostra apenas a opção padrão vazia
+            self.fields['city_service_code'].widget.choices = [('', '---------'), ('0107', '0107 (Padrão)')]
+            
     def clean_cnpj(self):
         """
         Validar e formatar o CNPJ, removendo pontuação e verificando o comprimento.
@@ -92,3 +156,29 @@ class CompanyConfigForm(forms.ModelForm):
                     self.add_error(field, _('Este campo é obrigatório quando a emissão de nota fiscal está habilitada.'))
                     
         return cleaned_data
+
+class SendEmailForm(forms.Form):
+    """Formulário para envio de nota fiscal por email"""
+    
+    recipient_email = forms.EmailField(
+        label='Email do Destinatário',
+        max_length=254,
+        widget=forms.EmailInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'exemplo@email.com',
+            'required': True
+        }),
+        help_text='Digite o email para onde deseja enviar a nota fiscal'
+    )
+    
+    custom_message = forms.CharField(
+        label='Mensagem Personalizada (Opcional)',
+        max_length=500,
+        required=False,
+        widget=forms.Textarea(attrs={
+            'class': 'form-control',
+            'rows': 4,
+            'placeholder': 'Digite uma mensagem personalizada que será incluída no email (opcional)...'
+        }),
+        help_text='Esta mensagem será incluída no corpo do email junto com a nota fiscal'
+    )

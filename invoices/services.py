@@ -415,12 +415,23 @@ class NFEioService:
             raise ValueError("Invoice não está associada a uma transação ou venda avulsa")
 
         # Formatação comum para ambos os tipos de invoice
-        # Formatar o código de serviço (remover pontos e garantir 4 dígitos)
-        service_code = company_config.city_service_code
+        # Verificar se existe um código de serviço específico na venda
+        service_code = None
+        
+        # Se for uma venda avulsa e tiver um código de serviço específico, usar ele
+        if invoice.singlesale and invoice.singlesale.municipal_service_code:
+            service_code = invoice.singlesale.municipal_service_code
+            print(f"DEBUG - Usando código de serviço específico da venda: {service_code}")
+        # Caso contrário, usar o código padrão da empresa
+        else:
+            service_code = company_config.city_service_code
+            print(f"DEBUG - Usando código de serviço padrão da empresa: {service_code}")
+            
         if not service_code:
             print("DEBUG - ERRO: Código de serviço não configurado!")
             raise ValueError("Código de serviço não configurado para o professor")
         
+        # Formatar o código de serviço (remover pontos e garantir 4 dígitos)
         service_code = service_code.replace('.', '')
         if len(service_code) < 4:
             service_code = service_code.zfill(4)

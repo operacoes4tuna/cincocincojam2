@@ -214,11 +214,11 @@
                 <ul class="navbar-nav ms-auto">
                     {% if user.is_authenticated %}
                     {% if user.is_admin %}
-                    <li class="nav-item">
+                <!--    <li class="nav-item">
                         <a class="nav-link" href="{% url 'users:dashboard' %}">
                             <i class="fas fa-tachometer-alt"></i> Dashboard
                         </a>
-                    </li>
+                    </li>-->
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'users:user_list' %}">
                             <i class="fas fa-users"></i> Usuários
@@ -232,16 +232,16 @@
                     {% endif %}
 
                     {% if user.is_professor %}
-                    <li class="nav-item">
+                    <!--<li class="nav-item">
                         <a class="nav-link" href="{% url 'courses:dashboard' %}">Dashboard</a>
-                    </li>
-                    <li class="nav-item dropdown">
+                    </li>-->
+                    <!--<li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="agendaDropdown" role="button"
                             data-bs-toggle="dropdown" aria-expanded="false">
                             <i class="fas fa-calendar-alt"></i> Agenda
                         </a>
                         <ul class="dropdown-menu" aria-labelledby="agendaDropdown">
-                            <li>
+                            <li>  
                                 <a class="dropdown-item" href="{% url 'scheduler:calendar' %}">
                                     <i class="fas fa-calendar-alt me-2"></i> Calendário
                                 </a>
@@ -252,7 +252,7 @@
                                 </a>
                             </li>
                         </ul>
-                    </li>
+                    </li>-->
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="financasDropdown" role="button"
                             data-bs-toggle="dropdown" aria-expanded="false">
@@ -266,12 +266,12 @@
                             </li>
                             <li>
                                 <a class="dropdown-item" href="{% url 'payments:singlesale_list' %}">
-                                    <i class="fas fa-shopping-cart me-2"></i> Vendas Avulsas
+                                    <i class="fas fa-shopping-cart me-2"></i> Notas Avulsas
                                 </a>
                             </li>
                         </ul>
                     </li>
-                    <li class="nav-item dropdown">
+                    <!--<li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="cursosDropdown" role="button"
                             data-bs-toggle="dropdown" aria-expanded="false">
                             <i class="fas fa-book"></i> Cursos
@@ -293,7 +293,7 @@
                                 </a>
                             </li>
                         </ul>
-                    </li>
+                    </li>-->
                     
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="clientesDropdown" role="button"
