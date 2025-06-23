@@ -14,9 +14,10 @@ import json
 from payments.models import PaymentTransaction, SingleSale
 from users.decorators import professor_required, admin_required
 
-from .models import CompanyConfig, Invoice, MunicipalServiceCode
+from .models import CompanyConfig, Invoice, MunicipalServiceCode, InvoicePixPayment
 from .forms import CompanyConfigForm, MunicipalServiceCodeFormSet
 from .services import NFEioService
+from .pix_service import InvoicePixService
 
 # Configuração do logger
 logger = logging.getLogger('invoices')
@@ -371,7 +372,7 @@ def invoice_detail(request, invoice_id):
     """
     try:
         # Verificar se o usuário é admin ou professor
-        is_admin = hasattr(request.user, 'is_admin') and request.user.is_admin
+        is_admin = request.user.is_superuser or request.user.is_staff
         is_professor = hasattr(request.user, 'is_professor') and request.user.is_professor
         
         if not (is_admin or is_professor):
@@ -385,12 +386,24 @@ def invoice_detail(request, invoice_id):
             invoice = get_object_or_404(Invoice, id=invoice_id)
             return_url = 'payments:admin_dashboard'
         else:
-            # Professores podem ver apenas suas próprias notas fiscais
-            invoice = get_object_or_404(
-                Invoice,
-                id=invoice_id,
-                transaction__enrollment__course__professor=request.user
-            )
+            # Professores podem ver apenas suas próprias notas fiscais (transações e vendas avulsas)
+            try:
+                # Tentar buscar por transação primeiro
+                invoice = Invoice.objects.get(
+                    id=invoice_id,
+                    transaction__enrollment__course__professor=request.user
+                )
+            except Invoice.DoesNotExist:
+                # Se não encontrou por transação, tentar por venda avulsa
+                try:
+                    invoice = Invoice.objects.get(
+                        id=invoice_id,
+                        singlesale__seller=request.user
+                    )
+                except Invoice.DoesNotExist:
+                    # Se não encontrou nem por transação nem por venda avulsa, usar 404
+                    from django.http import Http404
+                    raise Http404("Invoice não encontrada para este professor")
             return_url = 'payments:professor_transactions'
             
         return render(request, 'invoices/invoice_detail.html', {
@@ -401,10 +414,11 @@ def invoice_detail(request, invoice_id):
         })
     except Exception as e:
         logger.error(f"Erro ao exibir detalhes da nota fiscal {invoice_id}: {str(e)}")
+        logger.error(traceback.format_exc())
         messages.error(request, _('Erro ao exibir detalhes da nota fiscal.'))
         
         # Redirecionar para a página apropriada com base no tipo de usuário
-        if hasattr(request.user, 'is_admin') and request.user.is_admin:
+        if request.user.is_superuser or request.user.is_staff:
             return redirect('payments:admin_dashboard')
         else:
             return redirect('payments:professor_transactions')
@@ -1162,3 +1176,283 @@ def test_pdf_attachment_view(request, invoice_id):
         logger.error(f"Erro ao testar anexo PDF da nota fiscal {invoice_id}: {str(e)}")
         messages.error(request, f'Erro ao testar anexo: {str(e)}')
         return redirect('dashboard')
+
+@login_required
+def create_invoice_pix_payment(request, invoice_id):
+    """
+    Cria um pagamento Pix para uma nota fiscal aprovada.
+    """
+    try:
+        # Buscar invoice com permissões simplificadas
+        if request.user.is_superuser or request.user.is_staff:
+            # Admin pode acessar qualquer invoice
+            invoice = get_object_or_404(Invoice, id=invoice_id)
+        elif hasattr(request.user, 'is_professor') and request.user.is_professor:
+            # Professor só pode acessar suas próprias invoices (transações e vendas avulsas)
+            try:
+                # Tentar buscar por transação primeiro
+                invoice = Invoice.objects.get(
+                    id=invoice_id,
+                    transaction__enrollment__course__professor=request.user
+                )
+            except Invoice.DoesNotExist:
+                # Se não encontrou por transação, tentar por venda avulsa
+                try:
+                    invoice = Invoice.objects.get(
+                        id=invoice_id,
+                        singlesale__seller=request.user
+                    )
+                except Invoice.DoesNotExist:
+                    # Se não encontrou nem por transação nem por venda avulsa, usar 404
+                    from django.http import Http404
+                    raise Http404("Invoice não encontrada")
+        else:
+            # Outros usuários (alunos, etc.) - buscar e verificar depois
+            invoice = get_object_or_404(Invoice, id=invoice_id)
+            
+            # Verificar se tem permissão
+            has_permission = False
+            if invoice.transaction and invoice.transaction.enrollment.student == request.user:
+                has_permission = True
+            elif invoice.singlesale and invoice.customer_email == request.user.email:
+                has_permission = True
+            
+            if not has_permission:
+                messages.error(request, _('Você não tem permissão para gerar Pix para esta nota fiscal.'))
+                return redirect('dashboard')
+        
+        # Verificar se a nota fiscal está aprovada
+        if invoice.status not in ['approved', 'issued']:
+            messages.error(request, _('Só é possível gerar pagamento Pix para notas fiscais aprovadas.'))
+            return redirect('invoices:invoice_detail', invoice_id=invoice.id)
+        
+        # Criar o pagamento Pix
+        try:
+            pix_service = InvoicePixService()
+            result = pix_service.create_pix_payment_for_invoice(invoice)
+            
+            if result['success']:
+                if result.get('existing'):
+                    messages.info(request, _('Já existe um pagamento Pix ativo para esta nota fiscal.'))
+                else:
+                    messages.success(request, _('Pagamento Pix gerado com sucesso!'))
+                    if result.get('warning'):
+                        messages.warning(request, _(result['warning']))
+                
+                return redirect('invoices:invoice_pix_detail', invoice_id=invoice.id)
+            else:
+                error_msg = result.get('error', 'Erro desconhecido')
+                logger.error(f"Erro no serviço Pix para invoice {invoice_id}: {error_msg}")
+                messages.error(request, _('Erro ao gerar pagamento Pix: {}').format(error_msg))
+                return redirect('invoices:invoice_detail', invoice_id=invoice.id)
+                
+        except Exception as service_error:
+            logger.error(f"Exceção no serviço Pix para invoice {invoice_id}: {str(service_error)}")
+            logger.error(traceback.format_exc())
+            messages.error(request, _('Erro no serviço de pagamento Pix. Tente novamente.'))
+            return redirect('invoices:invoice_detail', invoice_id=invoice.id)
+            
+    except Exception as e:
+        logger.error(f"Erro geral ao criar pagamento Pix para invoice {invoice_id}: {str(e)}")
+        logger.error(traceback.format_exc())
+        messages.error(request, _('Erro interno ao gerar pagamento Pix.'))
+        return redirect('invoices:invoice_detail', invoice_id=invoice_id)
+
+
+@login_required
+def invoice_pix_detail(request, invoice_id):
+    """
+    Exibe os detalhes do pagamento Pix de uma nota fiscal.
+    """
+    logger.info(f"Acessando invoice_pix_detail para invoice {invoice_id} pelo usuário {request.user.username}")
+    try:
+        # Verificar permissões e buscar invoice
+        invoice = None
+        
+        # Verificar se é admin primeiro
+        if request.user.is_superuser or request.user.is_staff:
+            # Admin pode acessar qualquer invoice
+            invoice = get_object_or_404(Invoice, id=invoice_id)
+        elif hasattr(request.user, 'is_professor') and request.user.is_professor:
+            # Professor só pode acessar suas próprias invoices (transações e vendas avulsas)
+            try:
+                # Tentar buscar por transação primeiro
+                invoice = Invoice.objects.get(
+                    id=invoice_id,
+                    transaction__enrollment__course__professor=request.user
+                )
+            except Invoice.DoesNotExist:
+                # Se não encontrou por transação, tentar por venda avulsa
+                try:
+                    invoice = Invoice.objects.get(
+                        id=invoice_id,
+                        singlesale__seller=request.user
+                    )
+                except Invoice.DoesNotExist:
+                    # Se não encontrou nem por transação nem por venda avulsa, usar 404
+                    from django.http import Http404
+                    raise Http404("Invoice não encontrada para este professor")
+        else:
+            # Outros usuários - tentar buscar a invoice e verificar permissões depois
+            invoice = get_object_or_404(Invoice, id=invoice_id)
+        
+        # Verificar se existe pagamento Pix
+        logger.info(f"Verificando pagamento Pix para invoice {invoice_id}")
+        try:
+            pix_payment = invoice.pix_payment
+            logger.info(f"Pagamento Pix encontrado: ID {pix_payment.id}, Status: {pix_payment.status}")
+        except InvoicePixPayment.DoesNotExist:
+            logger.warning(f"Pagamento Pix não encontrado para invoice {invoice_id}")
+            messages.error(request, _('Não foi encontrado pagamento Pix para esta nota fiscal.'))
+            return redirect('invoices:invoice_detail', invoice_id=invoice.id)
+        except Exception as e:
+            logger.error(f"Erro ao acessar pix_payment da invoice {invoice_id}: {str(e)}")
+            logger.error(traceback.format_exc())
+            messages.error(request, _('Erro ao acessar dados do pagamento Pix.'))
+            return redirect('invoices:invoice_detail', invoice_id=invoice.id)
+        
+        # Determinar tipo de usuário e permissões
+        is_professor = hasattr(request.user, 'is_professor') and request.user.is_professor
+        is_admin = request.user.is_superuser or request.user.is_staff
+        is_customer = False
+        
+        # Verificar se é cliente
+        if invoice.transaction and invoice.transaction.enrollment.student == request.user:
+            is_customer = True
+        elif invoice.singlesale and invoice.customer_email == request.user.email:
+            is_customer = True
+        
+        # Verificar permissões específicas para não-admins
+        if not is_admin:
+            if is_professor:
+                # Professor deve ser dono da invoice
+                if invoice.transaction and invoice.transaction.enrollment.course.professor != request.user:
+                    messages.error(request, _('Você não tem permissão para acessar este pagamento.'))
+                    return redirect('dashboard')
+            elif not is_customer:
+                # Se não é admin, não é professor e não é cliente, não pode acessar
+                messages.error(request, _('Você não tem permissão para acessar este pagamento.'))
+                return redirect('dashboard')
+        
+        context = {
+            'invoice': invoice,
+            'pix_payment': pix_payment,
+            'is_customer': is_customer,
+            'is_professor': is_professor,
+            'qr_code_image_data': pix_payment.qrcode_image_data,
+            'qr_code_image_url': pix_payment.qrcode_image_url,
+            'debug': settings.DEBUG,
+        }
+        
+        logger.info(f"Renderizando template para invoice {invoice_id}")
+        logger.info(f"Context: QR Data={bool(pix_payment.qrcode_image_data)}, QR URL={bool(pix_payment.qrcode_image_url)}")
+        
+        return render(request, 'invoices/invoice_pix_detail.html', context)
+        
+    except Exception as e:
+        logger.error(f"Erro ao exibir pagamento Pix da invoice {invoice_id}: {str(e)}")
+        messages.error(request, _('Erro ao carregar detalhes do pagamento Pix.'))
+        return redirect('invoices:invoice_detail', invoice_id=invoice_id)
+
+
+@login_required
+def check_invoice_pix_status(request, invoice_id):
+    """
+    Verifica o status do pagamento Pix de uma nota fiscal (AJAX).
+    """
+    try:
+        # Verificar se a invoice existe e se o usuário tem acesso
+        invoice = get_object_or_404(Invoice, id=invoice_id)
+        
+        # Verificar permissões
+        can_access = False
+        if hasattr(request.user, 'is_professor') and request.user.is_professor:
+            # Professor
+            can_access = invoice.transaction and invoice.transaction.enrollment.course.professor == request.user
+        elif request.user.is_superuser or request.user.is_staff:
+            # Admin
+            can_access = True
+        elif invoice.transaction and invoice.transaction.enrollment.student == request.user:
+            # Cliente da transação
+            can_access = True
+        elif invoice.singlesale and invoice.customer_email == request.user.email:
+            # Cliente da venda avulsa
+            can_access = True
+        
+        if not can_access:
+            return JsonResponse({
+                'success': False,
+                'error': 'Permissão negada'
+            }, status=403)
+        
+        # Verificar se existe pagamento Pix
+        try:
+            pix_payment = invoice.pix_payment
+        except InvoicePixPayment.DoesNotExist:
+            return JsonResponse({
+                'success': False,
+                'error': 'Pagamento Pix não encontrado'
+            }, status=404)
+        
+        # Verificar status
+        pix_service = InvoicePixService()
+        result = pix_service.check_payment_status(pix_payment)
+        
+        # Adicionar informações extras se o pagamento foi confirmado
+        if result.get('status') == 'PAID':
+            result['paid_at_formatted'] = pix_payment.paid_at.strftime('%d/%m/%Y %H:%M') if pix_payment.paid_at else ''
+        
+        return JsonResponse(result)
+        
+    except Exception as e:
+        logger.error(f"Erro ao verificar status do pagamento Pix da invoice {invoice_id}: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': 'Erro interno'
+        }, status=500)
+
+
+@login_required
+def simulate_invoice_pix_payment(request, invoice_id):
+    """
+    Simula o pagamento de um Pix (apenas para desenvolvimento).
+    """
+    if not settings.DEBUG:
+        return JsonResponse({
+            'success': False,
+            'error': 'Função disponível apenas em modo DEBUG'
+        }, status=403)
+    
+    try:
+        invoice = get_object_or_404(Invoice, id=invoice_id)
+        
+        # Verificar se existe pagamento Pix
+        try:
+            pix_payment = invoice.pix_payment
+        except InvoicePixPayment.DoesNotExist:
+            return JsonResponse({
+                'success': False,
+                'error': 'Pagamento Pix não encontrado'
+            }, status=404)
+        
+        # Simular pagamento
+        pix_service = InvoicePixService()
+        if pix_service.simulate_payment_confirmation(pix_payment):
+            messages.success(request, _('Pagamento simulado como confirmado!'))
+            return JsonResponse({
+                'success': True,
+                'message': 'Pagamento simulado como confirmado',
+                'status': 'PAID'
+            })
+        else:
+            return JsonResponse({
+                'success': False,
+                'error': 'Não foi possível simular o pagamento'
+            })
+            
+    except Exception as e:
+        logger.error(f"Erro ao simular pagamento da invoice {invoice_id}: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': 'Erro interno'
+        }, status=500)

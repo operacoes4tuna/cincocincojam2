@@ -30,6 +30,12 @@ urlpatterns = [
     path('send-email/<int:invoice_id>/', views.send_invoice_email, name='send_email'),
     path('send-email-ajax/<int:invoice_id>/', views.send_invoice_email_ajax, name='send_email_ajax'),
     
+    # URLs para pagamentos Pix das notas fiscais
+    path('pix/create/<int:invoice_id>/', views.create_invoice_pix_payment, name='create_pix_payment'),
+    path('pix/detail/<int:invoice_id>/', views.invoice_pix_detail, name='invoice_pix_detail'),
+    path('pix/status/<int:invoice_id>/', views.check_invoice_pix_status, name='check_pix_status'),
+    path('pix/simulate/<int:invoice_id>/', views.simulate_invoice_pix_payment, name='simulate_pix_payment'),
+    
     # URLs para teste e debug
     path('test-pdf-attachment/<int:invoice_id>/', views.test_pdf_attachment_view, name='test_pdf_attachment'),
     

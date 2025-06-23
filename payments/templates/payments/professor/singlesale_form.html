@@ -159,10 +159,10 @@
                     {% if not object %}
                     <div class="col-md-3">
                         <div class="form-group">
-                            <label class="form-label">{% translate "Gerar boleto" %}</label>
+                            <label class="form-label">{% translate "Gerar Pix após NF" %}</label>
                             <div class="d-flex align-items-center border rounded p-2 bg-light" style="height: 38px;">
                                 <div class="form-check form-switch">
-                                    <input class="form-check-input" type="checkbox" id="generate_boleto" name="generate_boleto" style="transform: scale(1.3); cursor: pointer; margin-left: 0.5rem;">
+                                    <input class="form-check-input" type="checkbox" id="generate_pix" name="generate_pix" checked style="transform: scale(1.3); cursor: pointer; margin-left: 0.5rem;">
                                 </div>
                             </div>
                         </div>
@@ -344,24 +344,26 @@ document.addEventListener('DOMContentLoaded', function() {
         emissionDateField.value = formattedDate;
     }
     
-    // Controle de visibilidade dos campos de boleto
-    const generateBoletoCheckbox = document.getElementById('generate_boleto');
-    const boletoOptions = document.getElementById('boleto_options');
+    // Controle de visibilidade dos campos de Pix
+    const generatePixCheckbox = document.getElementById('generate_pix');
+    const pixOptions = document.getElementById('pix_options');
     
-    // Função para mostrar/esconder campos do boleto
-    function toggleBoletoOptions() {
-        if (generateBoletoCheckbox.checked) {
-            boletoOptions.style.display = 'flex';
-        } else {
-            boletoOptions.style.display = 'none';
+    // Função para mostrar/esconder campos do Pix
+    function togglePixOptions() {
+        if (pixOptions && generatePixCheckbox && generatePixCheckbox.checked) {
+            pixOptions.style.display = 'flex';
+        } else if (pixOptions) {
+            pixOptions.style.display = 'none';
         }
     }
     
-    // Verificar o estado inicial
-    toggleBoletoOptions();
-    
-    // Adicionar evento para alteração do checkbox
-    generateBoletoCheckbox.addEventListener('change', toggleBoletoOptions);
+    // Verificar o estado inicial se existirem os elementos
+    if (generatePixCheckbox) {
+        togglePixOptions();
+        
+        // Adicionar evento para alteração do checkbox
+        generatePixCheckbox.addEventListener('change', togglePixOptions);
+    }
     {% endif %}
     
     // Get client select elements

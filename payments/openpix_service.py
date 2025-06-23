@@ -132,14 +132,16 @@ class OpenPixService:
             self.logger.debug(f"URL: {self.BASE_URL}/charge")
             self.logger.debug(f"Payload: {json.dumps(charge_data)}")
             
-            # Em ambiente de desenvolvimento, desativar verificação SSL
+            # Em ambiente de desenvolvimento, desativar verificação SSL e usar timeout
             verify_ssl = not self.is_sandbox
+            timeout = 10 if self.is_sandbox else 30
             
             response = requests.post(
                 f"{self.BASE_URL}/charge",
                 headers=self.headers,
                 data=json.dumps(charge_data),
-                verify=verify_ssl
+                verify=verify_ssl,
+                timeout=timeout
             )
             
             self.logger.info(f"Status code: {response.status_code}")

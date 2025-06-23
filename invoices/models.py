@@ -428,4 +428,139 @@ class Invoice(models.Model):
         ordering = ['-created_at']
     
     def __str__(self):
-        return f"NFe #{self.id} - {self.transaction.id if self.transaction else self.singlesale.id} - {self.get_status_display()}"
+        return f"Nota Fiscal #{self.id} - {self.get_status_display()}"
+
+
+class InvoicePixPayment(models.Model):
+    """
+    Modelo para armazenar informações de pagamento Pix vinculado a uma nota fiscal.
+    """
+    STATUS_CHOICES = [
+        ('PENDING', _('Pendente')),
+        ('PAID', _('Pago')),
+        ('EXPIRED', _('Expirado')),
+        ('CANCELLED', _('Cancelado')),
+        ('FAILED', _('Falhou')),
+    ]
+
+    invoice = models.OneToOneField(
+        Invoice,
+        on_delete=models.CASCADE,
+        related_name='pix_payment',
+        verbose_name=_('nota fiscal')
+    )
+    
+    # Campos do Pix
+    correlation_id = models.CharField(
+        _('ID de correlação'),
+        max_length=255,
+        unique=True,
+        help_text=_('ID único para identificar o pagamento Pix')
+    )
+    brcode = models.TextField(
+        _('BR Code Pix'),
+        blank=True,
+        null=True,
+        help_text=_('Código Pix copia e cola')
+    )
+    qrcode_image_url = models.URLField(
+        _('URL do QR Code'),
+        blank=True,
+        null=True,
+        max_length=500,
+        help_text=_('URL da imagem do QR Code')
+    )
+    qrcode_image_data = models.TextField(
+        _('QR Code Base64'),
+        blank=True,
+        null=True,
+        help_text=_('Dados da imagem QR Code em base64 (fallback)')
+    )
+    
+    # Status e controle
+    status = models.CharField(
+        _('status'),
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='PENDING'
+    )
+    amount = models.DecimalField(
+        _('valor'),
+        max_digits=10,
+        decimal_places=2,
+        help_text=_('Valor do pagamento em reais')
+    )
+    expires_at = models.DateTimeField(
+        _('expira em'),
+        null=True,
+        blank=True,
+        help_text=_('Data e hora de expiração do Pix')
+    )
+    paid_at = models.DateTimeField(
+        _('pago em'),
+        null=True,
+        blank=True,
+        help_text=_('Data e hora do pagamento confirmado')
+    )
+    
+    # Metadados da API
+    external_id = models.CharField(
+        _('ID externo'),
+        max_length=100,
+        blank=True,
+        null=True,
+        help_text=_('ID retornado pela API do provedor Pix')
+    )
+    provider_response = models.JSONField(
+        _('resposta do provedor'),
+        blank=True,
+        null=True,
+        help_text=_('Resposta completa da API do provedor Pix')
+    )
+    error_message = models.TextField(
+        _('mensagem de erro'),
+        blank=True,
+        null=True,
+        help_text=_('Mensagem de erro caso ocorra falha')
+    )
+    
+    # Controle temporal
+    created_at = models.DateTimeField(
+        _('criado em'),
+        auto_now_add=True
+    )
+    updated_at = models.DateTimeField(
+        _('atualizado em'),
+        auto_now=True
+    )
+    
+    class Meta:
+        verbose_name = _('pagamento Pix da nota fiscal')
+        verbose_name_plural = _('pagamentos Pix das notas fiscais')
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"Pix #{self.id} - Nota {self.invoice.id} - {self.get_status_display()}"
+    
+    def is_active(self):
+        """Verifica se o pagamento Pix ainda está ativo (não expirado)."""
+        if self.status != 'PENDING':
+            return False
+        if self.expires_at and timezone.now() > self.expires_at:
+            return False
+        return True
+    
+    def mark_as_paid(self):
+        """Marca o pagamento como pago."""
+        self.status = 'PAID'
+        self.paid_at = timezone.now()
+        self.save()
+    
+    def mark_as_expired(self):
+        """Marca o pagamento como expirado."""
+        self.status = 'EXPIRED'
+        self.save()
+    
+    def get_amount_in_cents(self):
+        """Retorna o valor em centavos para APIs."""
+        return int(self.amount * 100)

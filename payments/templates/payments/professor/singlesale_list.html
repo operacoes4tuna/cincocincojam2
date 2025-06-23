@@ -101,13 +101,13 @@
                             </button>
                         </li>
                         <li>
-                            <button class="dropdown-item bulk-action" data-action="generate-boletos" type="button">
-                                <i class="fas fa-file-invoice-dollar me-2"></i> {% translate "Gerar todos os boletos" %}
+                            <button class="dropdown-item bulk-action" data-action="generate-pix" type="button">
+                                <i class="fas fa-qrcode me-2"></i> {% translate "Gerar Pix para selecionadas" %}
                             </button>
                         </li>
                         <li>
-                            <button class="dropdown-item bulk-action" data-action="send-boletos" type="button">
-                                <i class="fas fa-paper-plane me-2"></i> {% translate "Enviar todos os boletos" %}
+                            <button class="dropdown-item bulk-action" data-action="send-pix" type="button">
+                                <i class="fas fa-paper-plane me-2"></i> {% translate "Enviar links Pix por email" %}
                             </button>
                         </li>
                         <li>
@@ -190,9 +190,9 @@
                                                         <a href="{% url 'invoices:send_email' invoice.id %}" class="btn btn-sm btn-outline-info" title="{% translate 'Enviar por Email' %}" target="_blank">
                                                             <i class="fas fa-envelope"></i>
                                                         </a>
-                                                        <a href="#" class="btn btn-sm btn-outline-warning generate-boleto-btn" data-invoice-id="{{ invoice.id }}" title="{% translate 'Gerar Boleto' %}">
-                                                            <i class="fas fa-file-invoice-dollar"></i>
-                                                        </a>
+                                                                                                <a href="{% url 'invoices:create_pix_payment' invoice.id %}" class="btn btn-sm btn-success" title="{% translate 'Gerar Pix' %}">
+                                            <i class="fas fa-qrcode"></i>
+                                        </a>
                                                     {% elif invoice.status == 'pending' or invoice.status == 'processing' %}
                                                         <span class="badge bg-warning ms-1 me-1">
                                                             <i class="fas fa-clock me-1"></i> NF Em processamento
@@ -401,12 +401,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 alert(`Ação: Gerar notas para os IDs: ${selectedSales.join(', ')}`);
                 // Implementação futura do backend
             } 
-            else if (action === 'generate-boletos') {
-                alert('Ação: Gerar todos os boletos');
+            else if (action === 'generate-pix') {
+                alert('Ação: Gerar Pix para notas selecionadas');
                 // Implementação futura do backend
             }
-            else if (action === 'send-boletos') {
-                alert('Ação: Enviar todos os boletos');
+            else if (action === 'send-pix') {
+                alert('Ação: Enviar links Pix por email');
                 // Implementação futura do backend
             }
         });

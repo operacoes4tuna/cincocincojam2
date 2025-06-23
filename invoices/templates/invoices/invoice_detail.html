@@ -152,6 +152,32 @@
                         </a>
                         {% endif %}
                         
+                        <!-- Pagamento Pix (substitui o botão de boleto) -->
+                        {% if invoice.status == 'approved' or invoice.status == 'issued' %}
+                            {% with pix_payment=invoice.pix_payment|default:None %}
+                                {% if pix_payment %}
+                                    {% if pix_payment.status == 'PAID' %}
+                                        <div class="alert alert-success mb-2 text-center">
+                                            <i class="fas fa-check-circle"></i>
+                                            <small>{% translate "Pago via Pix" %}</small>
+                                        </div>
+                                    {% elif pix_payment.status == 'PENDING' %}
+                                        <a href="{% url 'invoices:invoice_pix_detail' invoice.id %}" class="btn btn-warning">
+                                            <i class="fas fa-qrcode"></i> {% translate "Ver Pix Pendente" %}
+                                        </a>
+                                    {% elif pix_payment.status == 'EXPIRED' %}
+                                        <a href="{% url 'invoices:create_pix_payment' invoice.id %}" class="btn btn-outline-primary">
+                                            <i class="fas fa-qrcode"></i> {% translate "Gerar Novo Pix" %}
+                                        </a>
+                                    {% endif %}
+                                {% else %}
+                                    <a href="{% url 'invoices:create_pix_payment' invoice.id %}" class="btn btn-success">
+                                        <i class="fas fa-qrcode"></i> {% translate "Pagar com Pix" %}
+                                    </a>
+                                {% endif %}
+                            {% endwith %}
+                        {% endif %}
+                        
                         <!-- Testar Anexo PDF (Desenvolvimento) -->
                         {% if debug %}
                         <a href="{% url 'invoices:test_pdf_attachment' invoice.id %}" class="btn btn-outline-warning">

@@ -15,3 +15,5 @@ sqlparse==0.5.3
 urllib3==2.4.0
 openai==1.30.5  # Versão estável mais recente
 sendgrid==6.11.0
+qrcode==7.4.2  # Para geração de QR codes
+qrcode[pil]==7.4.2  # Suporte para imagens
