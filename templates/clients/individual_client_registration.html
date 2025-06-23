@@ -33,7 +33,7 @@
                         {% endif %}
                     </div>
                     <div class="col-md-6 mb-3">
-                        <label for="{{ form.phone.id_for_label }}" class="form-label">{{ form.phone.label }} *</label>
+                        <label for="{{ form.phone.id_for_label }}" class="form-label">{{ form.phone.label }}</label>
                         {{ form.phone }}
                         {% if form.phone.errors %}
                             <div class="text-danger">{{ form.phone.errors }}</div>
@@ -128,7 +128,7 @@
                 </div>
                 <div class="row mb-4">
                     <div class="col-md-4 mb-3">
-                        <label for="{{ form.birth_date.id_for_label }}" class="form-label">{{ form.birth_date.label }} *</label>
+                        <label for="{{ form.birth_date.id_for_label }}" class="form-label">{{ form.birth_date.label }}</label>
                         {{ form.birth_date }}
                         {% if form.birth_date.errors %}
                             <div class="text-danger">{{ form.birth_date.errors }}</div>
