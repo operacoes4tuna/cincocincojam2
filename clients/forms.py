@@ -37,6 +37,17 @@ class ClientForm(forms.ModelForm):
             'zipcode': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '00000-000'}),
             'client_type': forms.RadioSelect()
         }
+        
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Tornar todos os campos opcionais exceto client_type
+        self.fields['email'].required = False
+        self.fields['address'].required = False
+        self.fields['address_number'].required = False
+        self.fields['neighborhood'].required = False
+        self.fields['city'].required = False
+        self.fields['state'].required = False
+        self.fields['zipcode'].required = False
 
 
 class IndividualClientForm(forms.ModelForm):
@@ -53,6 +64,13 @@ class IndividualClientForm(forms.ModelForm):
             'birth_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'})
         }
     
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Tornar somente o nome obrigatório
+        self.fields['cpf'].required = False
+        self.fields['rg'].required = False
+        self.fields['birth_date'].required = False
+
     def clean_cpf(self):
         cpf = self.cleaned_data.get('cpf')
         if cpf:
@@ -132,6 +150,7 @@ class ClientRegistrationForm(forms.Form):
     )
     email = forms.EmailField(
         label=_('Email'),
+        required=False,
         widget=forms.EmailInput(attrs={'class': 'form-control'})
     )
     phone = forms.CharField(
@@ -145,11 +164,13 @@ class ClientRegistrationForm(forms.Form):
     address = forms.CharField(
         label=_('Endereço'),
         max_length=255,
+        required=False,
         widget=forms.TextInput(attrs={'class': 'form-control'})
     )
     address_number = forms.CharField(
         label=_('Número'),
         max_length=20,
+        required=False,
         widget=forms.TextInput(attrs={'class': 'form-control'})
     )
     address_complement = forms.CharField(
@@ -161,21 +182,25 @@ class ClientRegistrationForm(forms.Form):
     neighborhood = forms.CharField(
         label=_('Bairro'),
         max_length=100,
+        required=False,
         widget=forms.TextInput(attrs={'class': 'form-control'})
     )
     city = forms.CharField(
         label=_('Cidade'),
         max_length=100,
+        required=False,
         widget=forms.TextInput(attrs={'class': 'form-control'})
     )
     state = forms.ChoiceField(
         label=_('Estado'),
+        required=False,
         choices=[('', 'Selecione...')] + list(Client._meta.get_field('state').choices),
         widget=forms.Select(attrs={'class': 'form-select'})
     )
     zipcode = forms.CharField(
         label=_('CEP'),
         max_length=9,
+        required=False,
         widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': '00000-000'})
     )
     
@@ -183,7 +208,7 @@ class ClientRegistrationForm(forms.Form):
     full_name = forms.CharField(
         label=_('Nome Completo'),
         max_length=255,
-        required=False,
+        required=True,
         widget=forms.TextInput(attrs={'class': 'form-control', 'data-type': 'individual'})
     )
     cpf = forms.CharField(
@@ -274,13 +299,13 @@ class ClientRegistrationForm(forms.Form):
         client_type = cleaned_data.get('client_type')
         
         if client_type == Client.Type.INDIVIDUAL:
-            # Validar campos de pessoa física
-            required_fields = ['full_name', 'cpf']
+            # Validar apenas nome como obrigatório para pessoa física
+            required_fields = ['full_name']
             for field in required_fields:
                 if not cleaned_data.get(field):
                     self.add_error(field, _('Este campo é obrigatório para pessoa física.'))
             
-            # Validar CPF único
+            # Validar CPF único apenas se for fornecido
             cpf = cleaned_data.get('cpf')
             if cpf:
                 # Formatar CPF para comparação consistente
@@ -326,15 +351,15 @@ class ClientRegistrationForm(forms.Form):
         # Cria o cliente base
         client = Client(
             professor=self.professor,
-            email=self.cleaned_data['email'],
+            email=self.cleaned_data.get('email', ''),
             phone=self.cleaned_data.get('phone', ''),
-            address=self.cleaned_data['address'],
-            address_number=self.cleaned_data['address_number'],
+            address=self.cleaned_data.get('address', ''),
+            address_number=self.cleaned_data.get('address_number', ''),
             address_complement=self.cleaned_data.get('address_complement', ''),
-            neighborhood=self.cleaned_data['neighborhood'],
-            city=self.cleaned_data['city'],
-            state=self.cleaned_data['state'],
-            zipcode=self.cleaned_data['zipcode'],
+            neighborhood=self.cleaned_data.get('neighborhood', ''),
+            city=self.cleaned_data.get('city', ''),
+            state=self.cleaned_data.get('state', ''),
+            zipcode=self.cleaned_data.get('zipcode', ''),
             client_type=client_type
         )
         client.save()
@@ -344,7 +369,7 @@ class ClientRegistrationForm(forms.Form):
             individual = IndividualClient(
                 client=client,
                 full_name=self.cleaned_data['full_name'],
-                cpf=self.cleaned_data['cpf'],
+                cpf=self.cleaned_data.get('cpf', ''),
                 rg=self.cleaned_data.get('rg', ''),
                 birth_date=self.cleaned_data.get('birth_date')
             )

@@ -68,22 +68,22 @@ class Client(models.Model):
     )
     
     # Basic fields for all clients
-    email = models.EmailField(_('email'), max_length=255)
+    email = models.EmailField(_('email'), max_length=255, blank=True, null=True)
     phone = models.CharField(
         _('telefone'), max_length=20, blank=True, null=True
     )
     
     # Address fields
-    address = models.CharField(_('endereço'), max_length=255)
-    address_number = models.CharField(_('número'), max_length=20)
+    address = models.CharField(_('endereço'), max_length=255, blank=True, null=True)
+    address_number = models.CharField(_('número'), max_length=20, blank=True, null=True)
     address_complement = models.CharField(
         _('complemento'), max_length=100, blank=True, null=True
     )
-    neighborhood = models.CharField(_('bairro'), max_length=100)
-    city = models.CharField(_('cidade'), max_length=100)
-    state = models.CharField(_('estado'), max_length=2, choices=UF_CHOICES)
+    neighborhood = models.CharField(_('bairro'), max_length=100, blank=True, null=True)
+    city = models.CharField(_('cidade'), max_length=100, blank=True, null=True)
+    state = models.CharField(_('estado'), max_length=2, choices=UF_CHOICES, blank=True, null=True)
     zipcode = models.CharField(
-        _('CEP'), max_length=9, validators=[cep_validator]
+        _('CEP'), max_length=9, validators=[cep_validator], blank=True, null=True
     )
     
     # Type of client
@@ -133,7 +133,7 @@ class IndividualClient(models.Model):
     # Personal information
     full_name = models.CharField(_('nome completo'), max_length=255)
     cpf = models.CharField(
-        _('CPF'), max_length=14, validators=[cpf_validator], unique=True
+        _('CPF'), max_length=14, validators=[cpf_validator], unique=True, blank=True, null=True
     )
     rg = models.CharField(_('RG'), max_length=30, blank=True, null=True)
     birth_date = models.DateField(
