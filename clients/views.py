@@ -462,9 +462,15 @@ class ClientUpdateView(LoginRequiredMixin, ProfessorRequiredMixin, View):
             'specific_form': specific_form
         })
     
+    @transaction.atomic
     def post(self, request, pk):
         client = self.get_client()
-        client_form = ClientForm(request.POST, instance=client)
+        
+        # Adicionar o client_type ao POST data
+        post_data = request.POST.copy()
+        post_data['client_type'] = client.client_type
+        
+        client_form = ClientForm(post_data, instance=client)
         
         # Formulário específico conforme o tipo de cliente
         specific_form = None
@@ -474,21 +480,73 @@ class ClientUpdateView(LoginRequiredMixin, ProfessorRequiredMixin, View):
                     request.POST, 
                     instance=client.individual
                 )
+            else:
+                # Criar nova instância se não existir
+                specific_form = IndividualClientForm(request.POST)
         elif client.client_type == Client.Type.COMPANY:
             if hasattr(client, 'company'):
                 specific_form = CompanyClientForm(
                     request.POST, 
                     instance=client.company
                 )
+            else:
+                # Criar nova instância se não existir
+                specific_form = CompanyClientForm(request.POST)
         
-        if client_form.is_valid() and (specific_form is None or specific_form.is_valid()):
-            client_form.save()
-            if specific_form:
-                specific_form.save()
-            
-            messages.success(request, _('Cliente atualizado com sucesso!'))
-            return redirect('clients:client_detail', pk=client.pk)
+        # Verificar validação
+        client_form_valid = client_form.is_valid()
+        specific_form_valid = specific_form is None or specific_form.is_valid()
         
+        # Debugar erros de validação
+        if not client_form_valid:
+            print(f"Erros no formulário principal: {client_form.errors}")
+        
+        if specific_form is not None and not specific_form.is_valid():
+            print(f"Erros no formulário específico: {specific_form.errors}")
+        
+        # Se ambos válidos, salvar
+        if client_form_valid and specific_form_valid:
+            try:
+                # Salvar client primeiro
+                saved_client = client_form.save()
+                
+                # Salvar modelo específico ligado ao client
+                if specific_form:
+                    if client.client_type == Client.Type.INDIVIDUAL:
+                        # Checar se já existe
+                        if hasattr(client, 'individual'):
+                            # Atualiza modelo existente
+                            individual = specific_form.save(commit=False)
+                            individual.client = saved_client
+                            individual.save()
+                        else:
+                            # Cria novo modelo relacionado
+                            individual = specific_form.save(commit=False)
+                            individual.client = saved_client
+                            individual.save()
+                    
+                    elif client.client_type == Client.Type.COMPANY:
+                        # Checar se já existe
+                        if hasattr(client, 'company'):
+                            # Atualiza modelo existente
+                            company = specific_form.save(commit=False)
+                            company.client = saved_client
+                            company.save()
+                        else:
+                            # Cria novo modelo relacionado
+                            company = specific_form.save(commit=False)
+                            company.client = saved_client
+                            company.save()
+                
+                # Sucesso - redirecionar para página de detalhes
+                messages.success(request, _('Cliente atualizado com sucesso!'))
+                return redirect('clients:client_detail', pk=saved_client.pk)
+                
+            except Exception as e:
+                print(f"Erro ao salvar cliente: {str(e)}")
+                messages.error(request, _('Erro ao atualizar cliente: ') + str(e))
+        
+        # Se chegou aqui, houve erros - mostrar formulário novamente
         return render(request, self.template_name, {
             'client': client,
             'client_form': client_form,
