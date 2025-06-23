@@ -71,7 +71,7 @@
                         {% endif %}
                     </div>
                     <div class="col-md-6 mb-3">
-                        <label for="{{ client_form.phone.id_for_label }}" class="form-label">{{ client_form.phone.label }} *</label>
+                        <label for="{{ client_form.phone.id_for_label }}" class="form-label">{{ client_form.phone.label }}</label>
                         {{ client_form.phone }}
                         {% if client_form.phone.errors %}
                             <div class="text-danger">{{ client_form.phone.errors }}</div>
@@ -224,14 +224,14 @@
                             <h5 class="fw-bold mb-3">{% translate "Responsável pela Empresa" %}</h5>
                         </div>
                         <div class="col-md-6 mb-3">
-                            <label for="{{ specific_form.responsible_name.id_for_label }}" class="form-label">{{ specific_form.responsible_name.label }} *</label>
+                            <label for="{{ specific_form.responsible_name.id_for_label }}" class="form-label">{{ specific_form.responsible_name.label }}</label>
                             {{ specific_form.responsible_name }}
                             {% if specific_form.responsible_name.errors %}
                                 <div class="text-danger">{{ specific_form.responsible_name.errors }}</div>
                             {% endif %}
                         </div>
                         <div class="col-md-6 mb-3">
-                            <label for="{{ specific_form.responsible_cpf.id_for_label }}" class="form-label">{{ specific_form.responsible_cpf.label }} *</label>
+                            <label for="{{ specific_form.responsible_cpf.id_for_label }}" class="form-label">{{ specific_form.responsible_cpf.label }}</label>
                             {{ specific_form.responsible_cpf }}
                             {% if specific_form.responsible_cpf.errors %}
                                 <div class="text-danger">{{ specific_form.responsible_cpf.errors }}</div>
