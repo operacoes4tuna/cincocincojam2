@@ -146,7 +146,7 @@ class IndividualClient(models.Model):
         constraints = [
             models.UniqueConstraint(
                 fields=['cpf'],
-                condition=models.Q(cpf__isnull=False),
+                condition=models.Q(cpf__isnull=False) & ~models.Q(cpf=''),
                 name='unique_non_null_cpf'
             )
         ]
@@ -160,12 +160,25 @@ class IndividualClient(models.Model):
             self.client.client_type = Client.Type.INDIVIDUAL
             self.client.save(update_fields=['client_type'])
             
-        # Format CPF
-        if self.cpf:
+        # Format CPF if not empty
+        if self.cpf and self.cpf.strip():
             digits = ''.join(filter(str.isdigit, self.cpf))
             if len(digits) == 11:
                 fmt = f"{digits[:3]}.{digits[3:6]}.{digits[6:9]}-{digits[9:]}"
                 self.cpf = fmt
+                
+                # Verificar se o CPF já existe
+                if not self.pk:  # Se for um novo registro
+                    if IndividualClient.objects.filter(cpf=fmt).exists():
+                        from django.core.exceptions import ValidationError
+                        raise ValidationError(f"CPF {fmt} já está cadastrado no sistema.")
+                else:  # Se estiver atualizando um registro existente
+                    if IndividualClient.objects.exclude(pk=self.pk).filter(cpf=fmt).exists():
+                        from django.core.exceptions import ValidationError
+                        raise ValidationError(f"CPF {fmt} já está cadastrado no sistema.")
+        elif self.cpf == '':
+            # If CPF is empty string, set it to None to avoid unique constraint issues
+            self.cpf = None
                 
         super().save(*args, **kwargs)
 
