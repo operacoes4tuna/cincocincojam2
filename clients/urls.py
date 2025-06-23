@@ -13,4 +13,5 @@ urlpatterns = [
     path('<int:pk>/editar/', views.ClientUpdateView.as_view(), name='client_update'),
     path('<int:pk>/excluir/', views.ClientDeleteView.as_view(), name='client_delete'),
     path('api/company-clients/', views.api_company_clients, name='api_company_clients'),
+    path('download-csv-template/', views.download_csv_template, name='download_csv_template'),
 ] 

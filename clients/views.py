@@ -4,7 +4,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.urls import reverse
 from django.contrib import messages
 from django.utils.translation import gettext_lazy as _
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.db import transaction
 from django.db.models import Q
 from django.contrib.auth.decorators import login_required
@@ -181,6 +181,70 @@ class IndividualClientRegistrationView(LoginRequiredMixin, ProfessorRequiredMixi
                               'Colunas ausentes: {}').format(', '.join(missing_fields))
                         )
                         return redirect('clients:individual_client_registration')
+                    
+                    # Pré-verificação para CPFs duplicados
+                    cpf_list = []
+                    cpf_duplicados_arquivo = set()
+                    
+                    # Primeiro ler todos os CPFs do arquivo para detectar duplicidades
+                    csv_io.seek(0)  # Voltar ao início do arquivo
+                    next(reader)  # Pular cabeçalho
+                    for row in reader:
+                        row_normalized = {k.strip().lower(): v.strip() if isinstance(v, str) else v 
+                                         for k, v in row.items()}
+                        cpf = row_normalized.get('cpf', '').replace('.', '').replace('-', '')
+                        if cpf:
+                            if cpf in cpf_list:
+                                cpf_duplicados_arquivo.add(cpf)
+                            else:
+                                cpf_list.append(cpf)
+                    
+                    # Verificar CPFs já existentes no banco de dados
+                    cpfs_normalizados = []
+                    for cpf in cpf_list:
+                        # Normalizar para formato com pontos e traço
+                        if len(cpf) == 11:
+                            formatted_cpf = f"{cpf[:3]}.{cpf[3:6]}.{cpf[6:9]}-{cpf[9:]}"
+                            cpfs_normalizados.append(formatted_cpf)
+                    
+                    cpfs_existentes = []
+                    if cpfs_normalizados:
+                        cpfs_existentes = list(IndividualClient.objects.filter(
+                            cpf__in=cpfs_normalizados
+                        ).values_list('cpf', flat=True))
+                    
+                    # Se houver CPFs duplicados, exibir erro
+                    if cpf_duplicados_arquivo:
+                        duplicados_formatados = []
+                        for cpf in cpf_duplicados_arquivo:
+                            if len(cpf) == 11:
+                                duplicados_formatados.append(f"{cpf[:3]}.{cpf[3:6]}.{cpf[6:9]}-{cpf[9:]}")
+                            else:
+                                duplicados_formatados.append(cpf)
+                        
+                        messages.error(
+                            request,
+                            _('Existem CPFs duplicados no arquivo CSV: {}').format(
+                                ', '.join(duplicados_formatados[:10]) + 
+                                ('...' if len(duplicados_formatados) > 10 else '')
+                            )
+                        )
+                        return redirect('clients:individual_client_registration')
+                    
+                    # Se houver CPFs já existentes no banco, exibir erro
+                    if cpfs_existentes:
+                        messages.error(
+                            request,
+                            _('Os seguintes CPFs já estão cadastrados no sistema: {}').format(
+                                ', '.join(cpfs_existentes[:10]) + 
+                                ('...' if len(cpfs_existentes) > 10 else '')
+                            )
+                        )
+                        return redirect('clients:individual_client_registration')
+                    
+                    # Voltar ao início do arquivo para processar
+                    csv_io.seek(0)
+                    reader = csv.DictReader(csv_io, dialect=dialect)
                     
                     # Processar cada linha do CSV
                     error_details = []
@@ -497,3 +561,32 @@ def api_company_clients(request):
         })
     
     return JsonResponse({'companies': company_data})
+
+
+@login_required
+def download_csv_template(request):
+    """
+    View para download de um arquivo CSV modelo para importação de clientes
+    """
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="modelo_clientes.csv"'
+    
+    # Criar o writer CSV com delimitador de ponto-e-vírgula (mais comum no Brasil)
+    writer = csv.writer(response, delimiter=';')
+    
+    # Escrever cabeçalhos
+    writer.writerow([
+        'nome_completo', 'cpf', 'email', 'endereco', 'numero',
+        'bairro', 'cidade', 'estado', 'cep', 'telefone',
+        'complemento', 'rg', 'data_nascimento'
+    ])
+    
+    # Escrever linha de exemplo
+    writer.writerow([
+        'João da Silva', '123.456.789-00', 'joao@exemplo.com',
+        'Rua das Flores', '123', 'Centro', 'São Paulo', 'SP',
+        '01234-567', '(11) 98765-4321', 'Apto 42', '12.345.678-9',
+        '31/12/1980'
+    ])
+    
+    return response
