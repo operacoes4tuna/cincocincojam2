@@ -128,6 +128,7 @@ class ClientRegistrationForm(forms.Form):
     phone = forms.CharField(
         label=_('Telefone'), 
         max_length=20,
+        required=False,
         widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': '(11) 98765-4321'})
     )
     
@@ -265,7 +266,7 @@ class ClientRegistrationForm(forms.Form):
         
         if client_type == Client.Type.INDIVIDUAL:
             # Validar campos de pessoa física
-            required_fields = ['full_name', 'cpf', 'birth_date']
+            required_fields = ['full_name', 'cpf']
             for field in required_fields:
                 if not cleaned_data.get(field):
                     self.add_error(field, _('Este campo é obrigatório para pessoa física.'))
@@ -285,8 +286,7 @@ class ClientRegistrationForm(forms.Form):
         
         elif client_type == Client.Type.COMPANY:
             # Validar campos de pessoa jurídica
-            required_fields = ['company_name', 'trade_name', 'cnpj', 
-                               'responsible_name', 'responsible_cpf']
+            required_fields = ['company_name', 'cnpj']
             for field in required_fields:
                 if not cleaned_data.get(field):
                     self.add_error(field, _('Este campo é obrigatório para pessoa jurídica.'))
@@ -318,7 +318,7 @@ class ClientRegistrationForm(forms.Form):
         client = Client(
             professor=self.professor,
             email=self.cleaned_data['email'],
-            phone=self.cleaned_data['phone'],
+            phone=self.cleaned_data.get('phone', ''),
             address=self.cleaned_data['address'],
             address_number=self.cleaned_data['address_number'],
             address_complement=self.cleaned_data.get('address_complement', ''),
@@ -337,7 +337,7 @@ class ClientRegistrationForm(forms.Form):
                 full_name=self.cleaned_data['full_name'],
                 cpf=self.cleaned_data['cpf'],
                 rg=self.cleaned_data.get('rg', ''),
-                birth_date=self.cleaned_data['birth_date']
+                birth_date=self.cleaned_data.get('birth_date')
             )
             individual.save()
             return client, individual

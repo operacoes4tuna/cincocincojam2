@@ -69,7 +69,9 @@ class Client(models.Model):
     
     # Basic fields for all clients
     email = models.EmailField(_('email'), max_length=255)
-    phone = models.CharField(_('telefone'), max_length=20)
+    phone = models.CharField(
+        _('telefone'), max_length=20, blank=True, null=True
+    )
     
     # Address fields
     address = models.CharField(_('endereço'), max_length=255)
@@ -134,7 +136,9 @@ class IndividualClient(models.Model):
         _('CPF'), max_length=14, validators=[cpf_validator], unique=True
     )
     rg = models.CharField(_('RG'), max_length=30, blank=True, null=True)
-    birth_date = models.DateField(_('data de nascimento'))
+    birth_date = models.DateField(
+        _('data de nascimento'), blank=True, null=True
+    )
     
     class Meta:
         verbose_name = _('cliente pessoa física')
@@ -172,7 +176,9 @@ class CompanyClient(models.Model):
     
     # Company information
     company_name = models.CharField(_('razão social'), max_length=255)
-    trade_name = models.CharField(_('nome fantasia'), max_length=255)
+    trade_name = models.CharField(
+        _('nome fantasia'), max_length=255, blank=True, null=True
+    )
     cnpj = models.CharField(
         _('CNPJ'), max_length=18, validators=[cnpj_validator], unique=True
     )
@@ -185,10 +191,11 @@ class CompanyClient(models.Model):
     
     # Responsible person
     responsible_name = models.CharField(
-        _('nome do responsável'), max_length=255
+        _('nome do responsável'), max_length=255, blank=True, null=True
     )
     responsible_cpf = models.CharField(
-        _('CPF do responsável'), max_length=14, validators=[cpf_validator]
+        _('CPF do responsável'), max_length=14, validators=[cpf_validator],
+        blank=True, null=True
     )
     
     class Meta:
