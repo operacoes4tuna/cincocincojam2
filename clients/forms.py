@@ -286,8 +286,7 @@ class ClientRegistrationForm(forms.Form):
         
         elif client_type == Client.Type.COMPANY:
             # Validar campos de pessoa jurídica
-            required_fields = ['company_name', 'trade_name', 'cnpj', 
-                               'responsible_name', 'responsible_cpf']
+            required_fields = ['company_name', 'cnpj']
             for field in required_fields:
                 if not cleaned_data.get(field):
                     self.add_error(field, _('Este campo é obrigatório para pessoa jurídica.'))

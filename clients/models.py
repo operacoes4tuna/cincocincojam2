@@ -176,7 +176,9 @@ class CompanyClient(models.Model):
     
     # Company information
     company_name = models.CharField(_('razão social'), max_length=255)
-    trade_name = models.CharField(_('nome fantasia'), max_length=255)
+    trade_name = models.CharField(
+        _('nome fantasia'), max_length=255, blank=True, null=True
+    )
     cnpj = models.CharField(
         _('CNPJ'), max_length=18, validators=[cnpj_validator], unique=True
     )
@@ -189,10 +191,11 @@ class CompanyClient(models.Model):
     
     # Responsible person
     responsible_name = models.CharField(
-        _('nome do responsável'), max_length=255
+        _('nome do responsável'), max_length=255, blank=True, null=True
     )
     responsible_cpf = models.CharField(
-        _('CPF do responsável'), max_length=14, validators=[cpf_validator]
+        _('CPF do responsável'), max_length=14, validators=[cpf_validator],
+        blank=True, null=True
     )
     
     class Meta:
