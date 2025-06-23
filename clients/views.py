@@ -134,80 +134,80 @@ class IndividualClientRegistrationView(LoginRequiredMixin, ProfessorRequiredMixi
                 error_count = 0
                 
                 try:
-                    # Decodificar e ler o arquivo CSV
-                    csv_data = csv_file.read().decode('utf-8')
-                    csv_io = io.StringIO(csv_data)
+                    # Decodificar o arquivo com tentativas de diferentes encodings
+                    encodings = ['utf-8', 'latin-1', 'cp1252']
+                    decoded_content = None
                     
-                    # Detectar delimitador (vírgula ou ponto-e-vírgula)
-                    dialect = csv.Sniffer().sniff(csv_data[:1024], delimiters=',;')
-                    csv_io.seek(0)  # Voltar ao início do arquivo
+                    for encoding in encodings:
+                        try:
+                            decoded_content = csv_file.read().decode(encoding)
+                            break
+                        except UnicodeDecodeError:
+                            continue
                     
+                    if decoded_content is None:
+                        messages.error(request, _('Não foi possível decodificar o arquivo CSV.'))
+                        return redirect('clients:individual_client_registration')
+                    
+                    # Criar um buffer de memória para manipular o conteúdo do CSV
+                    csv_io = io.StringIO(decoded_content)
+                    
+                    # Detectar o dialeto (delimitador, etc.)
+                    try:
+                        dialect = csv.Sniffer().sniff(csv_io.read(1024))
+                        csv_io.seek(0)
+                    except csv.Error:
+                        dialect = csv.excel  # usar o dialeto padrão
+                        
+                    # Ler o arquivo CSV para verificar o cabeçalho e validar os dados
                     reader = csv.DictReader(csv_io, dialect=dialect)
                     
-                    # Mapeamento de colunas português -> inglês
-                    column_mapping = {
-                        'nome_completo': 'full_name',
-                        'cpf': 'cpf',
-                        'email': 'email',
-                        'endereco': 'address',
-                        'numero': 'address_number',
-                        'bairro': 'neighborhood',
-                        'cidade': 'city',
-                        'estado': 'state',
-                        'cep': 'zipcode',
-                        'telefone': 'phone',
-                        'complemento': 'address_complement',
-                        'rg': 'rg',
-                        'data_nascimento': 'birth_date'
-                    }
-                    
-                    # Normalizar cabeçalhos para remover espaços e caracteres especiais
-                    headers = []
-                    if reader.fieldnames:
-                        headers = [h.strip().lower() for h in reader.fieldnames]
-                    
-                    # Verificar se as colunas necessárias estão presentes (em português)
-                    required_portuguese_fields = [
-                        'nome_completo', 'cpf', 'email', 'endereco', 
-                        'numero', 'bairro', 'cidade', 
-                        'estado', 'cep'
+                    # Verificar campos obrigatórios
+                    required_fields = [
+                        'nome_completo', 'cpf', 'endereco', 'numero', 
+                        'bairro', 'cidade', 'estado', 'cep', 'email'
                     ]
+                    header_normalized = [h.strip().lower() for h in reader.fieldnames or []]
                     
-                    missing_fields = [field for field in required_portuguese_fields if field not in headers]
+                    missing_fields = [field for field in required_fields if field not in header_normalized]
                     if missing_fields:
                         messages.error(
                             request,
-                            _('O arquivo CSV não contém todas as colunas necessárias. '
-                              'Colunas ausentes: {}').format(', '.join(missing_fields))
+                            _('O arquivo CSV não contém os campos obrigatórios: {}').format(
+                                ', '.join(missing_fields)
+                            )
                         )
                         return redirect('clients:individual_client_registration')
                     
-                    # Pré-verificação para CPFs duplicados
-                    cpf_list = []
+                    # Verificar registros para CPFs duplicados no arquivo ou já existentes no banco
+                    csv_io.seek(0)
+                    next(reader)  # Pular o cabeçalho
+                    
+                    cpfs = []
+                    cpfs_normalizados = []
                     cpf_duplicados_arquivo = set()
                     
-                    # Primeiro ler todos os CPFs do arquivo para detectar duplicidades
-                    csv_io.seek(0)  # Voltar ao início do arquivo
-                    next(reader)  # Pular cabeçalho
+                    # Iterar sobre todos os registros e verificar CPFs
                     for row in reader:
-                        row_normalized = {k.strip().lower(): v.strip() if isinstance(v, str) else v 
-                                         for k, v in row.items()}
-                        cpf = row_normalized.get('cpf', '').replace('.', '').replace('-', '')
-                        if cpf:
-                            if cpf in cpf_list:
-                                cpf_duplicados_arquivo.add(cpf)
-                            else:
-                                cpf_list.append(cpf)
+                        row_normalized = {k.strip().lower(): v.strip() for k, v in row.items()}
+                        cpf_raw = row_normalized.get('cpf', '')
+                        
+                        if cpf_raw:
+                            # Normalizar CPF removendo caracteres não numéricos
+                            cpf_digits = ''.join(filter(str.isdigit, cpf_raw))
+                            
+                            # Verificar se o CPF tem o tamanho correto
+                            if len(cpf_digits) == 11:
+                                if cpf_digits in cpfs:
+                                    cpf_duplicados_arquivo.add(cpf_digits)
+                                else:
+                                    cpfs.append(cpf_digits)
+                                    formatted_cpf = (
+                                        f"{cpf_digits[:3]}.{cpf_digits[3:6]}."
+                                        f"{cpf_digits[6:9]}-{cpf_digits[9:]}"
+                                    )
+                                    cpfs_normalizados.append(formatted_cpf)
                     
-                    # Verificar CPFs já existentes no banco de dados
-                    cpfs_normalizados = []
-                    for cpf in cpf_list:
-                        # Normalizar para formato com pontos e traço
-                        if len(cpf) == 11:
-                            formatted_cpf = f"{cpf[:3]}.{cpf[3:6]}.{cpf[6:9]}-{cpf[9:]}"
-                            cpfs_normalizados.append(formatted_cpf)
-                    
-                    cpfs_existentes = []
                     if cpfs_normalizados:
                         cpfs_existentes = list(IndividualClient.objects.filter(
                             cpf__in=cpfs_normalizados
@@ -218,26 +218,34 @@ class IndividualClientRegistrationView(LoginRequiredMixin, ProfessorRequiredMixi
                         duplicados_formatados = []
                         for cpf in cpf_duplicados_arquivo:
                             if len(cpf) == 11:
-                                duplicados_formatados.append(f"{cpf[:3]}.{cpf[3:6]}.{cpf[6:9]}-{cpf[9:]}")
+                                fmt_cpf = (
+                                    f"{cpf[:3]}.{cpf[3:6]}."
+                                    f"{cpf[6:9]}-{cpf[9:]}"
+                                )
+                                duplicados_formatados.append(fmt_cpf)
                             else:
                                 duplicados_formatados.append(cpf)
+                        
+                        msg_sufixo = '...' if len(duplicados_formatados) > 10 else ''
+                        duplicados_display = ', '.join(duplicados_formatados[:10])
                         
                         messages.error(
                             request,
                             _('Existem CPFs duplicados no arquivo CSV: {}').format(
-                                ', '.join(duplicados_formatados[:10]) + 
-                                ('...' if len(duplicados_formatados) > 10 else '')
+                                duplicados_display + msg_sufixo
                             )
                         )
                         return redirect('clients:individual_client_registration')
                     
                     # Se houver CPFs já existentes no banco, exibir erro
                     if cpfs_existentes:
+                        msg_sufixo = '...' if len(cpfs_existentes) > 10 else ''
+                        cpfs_display = ', '.join(cpfs_existentes[:10])
+                        
                         messages.error(
                             request,
                             _('Os seguintes CPFs já estão cadastrados no sistema: {}').format(
-                                ', '.join(cpfs_existentes[:10]) + 
-                                ('...' if len(cpfs_existentes) > 10 else '')
+                                cpfs_display + msg_sufixo
                             )
                         )
                         return redirect('clients:individual_client_registration')
@@ -288,11 +296,21 @@ class IndividualClientRegistrationView(LoginRequiredMixin, ProfessorRequiredMixi
                                         # Se não conseguir converter a data, deixar como None
                                         pass
                                 
+                                # Processar CPF - garantir formatação correta
+                                cpf = ''
+                                if row_normalized.get('cpf'):
+                                    cpf_raw = row_normalized['cpf'].strip()
+                                    cpf_digits = ''.join(filter(str.isdigit, cpf_raw))
+                                    if len(cpf_digits) == 11:
+                                        cpf = f"{cpf_digits[:3]}.{cpf_digits[3:6]}.{cpf_digits[6:9]}-{cpf_digits[9:]}"
+                                    else:
+                                        cpf = cpf_raw
+                                
                                 # Criar o cliente pessoa física
                                 individual = IndividualClient(
                                     client=client,
                                     full_name=row_normalized['nome_completo'],
-                                    cpf=row_normalized['cpf'],
+                                    cpf=cpf,
                                     rg=row_normalized.get('rg', ''),
                                     birth_date=birth_date
                                 )

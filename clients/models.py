@@ -133,7 +133,7 @@ class IndividualClient(models.Model):
     # Personal information
     full_name = models.CharField(_('nome completo'), max_length=255)
     cpf = models.CharField(
-        _('CPF'), max_length=14, validators=[cpf_validator], unique=True, blank=True, null=True
+        _('CPF'), max_length=14, validators=[cpf_validator], blank=True, null=True
     )
     rg = models.CharField(_('RG'), max_length=30, blank=True, null=True)
     birth_date = models.DateField(
@@ -143,6 +143,13 @@ class IndividualClient(models.Model):
     class Meta:
         verbose_name = _('cliente pessoa física')
         verbose_name_plural = _('clientes pessoa física')
+        constraints = [
+            models.UniqueConstraint(
+                fields=['cpf'],
+                condition=models.Q(cpf__isnull=False),
+                name='unique_non_null_cpf'
+            )
+        ]
         
     def __str__(self):
         return f"{self.full_name} - {self.cpf}"

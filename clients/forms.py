@@ -308,13 +308,21 @@ class ClientRegistrationForm(forms.Form):
             # Validar CPF único apenas se for fornecido
             cpf = cleaned_data.get('cpf')
             if cpf:
-                # Formatar CPF para comparação consistente
+                # Formatar CPF para comparação consistente - remover todos os caracteres não numéricos
                 cpf_digits = ''.join(filter(str.isdigit, cpf))
-                if len(cpf_digits) == 11:
-                    formatted_cpf = f"{cpf_digits[:3]}.{cpf_digits[3:6]}.{cpf_digits[6:9]}-{cpf_digits[9:]}"
-                else:
-                    formatted_cpf = cpf
                 
+                # Verificar se o CPF tem tamanho válido
+                if len(cpf_digits) != 11:
+                    self.add_error('cpf', _('CPF deve conter 11 dígitos.'))
+                    return cleaned_data
+                
+                # Formatar para o padrão XXX.XXX.XXX-XX
+                formatted_cpf = f"{cpf_digits[:3]}.{cpf_digits[3:6]}.{cpf_digits[6:9]}-{cpf_digits[9:]}"
+                
+                # Substituir o CPF pelo valor formatado
+                cleaned_data['cpf'] = formatted_cpf
+                
+                # Verificar se já existe no banco de dados
                 if IndividualClient.objects.filter(cpf=formatted_cpf).exists():
                     self.add_error('cpf', _('Este CPF já está cadastrado no sistema.'))
         
@@ -335,6 +343,9 @@ class ClientRegistrationForm(forms.Form):
                     formatted_cnpj += f"{cnpj_digits[8:12]}-{cnpj_digits[12:]}"
                 else:
                     formatted_cnpj = cnpj
+                
+                # Substituir o CNPJ pelo valor formatado
+                cleaned_data['cnpj'] = formatted_cnpj
                 
                 if CompanyClient.objects.filter(cnpj=formatted_cnpj).exists():
                     self.add_error('cnpj', _('Este CNPJ já está cadastrado no sistema.'))
@@ -366,10 +377,17 @@ class ClientRegistrationForm(forms.Form):
         
         # Cria os dados específicos conforme o tipo
         if client_type == Client.Type.INDIVIDUAL:
+            # Verificar se o CPF já existe antes de criar
+            cpf = self.cleaned_data.get('cpf', '')
+            if cpf:
+                # CPF já formatado pelo método clean()
+                if IndividualClient.objects.filter(cpf=cpf).exists():
+                    raise ValidationError(_('Este CPF já está cadastrado no sistema.'))
+                
             individual = IndividualClient(
                 client=client,
                 full_name=self.cleaned_data['full_name'],
-                cpf=self.cleaned_data.get('cpf', ''),
+                cpf=cpf,
                 rg=self.cleaned_data.get('rg', ''),
                 birth_date=self.cleaned_data.get('birth_date')
             )
@@ -377,11 +395,18 @@ class ClientRegistrationForm(forms.Form):
             return client, individual
         
         elif client_type == Client.Type.COMPANY:
+            # Verificar se o CNPJ já existe antes de criar
+            cnpj = self.cleaned_data.get('cnpj', '')
+            if cnpj:
+                # CNPJ já formatado pelo método clean()
+                if CompanyClient.objects.filter(cnpj=cnpj).exists():
+                    raise ValidationError(_('Este CNPJ já está cadastrado no sistema.'))
+                
             company = CompanyClient(
                 client=client,
                 company_name=self.cleaned_data['company_name'],
                 trade_name=self.cleaned_data['trade_name'],
-                cnpj=self.cleaned_data['cnpj'],
+                cnpj=cnpj,
                 state_registration=self.cleaned_data.get('state_registration', ''),
                 municipal_registration=self.cleaned_data.get('municipal_registration', ''),
                 responsible_name=self.cleaned_data['responsible_name'],
