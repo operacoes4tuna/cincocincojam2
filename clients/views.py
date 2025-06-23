@@ -1,17 +1,23 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.views.generic import ListView, CreateView, UpdateView, DetailView, View, DeleteView
+from django.views.generic import ListView, DetailView, View
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.urls import reverse_lazy, reverse
+from django.urls import reverse
 from django.contrib import messages
 from django.utils.translation import gettext_lazy as _
-from django.http import JsonResponse, HttpResponseRedirect
+from django.http import JsonResponse
+from django.db import transaction
 from django.db.models import Q
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_GET
+import csv
+import io
 
 from courses.views import ProfessorRequiredMixin
 from .models import Client, IndividualClient, CompanyClient
-from .forms import ClientRegistrationForm, ClientForm, IndividualClientForm, CompanyClientForm
+from .forms import (
+    ClientRegistrationForm, ClientForm, IndividualClientForm, 
+    CompanyClientForm, CSVUploadForm
+)
 
 
 class ClientListView(LoginRequiredMixin, ProfessorRequiredMixin, ListView):
@@ -100,10 +106,188 @@ class IndividualClientRegistrationView(LoginRequiredMixin, ProfessorRequiredMixi
         form.fields.pop('responsible_name', None)
         form.fields.pop('responsible_cpf', None)
         
-        return render(request, self.template_name, {'form': form})
+        # Adicionar o formulário de upload de CSV
+        csv_form = CSVUploadForm()
+        
+        return render(request, self.template_name, {
+            'form': form,
+            'csv_form': csv_form
+        })
     
     def post(self, request):
-        # Forçar o tipo para pessoa física
+        # Verificar se o formulário de upload de CSV foi enviado
+        if 'csv_file' in request.FILES:
+            csv_form = CSVUploadForm(request.POST, request.FILES)
+            if csv_form.is_valid():
+                csv_file = request.FILES['csv_file']
+                
+                # Verificar se é um arquivo CSV
+                if not csv_file.name.endswith('.csv'):
+                    messages.error(
+                        request,
+                        _('Por favor, envie um arquivo CSV válido.')
+                    )
+                    return redirect('clients:individual_client_registration')
+                
+                # Processar o arquivo CSV
+                success_count = 0
+                error_count = 0
+                
+                try:
+                    # Decodificar e ler o arquivo CSV
+                    csv_data = csv_file.read().decode('utf-8')
+                    csv_io = io.StringIO(csv_data)
+                    
+                    # Detectar delimitador (vírgula ou ponto-e-vírgula)
+                    dialect = csv.Sniffer().sniff(csv_data[:1024], delimiters=',;')
+                    csv_io.seek(0)  # Voltar ao início do arquivo
+                    
+                    reader = csv.DictReader(csv_io, dialect=dialect)
+                    
+                    # Mapeamento de colunas português -> inglês
+                    column_mapping = {
+                        'nome_completo': 'full_name',
+                        'cpf': 'cpf',
+                        'email': 'email',
+                        'endereco': 'address',
+                        'numero': 'address_number',
+                        'bairro': 'neighborhood',
+                        'cidade': 'city',
+                        'estado': 'state',
+                        'cep': 'zipcode',
+                        'telefone': 'phone',
+                        'complemento': 'address_complement',
+                        'rg': 'rg',
+                        'data_nascimento': 'birth_date'
+                    }
+                    
+                    # Normalizar cabeçalhos para remover espaços e caracteres especiais
+                    headers = []
+                    if reader.fieldnames:
+                        headers = [h.strip().lower() for h in reader.fieldnames]
+                    
+                    # Verificar se as colunas necessárias estão presentes (em português)
+                    required_portuguese_fields = [
+                        'nome_completo', 'cpf', 'email', 'endereco', 
+                        'numero', 'bairro', 'cidade', 
+                        'estado', 'cep'
+                    ]
+                    
+                    missing_fields = [field for field in required_portuguese_fields if field not in headers]
+                    if missing_fields:
+                        messages.error(
+                            request,
+                            _('O arquivo CSV não contém todas as colunas necessárias. '
+                              'Colunas ausentes: {}').format(', '.join(missing_fields))
+                        )
+                        return redirect('clients:individual_client_registration')
+                    
+                    # Processar cada linha do CSV
+                    error_details = []
+                    with transaction.atomic():  # Garante que todas as inserções sejam concluídas ou nenhuma
+                        for i, row in enumerate(reader, start=2):  # start=2 para contar a partir da linha 2 (após cabeçalho)
+                            try:
+                                # Normalizar as chaves do dicionário removendo espaços
+                                row_normalized = {k.strip().lower(): v for k, v in row.items()}
+                                
+                                # Criar o cliente base
+                                client = Client(
+                                    professor=request.user,
+                                    email=row_normalized['email'],
+                                    phone=row_normalized.get('telefone', ''),
+                                    address=row_normalized['endereco'],
+                                    address_number=row_normalized['numero'],
+                                    address_complement=row_normalized.get('complemento', ''),
+                                    neighborhood=row_normalized['bairro'],
+                                    city=row_normalized['cidade'],
+                                    state=row_normalized['estado'],
+                                    zipcode=row_normalized['cep'],
+                                    client_type=Client.Type.INDIVIDUAL
+                                )
+                                client.save()
+                                
+                                # Processar data de nascimento se existir
+                                birth_date = None
+                                if row_normalized.get('data_nascimento'):
+                                    try:
+                                        from datetime import datetime
+                                        date_str = row_normalized['data_nascimento'].strip()
+                                        
+                                        # Tentar formatos comuns de data
+                                        for fmt in ['%Y-%m-%d', '%d/%m/%Y', '%d-%m-%Y', '%d.%m.%Y']:
+                                            try:
+                                                birth_date = datetime.strptime(date_str, fmt).date()
+                                                break
+                                            except ValueError:
+                                                continue
+                                    except Exception:
+                                        # Se não conseguir converter a data, deixar como None
+                                        pass
+                                
+                                # Criar o cliente pessoa física
+                                individual = IndividualClient(
+                                    client=client,
+                                    full_name=row_normalized['nome_completo'],
+                                    cpf=row_normalized['cpf'],
+                                    rg=row_normalized.get('rg', ''),
+                                    birth_date=birth_date
+                                )
+                                individual.save()
+                                
+                                success_count += 1
+                            except Exception as e:
+                                error_count += 1
+                                error_details.append(f"Linha {i}: {str(e)}")
+                                # Continuar com a próxima linha em caso de erro
+                                continue
+                    
+                    # Exibir mensagem de sucesso ou erro
+                    if success_count > 0:
+                        messages.success(
+                            request,
+                            _('Importação concluída. {} clientes importados com sucesso. {} com erros.').format(
+                                success_count, error_count
+                            )
+                        )
+                        if error_details:
+                            messages.warning(
+                                request, 
+                                _('Alguns clientes não foram importados. Detalhes: {}').format(
+                                    '; '.join(error_details[:5]) + 
+                                    ('...' if len(error_details) > 5 else '')
+                                )
+                            )
+                    else:
+                        messages.error(
+                            request,
+                            _('Nenhum cliente foi importado. Verifique se o formato do arquivo está correto. '
+                              'Se o erro persistir, verifique o delimitador (vírgula ou ponto-e-vírgula) '
+                              'e se os cabeçalhos estão escritos exatamente como solicitado.')
+                        )
+                        if error_details:
+                            messages.warning(
+                                request, 
+                                _('Detalhes dos erros: {}').format(
+                                    '; '.join(error_details[:5]) + 
+                                    ('...' if len(error_details) > 5 else '')
+                                )
+                            )
+                
+                except Exception as e:
+                    messages.error(
+                        request,
+                        _('Erro ao processar o arquivo CSV: {}').format(str(e))
+                    )
+                
+                return redirect('clients:client_list')
+            else:
+                # Se o formulário de CSV é inválido, exibir mensagem de erro
+                messages.error(
+                    request,
+                    _('Por favor, selecione um arquivo CSV válido.')
+                )
+        
+        # Processamento do formulário normal de cadastro
         post_data = request.POST.copy()
         post_data['client_type'] = Client.Type.INDIVIDUAL
         
@@ -115,7 +299,13 @@ class IndividualClientRegistrationView(LoginRequiredMixin, ProfessorRequiredMixi
                 _('Cliente pessoa física cadastrado com sucesso!')
             )
             return redirect('clients:client_detail', pk=client.pk)
-        return render(request, self.template_name, {'form': form})
+            
+        # Se chegou aqui, é porque o formulário é inválido
+        csv_form = CSVUploadForm()
+        return render(request, self.template_name, {
+            'form': form,
+            'csv_form': csv_form
+        })
 
 
 class CompanyClientRegistrationView(LoginRequiredMixin, ProfessorRequiredMixin, View):

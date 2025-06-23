@@ -6,6 +6,15 @@ from django.core.exceptions import ValidationError
 
 from .models import Client, IndividualClient, CompanyClient
 
+class CSVUploadForm(forms.Form):
+    """
+    Formulário para upload de arquivo CSV de clientes pessoa física
+    """
+    csv_file = forms.FileField(
+        label=_('Arquivo CSV'),
+        widget=forms.FileInput(attrs={'class': 'form-control', 'accept': '.csv'})
+    )
+
 class ClientForm(forms.ModelForm):
     """
     Formulário base para clientes

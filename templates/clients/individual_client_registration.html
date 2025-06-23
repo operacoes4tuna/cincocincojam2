@@ -7,9 +7,68 @@
 {% block content %}
 <div class="container py-5">
     <div class="row mb-4">
-        <div class="col-12">
-            <h1 class="h3 fw-bold">{% translate "Cadastro de Pessoa Física" %}</h1>
-            <p class="text-muted">{% translate "Preencha os dados abaixo para cadastrar uma nova pessoa física." %}</p>
+        <div class="col-12 d-flex justify-content-between align-items-center">
+            <div>
+                <h1 class="h3 fw-bold">{% translate "Cadastro de Pessoa Física" %}</h1>
+                <p class="text-muted">{% translate "Preencha os dados abaixo para cadastrar uma nova pessoa física." %}</p>
+            </div>
+            <div>
+                <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#csvImportModal">
+                    <i class="bi bi-file-earmark-excel"></i> Cadastro em Massa
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal para importação CSV -->
+    <div class="modal fade" id="csvImportModal" tabindex="-1" aria-labelledby="csvImportModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="csvImportModalLabel">Importar Clientes via CSV</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted">Importe vários clientes de uma só vez usando um arquivo CSV.</p>
+                    
+                    <div class="alert alert-info mb-3">
+                        <h6 class="alert-heading">Dicas para criar seu arquivo CSV:</h6>
+                        <ol>
+                            <li>Use Excel ou outro editor de planilhas para criar seu arquivo.</li>
+                            <li>Ao salvar, escolha o formato <strong>CSV</strong> (valores separados por vírgula ou ponto-e-vírgula).</li>
+                            <li>Verifique se a primeira linha contém exatamente os cabeçalhos conforme listado abaixo.</li>
+                            <li>Os dados devem começar a partir da segunda linha.</li>
+                            <li>Para datas, use o formato AAAA-MM-DD (ex: 1980-12-31) ou DD/MM/AAAA (ex: 31/12/1980).</li>
+                            <li>Para CPF, você pode incluir ou não os pontos e traço.</li>
+                        </ol>
+                    </div>
+                    
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="{{ csv_form.csv_file.id_for_label }}" class="form-label">Arquivo CSV</label>
+                            {{ csv_form.csv_file }}
+                            {% if csv_form.csv_file.errors %}
+                                <div class="text-danger">{{ csv_form.csv_file.errors }}</div>
+                            {% endif %}
+                            <div class="form-text mt-2">
+                                <p><strong>O arquivo CSV deve conter as seguintes colunas:</strong></p>
+                                <ul>
+                                    <li><strong>Obrigatórios:</strong> nome_completo, cpf, email, endereco, numero, bairro, cidade, estado, cep</li>
+                                    <li><strong>Opcionais:</strong> telefone, complemento, rg, data_nascimento</li>
+                                </ul>
+                                <p><a href="#" onclick="downloadSampleCSV(); return false;" class="text-primary">Baixar modelo de CSV</a></p>
+                            </div>
+                        </div>
+                        <div class="d-flex justify-content-end">
+                            <button type="button" class="btn btn-secondary me-2" data-bs-dismiss="modal">Cancelar</button>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-upload"></i> Importar CSV
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
         </div>
     </div>
     
@@ -177,5 +236,50 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
+// Função para download de modelo CSV
+function downloadSampleCSV() {
+    // Cabeçalhos do CSV
+    const headers = ['nome_completo', 'cpf', 'email', 'endereco', 'numero', 'bairro', 'cidade', 'estado', 'cep', 'telefone', 'complemento', 'rg', 'data_nascimento'];
+    
+    // Dados de exemplo
+    const sampleData = [
+        'João da Silva', '123.456.789-00', 'joao@exemplo.com', 'Rua das Flores', '123', 'Centro', 'São Paulo', 'SP', '01234-567', '(11) 98765-4321', 'Apto 42', '12.345.678-9', '1980-01-31'
+    ];
+    
+    // Função para escapar valores CSV
+    function escapeCsvValue(val) {
+        // Se o valor contém vírgula, aspas ou quebra de linha, envolva em aspas duplas
+        if (/[",\n\r]/.test(val)) {
+            // Substituir aspas duplas por duas aspas duplas (padrão CSV)
+            return '"' + val.replace(/"/g, '""') + '"';
+        }
+        return val;
+    }
+    
+    // Montar o conteúdo do CSV com valores escapados corretamente
+    const headerLine = headers.map(escapeCsvValue).join(',');
+    const dataLine = sampleData.map(escapeCsvValue).join(',');
+    let content = headerLine + '\r\n' + dataLine;
+    
+    // Adicionar BOM (Byte Order Mark) para compatibilidade com Excel
+    const BOM = '\uFEFF';
+    content = BOM + content;
+    
+    // Criar um Blob e link para download
+    const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    
+    // Configurar o link para download
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'modelo_clientes.csv');
+    link.style.visibility = 'hidden';
+    
+    // Adicionar ao DOM, clicar e remover
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
 </script>
 {% endblock %} 
