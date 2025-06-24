@@ -177,7 +177,7 @@
                                                             <i class="fas fa-check-circle me-1"></i> NF Emitida
                                                         </span>
                                                         {% if invoice.focus_pdf_url %}
-                                                            <a href="{{ invoice.focus_pdf_url }}" target="_blank" class="btn btn-sm btn-outline-primary" title="{% translate 'Visualizar PDF' %}">
+                                                            <a href="{% url 'invoices:view_pdf' invoice_id=invoice.id %}" target="_blank" class="btn btn-sm btn-outline-primary" title="{% translate 'Visualizar PDF' %}">
                                                                 <i class="fas fa-file-pdf"></i>
                                                             </a>
                                                         {% else %}

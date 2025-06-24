@@ -219,7 +219,7 @@
                                                                 <td>{{ invoice.created_at|date:"d/m/Y" }}</td>
                                                                 <td>
                                                                     {% if invoice.focus_pdf_url %}
-                                                                    <a href="{{ invoice.focus_pdf_url }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                                                    <a href="{% url 'invoices:view_pdf' invoice_id=invoice.id %}" target="_blank" class="btn btn-sm btn-outline-primary">
                                                                         <i class="fas fa-file-pdf"></i>
                                                                     </a>
                                                                     {% endif %}

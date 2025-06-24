@@ -501,8 +501,8 @@ def transaction_invoice_status(request, transaction_id):
 @login_required
 def view_pdf(request, invoice_id):
     """
-    Redireciona para o PDF da nota fiscal usando o endpoint da API.
-    /v1/companies/{company_id}/serviceinvoices/{id}/pdf
+    Exibe o PDF da nota fiscal usando a rota autenticada download_pdf.
+    Não redireciona mais para links externos que podem expirar.
     """
     try:
         # Obter a nota fiscal
@@ -538,19 +538,8 @@ def view_pdf(request, invoice_id):
             else:
                 return redirect('payments:singlesale_list')
         
-        # Se tiver a URL do PDF diretamente, usar ela
-        if invoice.focus_pdf_url:
-            return HttpResponseRedirect(invoice.focus_pdf_url)
-            
-        # Obter a configuração da empresa
-        company_config = get_object_or_404(CompanyConfig, user=professor)
-        
-        # Construir a URL para o PDF usando o endpoint da API
-        service = NFEioService()
-        pdf_url = service.get_pdf_url(company_config.id, invoice.external_id)
-        
-        # Redirecionar para a URL do PDF
-        return HttpResponseRedirect(pdf_url)
+        # Sempre usar a função interna download_pdf que tem autenticação
+        return download_pdf(request, invoice.external_id)
         
     except Exception as e:
         logger.error(f"Erro ao obter PDF da nota fiscal {invoice_id}: {str(e)}")
