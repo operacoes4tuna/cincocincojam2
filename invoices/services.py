@@ -391,25 +391,39 @@ class NFEioService:
                 print("DEBUG - Valor do serviço ajustado para mínimo")
             print(f"DEBUG - Valor do serviço: {services_amount}")
             
-            # Dados para venda avulsa (usando padrões para endereço)
+            # Formatar CEP
+            zipcode = sale.customer_zipcode or '00000000'
+            if zipcode:
+                zipcode = zipcode.replace('-', '')
+                print(f"DEBUG - CEP do cliente: {zipcode}")
+            else:
+                zipcode = '00000000'
+                print("DEBUG - CEP não informado, usando padrão")
+                
+            # Obter estado e cidade
+            state = sale.customer_state or 'SP'
+            city = sale.customer_city or 'São Paulo'
+            print(f"DEBUG - Localização: {city}/{state}")
+            
+            # Dados para venda avulsa
             borrower_name = sale.customer_name
             borrower_email = sale.customer_email
             reference = f"SALE_{sale.id}"
             additional_information = f"Venda realizada por {professor.get_full_name().strip() or professor.email}. Plataforma: 555JAM"
             
-            # Endereço padrão para venda avulsa
+            # Usar dados de endereço fornecidos na venda avulsa
             address = {
                 "country": "BRA",
-                "state": "SP",
+                "state": state.upper(),
                 "city": {
-                    "code": "3550308",  # São Paulo
-                    "name": "São Paulo"
+                    "code": self._get_city_code(state),
+                    "name": city
                 },
-                "district": "Centro",
-                "street": "Endereço não informado",
-                "number": "S/N",
-                "postalCode": "00000000",
-                "additionalInformation": ""
+                "district": sale.customer_neighborhood or 'Centro',
+                "street": sale.customer_address or 'Endereço não informado',
+                "number": sale.customer_address_number or 'S/N',
+                "postalCode": zipcode,
+                "additionalInformation": sale.customer_address_complement or ''
             }
         else:
             raise ValueError("Invoice não está associada a uma transação ou venda avulsa")
