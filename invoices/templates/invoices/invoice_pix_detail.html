@@ -8,21 +8,74 @@
 {% block extra_css %}
 <style>
     .qr-code-container {
-        background: white;
+        background: var(--card-bg);
+        border: 1px solid var(--card-border);
         border-radius: 15px;
         padding: 20px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        box-shadow: 0 4px 6px var(--shadow);
         margin: 20px 0;
+        transition: all 0.3s ease;
     }
     
     .pix-code-container {
-        background: #f8f9fa;
-        border: 2px dashed #dee2e6;
+        background: var(--card-bg);
+        border: 2px dashed var(--border-color);
         border-radius: 10px;
         padding: 15px;
         margin: 15px 0;
+        transition: all 0.3s ease;
     }
     
+    .payment-actions {
+        background: var(--card-bg);
+        border: 1px solid var(--card-border);
+        border-radius: 15px;
+        padding: 20px;
+        box-shadow: 0 2px 4px var(--shadow);
+        transition: all 0.3s ease;
+    }
+    
+    /* Melhorias específicas para tema escuro */
+    [data-bs-theme="dark"] .qr-code-container {
+        background: var(--card-bg);
+        border-color: var(--card-border);
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    }
+    
+    [data-bs-theme="dark"] .pix-code-container {
+        background: var(--card-bg);
+        border-color: var(--border-color);
+        color: var(--body-color);
+    }
+    
+    [data-bs-theme="dark"] .payment-actions {
+        background: var(--card-bg);
+        border-color: var(--card-border);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    }
+    
+    /* QR Code container específico para tema escuro */
+    [data-bs-theme="dark"] .qr-code-container h5,
+    [data-bs-theme="dark"] .pix-code-container h5,
+    [data-bs-theme="dark"] .payment-actions h5 {
+        color: var(--body-color);
+    }
+    
+    /* Melhoria na imagem do QR Code para tema escuro */
+    [data-bs-theme="dark"] .qr-code-container img {
+        background: white;
+        padding: 10px;
+        border-radius: 8px;
+    }
+    
+    /* Input de código PIX ajustado para tema escuro */
+    [data-bs-theme="dark"] .pix-code-container .form-control {
+        background-color: var(--input-bg);
+        border-color: var(--input-border);
+        color: var(--input-color);
+    }
+    
+    /* Outros elementos ajustados */
     .status-badge {
         font-size: 1.1em;
         padding: 10px 20px;
@@ -47,11 +100,21 @@
         margin-bottom: 20px;
     }
     
-    .payment-actions {
-        background: white;
-        border-radius: 15px;
-        padding: 20px;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    /* Tema escuro - gradiente mais suave */
+    [data-bs-theme="dark"] .invoice-info {
+        background: linear-gradient(135deg, #4a5568 0%, #553c9a 100%);
+        filter: brightness(0.9);
+    }
+    
+    /* Botões específicos para tema escuro */
+    [data-bs-theme="dark"] .btn-outline-secondary {
+        color: var(--body-color);
+        border-color: var(--border-color);
+    }
+    
+    [data-bs-theme="dark"] .btn-outline-secondary:hover {
+        background-color: var(--border-color);
+        color: var(--body-color);
     }
 </style>
 {% endblock %}
@@ -87,7 +150,7 @@
                     <div class="col-md-6">
                         <h5><i class="fas fa-file-invoice me-2"></i>{% translate "Nota Fiscal" %} #{{ invoice.id }}</h5>
                         <p class="mb-1"><strong>Status:</strong> {{ invoice.get_status_display }}</p>
-                        <p class="mb-1"><strong>Valor:</strong> R$ {{ pix_payment.amount|floatformat:2|intcomma }}</p>
+                        <p class="mb-1"><strong>Valor:</strong> R$ {{ pix_payment.amount|floatformat:2}}</p>
                     </div>
                     <div class="col-md-6">
                         {% if invoice.transaction %}
@@ -157,12 +220,12 @@
                                         <img src="{{ qr_code_image_url }}" 
                                              alt="QR Code Pix" 
                                              class="img-fluid" 
-                                             style="max-width: 200px; border: 3px solid #dee2e6; border-radius: 10px;">
+                                             style="max-width: 200px; border: 3px solid var(--border-color); border-radius: 10px;">
                                     {% elif qr_code_image_data %}
                                         <img src="data:image/png;base64,{{ qr_code_image_data }}" 
                                              alt="QR Code Pix" 
                                              class="img-fluid" 
-                                             style="max-width: 200px; border: 3px solid #dee2e6; border-radius: 10px;">
+                                             style="max-width: 200px; border: 3px solid var(--border-color); border-radius: 10px;">
                                     {% else %}
                                         <div class="text-muted">
                                             <i class="fas fa-exclamation-triangle fa-3x mb-2"></i>
@@ -171,9 +234,9 @@
                                     {% endif %}
                                     
                                     {% if pix_payment.provider_response.fallback %}
-                                        <div class="alert alert-warning mt-3 small">
+                                        <div class="alert alert-info mt-3 small">
                                             <i class="fas fa-info-circle me-1"></i>
-                                            {% translate "QR Code de demonstração" %}
+                                            {% translate "QR Code PIX gerado localmente seguindo padrão EMV do Banco Central" %}
                                         </div>
                                     {% endif %}
                                 </div>
@@ -271,7 +334,7 @@
                                 {% if pix_payment.provider_response %}
                                     <li><strong>Provedor:</strong> 
                                         {% if pix_payment.provider_response.fallback %}
-                                            Local (Simulação)
+                                            Local EMV (Padrão Banco Central)
                                         {% else %}
                                             OpenPix
                                         {% endif %}
@@ -418,14 +481,16 @@
     }
     
     // Auto-verificação de status a cada 30 segundos se estiver pendente
-    {% if pix_payment.status == 'PENDING' %}
-    setInterval(function() {
-        // Verificar automaticamente apenas se não estiver em loading
-        const loadingStatus = document.getElementById('loading-status');
-        if (!loadingStatus || loadingStatus.style.display === 'none') {
-            checkPaymentStatus();
-        }
-    }, 30000); // 30 segundos
-    {% endif %}
+    // Verificar se o status é pendente antes de configurar o intervalo
+    var pixStatus = '{{ pix_payment.status }}';
+    if (pixStatus === 'PENDING') {
+        setInterval(function() {
+            // Verificar automaticamente apenas se não estiver em loading
+            const loadingStatus = document.getElementById('loading-status');
+            if (!loadingStatus || loadingStatus.style.display === 'none') {
+                checkPaymentStatus();
+            }
+        }, 30000); // 30 segundos
+    }
 </script>
 {% endblock %} 

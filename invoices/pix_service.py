@@ -27,6 +27,14 @@ class InvoicePixService:
             self.openpix_service = None
         self.logger = logger
         
+        # Dados do recebedor Fred Carvalho
+        self.receiver_data = {
+            'name': 'Fred Carvalho',
+            'city': 'Rio de Janeiro',
+            'pix_key': '15992202706',  # CPF
+            'pix_key_type': 'cpf'
+        }
+        
     def create_pix_payment_for_invoice(self, invoice, expiration_minutes=60):
         """
         Cria um pagamento Pix para uma nota fiscal.
@@ -112,33 +120,32 @@ class InvoicePixService:
                     return self._create_local_fallback_pix(pix_payment, amount)
             else:
                 # OpenPix não disponível, usar fallback local
-                self.logger.warning(f"OpenPix não disponível para invoice {invoice.id}, usando fallback local")
                 return self._create_local_fallback_pix(pix_payment, amount)
                 
         except Exception as e:
-            self.logger.error(f"Erro geral ao criar pagamento Pix para invoice {invoice.id}: {str(e)}")
+            self.logger.error(f"Erro ao criar pagamento Pix para invoice {invoice.id}: {str(e)}")
             return {
                 'success': False,
-                'error': f'Erro interno: {str(e)}'
+                'error': str(e)
             }
     
     def _get_invoice_amount(self, invoice):
-        """Obtém o valor da invoice de diferentes fontes."""
-        if invoice.amount:
-            return invoice.amount
+        """Obtém o valor da invoice."""
+        if hasattr(invoice, 'amount') and invoice.amount:
+            return float(invoice.amount)
         elif invoice.transaction:
-            return invoice.transaction.amount
+            return float(invoice.transaction.amount)
         elif invoice.singlesale:
-            return invoice.singlesale.amount
+            return float(invoice.singlesale.amount)
         return None
     
     def _prepare_pix_data(self, invoice, amount, correlation_id, expiration_minutes):
-        """Prepara os dados para criação do Pix."""
+        """Prepara dados para criação do Pix."""
         # Obter informações do cliente
         customer_info = self._get_customer_info(invoice)
         
         # Descrição da cobrança
-        description = f"Pagamento da Nota Fiscal #{invoice.id}"
+        description = f"Nota Fiscal #{invoice.id}"
         if invoice.transaction:
             description += f" - {invoice.transaction.enrollment.course.title}"
         elif invoice.singlesale:
@@ -198,8 +205,8 @@ class InvoicePixService:
     def _create_local_fallback_pix(self, pix_payment, amount):
         """Cria um Pix de fallback local quando a API externa falha."""
         try:
-            # Gerar um BR Code simulado (formato simplificado para demonstração)
-            brcode = self._generate_mock_brcode(pix_payment, amount)
+            # Gerar um BR Code seguindo padrão EMV
+            brcode = self._generate_emv_brcode(pix_payment, amount)
             
             # Gerar QR Code local
             qr_code_data = self._generate_local_qrcode(brcode)
@@ -209,48 +216,120 @@ class InvoicePixService:
             pix_payment.qrcode_image_data = qr_code_data
             pix_payment.provider_response = {
                 'fallback': True,
-                'provider': 'local_simulation',
-                'message': 'QR Code gerado localmente como fallback'
+                'provider': 'local_emv_generator',
+                'message': 'QR Code PIX gerado localmente seguindo padrão EMV'
             }
             pix_payment.save()
             
-            self.logger.info(f"Fallback local criado para invoice {pix_payment.invoice.id}")
+            self.logger.info(f"PIX EMV local criado para invoice {pix_payment.invoice.id}")
             return {
                 'success': True,
                 'pix_payment': pix_payment,
-                'provider': 'local_fallback',
-                'warning': 'Usando simulação local - não é um Pix real'
+                'provider': 'local_emv',
+                'message': 'PIX gerado localmente seguindo padrão EMV do Banco Central'
             }
             
         except Exception as e:
-            self.logger.error(f"Erro ao criar fallback local: {str(e)}")
+            self.logger.error(f"Erro ao criar PIX EMV local: {str(e)}")
             pix_payment.status = 'FAILED'
-            pix_payment.error_message = f'Erro no fallback local: {str(e)}'
+            pix_payment.error_message = f'Erro no gerador EMV local: {str(e)}'
             pix_payment.save()
             
             return {
                 'success': False,
-                'error': f'Falha no fallback local: {str(e)}'
+                'error': f'Falha no gerador PIX EMV: {str(e)}'
             }
     
-    def _generate_mock_brcode(self, pix_payment, amount):
-        """Gera um BR Code mock para demonstração."""
-        # Formatar valor para PIX (sem ponto decimal)
-        valor_formatado = f"{amount:.2f}".replace('.', '')
+    def _generate_emv_brcode(self, pix_payment, amount):
+        """
+        Gera um BR Code seguindo padrão EMV do Banco Central.
+        Baseado nas especificações técnicas do PIX versão 2.3.0.
+        """
+        # Dados do recebedor
+        receiver_name = self.receiver_data['name'][:25]  # Max 25 caracteres
+        receiver_city = self.receiver_data['city'][:15].upper()  # Max 15 caracteres, maiúsculo
+        pix_key = self.receiver_data['pix_key']
         
-        # Obter nome do cliente
-        customer_name = "Cliente Demo"
+        # Formatação do valor
+        amount_str = f"{amount:.2f}"
+        
+        # Obter descrição do pagamento
+        description = f"NF{pix_payment.invoice.id}"
         if pix_payment.invoice.transaction:
-            customer_name = pix_payment.invoice.transaction.enrollment.student.get_full_name()[:25]
+            course_name = pix_payment.invoice.transaction.enrollment.course.title[:20]
+            description = f"NF{pix_payment.invoice.id}-{course_name}"
         elif pix_payment.invoice.singlesale:
-            customer_name = pix_payment.invoice.singlesale.customer_name[:25]
+            sale_desc = pix_payment.invoice.singlesale.description[:20]
+            description = f"NF{pix_payment.invoice.id}-{sale_desc}"
         
-        # Código PIX de demonstração (formato simplificado)
-        mock_brcode = f"00020101021226930014br.gov.bcb.pix2571demo.cincocinco.com/pix/{pix_payment.correlation_id}5204000053039865406{valor_formatado}5802BR5925{customer_name}6009Sao Paulo62090505#{pix_payment.invoice.id}6304"
+        # Construir payload EMV
+        # 00 - Payload Format Indicator
+        payload = "00" + "02" + "01"
         
-        # Calcular um checksum simples (não é o CRC16 real do PIX)
-        checksum = str(sum(ord(c) for c in mock_brcode) % 10000).zfill(4)
-        return mock_brcode + checksum
+        # 01 - Point of Initiation Method (12 = dinâmico, 11 = estático)
+        payload += "01" + "02" + "12"
+        
+        # 26 - Merchant Account Information (PIX)
+        pix_info = "0014br.gov.bcb.pix01" + f"{len(pix_key):02d}" + pix_key
+        if description:
+            pix_info += "02" + f"{len(description):02d}" + description
+        payload += "26" + f"{len(pix_info):02d}" + pix_info
+        
+        # 52 - Merchant Category Code
+        payload += "52" + "04" + "0000"
+        
+        # 53 - Transaction Currency (986 = BRL)
+        payload += "53" + "03" + "986"
+        
+        # 54 - Transaction Amount
+        if amount > 0:
+            payload += "54" + f"{len(amount_str):02d}" + amount_str
+        
+        # 58 - Country Code
+        payload += "58" + "02" + "BR"
+        
+        # 59 - Merchant Name
+        payload += "59" + f"{len(receiver_name):02d}" + receiver_name
+        
+        # 60 - Merchant City
+        payload += "60" + f"{len(receiver_city):02d}" + receiver_city
+        
+        # 62 - Additional Data Field Template
+        additional_data = "05" + f"{len(pix_payment.correlation_id[:25]):02d}" + pix_payment.correlation_id[:25]
+        payload += "62" + f"{len(additional_data):02d}" + additional_data
+        
+        # 63 - CRC16 (será calculado)
+        payload += "6304"
+        
+        # Calcular CRC16
+        crc = self._calculate_crc16(payload)
+        payload += crc
+        
+        return payload
+    
+    def _calculate_crc16(self, payload):
+        """
+        Calcula CRC16 conforme especificação EMV.
+        """
+        def crc16_ccitt(data):
+            crc = 0xFFFF
+            for byte in data.encode('utf-8'):
+                crc ^= (byte << 8)
+                for _ in range(8):
+                    if crc & 0x8000:
+                        crc = (crc << 1) ^ 0x1021
+                    else:
+                        crc <<= 1
+                    crc &= 0xFFFF
+            return crc
+        
+        crc = crc16_ccitt(payload)
+        return f"{crc:04X}"
+    
+    def _generate_mock_brcode(self, pix_payment, amount):
+        """Gera um BR Code mock para demonstração (método antigo mantido para compatibilidade)."""
+        # Usar o novo método EMV
+        return self._generate_emv_brcode(pix_payment, amount)
     
     def _generate_local_qrcode(self, brcode):
         """Gera um QR Code local e retorna como base64."""
