@@ -14,6 +14,9 @@
                             <a href="{% url 'invoices:send_email' invoice.id %}" class="btn btn-sm btn-outline-primary" target="_blank">
                                 <i class="fas fa-envelope"></i> Enviar por email
                             </a>
+                            <a href="#" class="btn btn-sm btn-outline-success" onclick="compartilharWhatsApp('{{ invoice.focus_pdf_url }}', '{{ invoice.id }}'); return false;" title="Compartilhar no WhatsApp">
+                                <i class="fab fa-whatsapp"></i> WhatsApp
+                            </a>
                             <a href="{% url 'invoices:invoice_detail' invoice_id=invoice.id %}" class="btn btn-sm btn-outline-primary">
                                 <i class="fas fa-file-invoice"></i> Detalhes
                             </a>
@@ -130,6 +133,9 @@
                                                                                         <a href="/invoices/send-email/${invoiceId}/" class="btn btn-sm btn-outline-primary" target="_blank">
                             <i class="fas fa-envelope"></i> Enviar por email
                         </a>
+                        <a href="#" class="btn btn-sm btn-outline-success" onclick="compartilharWhatsApp('/invoices/pdf/${invoiceId}/', '${invoiceId}'); return false;" title="Compartilhar no WhatsApp">
+                            <i class="fab fa-whatsapp"></i> WhatsApp
+                        </a>
                         <a href="/invoices/detail/${invoiceId}/" class="btn btn-sm btn-outline-primary">
                             <i class="fas fa-file-invoice"></i> Detalhes
                         </a>
@@ -190,4 +196,14 @@
             }
         }
     });
+
+    // Função para compartilhar no WhatsApp
+    function compartilharWhatsApp(pdfUrl, invoiceId) {
+        const baseUrl = window.location.origin;
+        const urlCompleta = pdfUrl.startsWith('http') ? pdfUrl : baseUrl + pdfUrl;
+        const texto = `Olá! Segue sua Nota Fiscal #${invoiceId}.\n\nPara visualizar ou baixar o PDF, acesse: ${urlCompleta}\n\nCincoCincoJAM - Escola de Música`;
+        const textoEncodado = encodeURIComponent(texto);
+        const whatsappUrl = `https://wa.me/?text=${textoEncodado}`;
+        window.open(whatsappUrl, '_blank');
+    }
 </script>

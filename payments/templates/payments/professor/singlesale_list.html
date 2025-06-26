@@ -186,11 +186,14 @@
                                                             </a>
                                                         {% endif %}
                                                         
-                                                        <!-- Novos botões: email e boleto -->
-                                                        <a href="{% url 'invoices:send_email' invoice.id %}" class="btn btn-sm btn-outline-info" title="{% translate 'Enviar por Email' %}" target="_blank">
-                                                            <i class="fas fa-envelope"></i>
-                                                        </a>
-                                                                                                <a href="{% url 'invoices:create_pix_payment' invoice.id %}" class="btn btn-sm btn-success" title="{% translate 'Gerar Pix' %}">
+                                                                                                <!-- Novos botões: email e boleto -->
+                                        <a href="{% url 'invoices:send_email' invoice.id %}" class="btn btn-sm btn-outline-info" title="{% translate 'Enviar por Email' %}" target="_blank">
+                                            <i class="fas fa-envelope"></i>
+                                        </a>
+                                        <a href="#" class="btn btn-sm btn-outline-success" title="{% translate 'Compartilhar no WhatsApp' %}" onclick="compartilharWhatsApp('{{ invoice.focus_pdf_url }}', '{{ invoice.id }}'); return false;">
+                                            <i class="fab fa-whatsapp"></i>
+                                        </a>
+                                                                                <a href="{% url 'invoices:create_pix_payment' invoice.id %}" class="btn btn-sm btn-success" title="{% translate 'Gerar Pix' %}">
                                             <i class="fas fa-qrcode"></i>
                                         </a>
                                                     {% elif invoice.status == 'pending' or invoice.status == 'processing' %}
@@ -681,6 +684,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 button.innerHTML = '<i class="fas fa-sync-alt"></i>';
                 showStatusMessage('danger', 'Erro ao sincronizar status da nota fiscal. Tente novamente.');
             });
+    }
+
+    // Função para compartilhar no WhatsApp
+    function compartilharWhatsApp(pdfUrl, invoiceId) {
+        const baseUrl = window.location.origin;
+        const urlCompleta = pdfUrl.startsWith('http') ? pdfUrl : baseUrl + pdfUrl;
+        const texto = `Olá! Segue sua Nota Fiscal #${invoiceId}.\n\nPara visualizar ou baixar o PDF, acesse: ${urlCompleta}\n\nCincoCincoJAM - Escola de Música`;
+        const textoEncodado = encodeURIComponent(texto);
+        const whatsappUrl = `https://wa.me/?text=${textoEncodado}`;
+        window.open(whatsappUrl, '_blank');
     }
 });
 </script>

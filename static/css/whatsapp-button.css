@@ -1,0 +1,28 @@
+/* Estilos para o botão de compartilhar no WhatsApp */
+
+/* Cor oficial do WhatsApp para o ícone */
+.btn-outline-success .fab.fa-whatsapp {
+    color: #25D366;
+}
+
+/* Quando hover no botão, o ícone fica branco */
+.btn-outline-success:hover .fab.fa-whatsapp {
+    color: #fff;
+}
+
+/* Para botões sólidos, garantir que o ícone seja sempre branco */
+.btn-success .fab.fa-whatsapp {
+    color: #fff;
+}
+
+/* Efeito suave de transição */
+.fab.fa-whatsapp {
+    transition: color 0.3s ease;
+}
+
+/* Garantir espaçamento adequado entre botões em telas pequenas */
+@media (max-width: 576px) {
+    .btn.btn-sm {
+        margin-bottom: 0.25rem;
+    }
+} 

@@ -152,6 +152,13 @@
                         </a>
                         {% endif %}
                         
+                        <!-- Compartilhar no WhatsApp -->
+                        {% if invoice.status == 'approved' and invoice.focus_pdf_url %}
+                        <a href="#" class="btn btn-success" onclick="compartilharWhatsApp('{{ invoice.focus_pdf_url }}', '{{ invoice.id }}'); return false;" title="{% translate 'Compartilhar no WhatsApp' %}">
+                            <i class="fab fa-whatsapp"></i> {% translate "WhatsApp" %}
+                        </a>
+                        {% endif %}
+                        
                         <!-- Pagamento Pix (substitui o botão de boleto) -->
                         {% if invoice.status == 'approved' or invoice.status == 'issued' %}
                             {% with pix_payment=invoice.pix_payment|default:None %}
@@ -292,4 +299,16 @@
         </div>
     </div>
 </div>
+
+<script>
+// Função para compartilhar no WhatsApp
+function compartilharWhatsApp(pdfUrl, invoiceId) {
+    const baseUrl = window.location.origin;
+    const urlCompleta = pdfUrl.startsWith('http') ? pdfUrl : baseUrl + pdfUrl;
+    const texto = `Olá! Segue sua Nota Fiscal #${invoiceId}.\n\nPara visualizar ou baixar o PDF, acesse: ${urlCompleta}\n\nCincoCincoJAM - Escola de Música`;
+    const textoEncodado = encodeURIComponent(texto);
+    const whatsappUrl = `https://wa.me/?text=${textoEncodado}`;
+    window.open(whatsappUrl, '_blank');
+}
+</script>
 {% endblock %} 

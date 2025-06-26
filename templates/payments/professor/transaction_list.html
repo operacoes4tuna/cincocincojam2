@@ -122,12 +122,15 @@
                                             <a href="{% url 'invoices:download_pdf' invoice.external_id %}" target="_blank" class="btn btn-sm btn-outline-primary ms-2" title="Visualizar PDF">
                                                 <i class="fas fa-file-pdf"></i>
                                             </a>
-                                            <a href="{% url 'invoices:send_email' invoice.id %}" class="btn btn-sm btn-outline-info ms-2" title="Enviar por email" target="_blank">
-                                                <i class="fas fa-envelope"></i>
-                                            </a>
-                                            <a href="{% url 'invoices:delete' invoice.id %}" class="btn btn-sm btn-outline-danger ms-2" title="Excluir (apenas teste)">
-                                                <i class="fas fa-trash-alt"></i>
-                                            </a>
+                                                                        <a href="{% url 'invoices:send_email' invoice.id %}" class="btn btn-sm btn-outline-info ms-2" title="Enviar por email" target="_blank">
+                                <i class="fas fa-envelope"></i>
+                            </a>
+                            <a href="#" class="btn btn-sm btn-outline-success ms-2" title="Compartilhar no WhatsApp" onclick="compartilharWhatsApp('{{ invoice.focus_pdf_url }}', '{{ invoice.id }}'); return false;">
+                                <i class="fab fa-whatsapp"></i>
+                            </a>
+                            <a href="{% url 'invoices:delete' invoice.id %}" class="btn btn-sm btn-outline-danger ms-2" title="Excluir (apenas teste)">
+                                <i class="fas fa-trash-alt"></i>
+                            </a>
                                         {% elif invoice.status == 'processing' %}
                                             <span class="badge bg-warning text-dark">
                                                 <i class="fas fa-spinner fa-spin me-1"></i> Processando
@@ -480,5 +483,15 @@
     });
 
     // Código JavaScript removido - agora usa links diretos para a página de envio
+
+    // Função para compartilhar no WhatsApp
+    function compartilharWhatsApp(pdfUrl, invoiceId) {
+        const baseUrl = window.location.origin;
+        const urlCompleta = pdfUrl.startsWith('http') ? pdfUrl : baseUrl + pdfUrl;
+        const texto = `Olá! Segue sua Nota Fiscal #${invoiceId}.\n\nPara visualizar ou baixar o PDF, acesse: ${urlCompleta}\n\nCincoCincoJAM - Escola de Música`;
+        const textoEncodado = encodeURIComponent(texto);
+        const whatsappUrl = `https://wa.me/?text=${textoEncodado}`;
+        window.open(whatsappUrl, '_blank');
+    }
 </script>
 {% endblock %}
