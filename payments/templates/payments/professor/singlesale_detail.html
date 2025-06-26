@@ -33,7 +33,7 @@
                             <p class="mb-3">{{ sale.description }}</p>
 
                             <h6 class="text-muted mb-1">{% translate "Valor" %}</h6>
-                            <p class="mb-3">R$ {{ sale.amount|floatformat:2|intcomma }}</p>
+                            <p class="mb-3">R$ {{ sale.amount|floatformat:2 }}</p>
 
                             <h6 class="text-muted mb-1">{% translate "Status" %}</h6>
                             <p class="mb-3">
