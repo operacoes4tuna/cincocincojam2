@@ -25,6 +25,7 @@ urlpatterns = [
     path('detail/<int:invoice_id>/json/', views.invoice_detail_json, name='invoice_detail_json'),
     path('view_pdf/<int:invoice_id>/', views.view_pdf, name='view_pdf'),
     path('pdf/<str:invoice_id>/', views.download_pdf, name='download_pdf'),
+    path('whatsapp-pdf/<int:invoice_id>/', views.serve_pdf_for_whatsapp, name='whatsapp_pdf'),
     
     # URLs para envio de email
     path('send-email/<int:invoice_id>/', views.send_invoice_email, name='send_email'),

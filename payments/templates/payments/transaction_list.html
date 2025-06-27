@@ -14,7 +14,7 @@
                             <a href="{% url 'invoices:send_email' invoice.id %}" class="btn btn-sm btn-outline-primary" target="_blank">
                                 <i class="fas fa-envelope"></i> Enviar por email
                             </a>
-                            <a href="#" class="btn btn-sm btn-outline-success" onclick="compartilharWhatsApp('{{ invoice.focus_pdf_url }}', '{{ invoice.id }}'); return false;" title="Compartilhar no WhatsApp">
+                            <a href="#" class="btn btn-sm btn-outline-success" onclick="compartilharWhatsApp('{{ invoice.focus_pdf_url }}', '{{ invoice.id }}', '{{ invoice.customer_name|escapejs }}'); return false;" title="Enviar PDF por WhatsApp">
                                 <i class="fab fa-whatsapp"></i> WhatsApp
                             </a>
                             <a href="{% url 'invoices:invoice_detail' invoice_id=invoice.id %}" class="btn btn-sm btn-outline-primary">
@@ -133,7 +133,7 @@
                                                                                         <a href="/invoices/send-email/${invoiceId}/" class="btn btn-sm btn-outline-primary" target="_blank">
                             <i class="fas fa-envelope"></i> Enviar por email
                         </a>
-                        <a href="#" class="btn btn-sm btn-outline-success" onclick="compartilharWhatsApp('/invoices/pdf/${invoiceId}/', '${invoiceId}'); return false;" title="Compartilhar no WhatsApp">
+                        <a href="#" class="btn btn-sm btn-outline-success" onclick="compartilharWhatsApp('/invoices/pdf/${invoiceId}/', '${invoiceId}', ''); return false;" title="Enviar PDF por WhatsApp">
                             <i class="fab fa-whatsapp"></i> WhatsApp
                         </a>
                         <a href="/invoices/detail/${invoiceId}/" class="btn btn-sm btn-outline-primary">

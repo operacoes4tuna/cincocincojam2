@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.http import JsonResponse, HttpResponseRedirect, Http404
+from django.http import JsonResponse, HttpResponseRedirect, Http404, HttpResponseForbidden, HttpResponseBadRequest, HttpResponseServerError
 from django.conf import settings
 from django.utils import timezone
 from django.urls import reverse
@@ -1456,3 +1456,63 @@ def simulate_invoice_pix_payment(request, invoice_id):
             'success': False,
             'error': 'Erro interno'
         }, status=500)
+
+@login_required
+def serve_pdf_for_whatsapp(request, invoice_id):
+    """
+    Serve o PDF da nota fiscal diretamente para download/compartilhamento
+    especialmente para uso com WhatsApp Web API
+    """
+    try:
+        # Obter a nota fiscal
+        invoice = get_object_or_404(Invoice, id=invoice_id)
+        
+        # Verificar permissão
+        if invoice.transaction:
+            # Para transações de cursos
+            if not (request.user == invoice.transaction.enrollment.course.professor or 
+                    request.user == invoice.transaction.enrollment.student or
+                    request.user.is_superuser):
+                messages.error(request, _('Você não tem permissão para acessar esta nota fiscal.'))
+                return HttpResponseForbidden('Acesso negado')
+            professor = invoice.transaction.enrollment.course.professor
+        elif invoice.singlesale:
+            # Para vendas avulsas
+            if not (request.user == invoice.singlesale.seller or
+                    request.user.is_superuser):
+                messages.error(request, _('Você não tem permissão para acessar esta nota fiscal.'))
+                return HttpResponseForbidden('Acesso negado')
+            professor = invoice.singlesale.seller
+        else:
+            return HttpResponseForbidden('Nota fiscal inválida')
+        
+        # Verificar se o PDF está disponível
+        if not invoice.focus_pdf_url:
+            return HttpResponseBadRequest('PDF não disponível')
+        
+        # Obter o serviço NFE.io
+        service = NFEioService()
+        
+        # Se a URL do PDF é externa (da NFE.io), fazer proxy da requisição
+        if invoice.focus_pdf_url.startswith('http'):
+            import requests
+            response = requests.get(invoice.focus_pdf_url, headers=service.headers, timeout=30)
+            
+            if response.status_code == 200:
+                # Retornar o PDF com headers adequados para download
+                pdf_response = HttpResponse(response.content, content_type='application/pdf')
+                pdf_response['Content-Disposition'] = f'attachment; filename="nota_fiscal_{invoice.id}.pdf"'
+                pdf_response['Access-Control-Allow-Origin'] = '*'  # Para permitir CORS
+                pdf_response['Access-Control-Allow-Methods'] = 'GET'
+                pdf_response['Access-Control-Allow-Headers'] = 'Content-Type'
+                return pdf_response
+            else:
+                logger.error(f"Erro ao obter PDF: {response.status_code}")
+                return HttpResponseServerError('Erro ao obter PDF')
+        else:
+            # Se for URL local, redirecionar
+            return HttpResponseRedirect(invoice.focus_pdf_url)
+            
+    except Exception as e:
+        logger.error(f"Erro ao servir PDF para WhatsApp: {str(e)}")
+        return HttpResponseServerError('Erro interno do servidor')
