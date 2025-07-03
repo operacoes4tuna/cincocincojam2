@@ -34,15 +34,20 @@ if not db_url:
     print("DATABASE_URL não encontrada")
     exit(1)
 
+# Parsear a URL para extrair partes
+url = urlparse(db_url)
+user = url.username
+database = url.path[1:]  # remove a barra inicial do path
+
 # Conectar ao banco de dados
 conn = psycopg2.connect(db_url)
 conn.autocommit = True
 cur = conn.cursor()
 
-# Executar comandos SQL
+# Executar comandos SQL dinamicamente
 cur.execute("CREATE SCHEMA IF NOT EXISTS public;")
-cur.execute("GRANT ALL ON SCHEMA public TO cincocincojam2;")
-cur.execute("ALTER DATABASE cincocincojam2 SET search_path TO public;")
+cur.execute(f"GRANT ALL ON SCHEMA public TO {user};")
+cur.execute(f"ALTER DATABASE {database} SET search_path TO public;")
 
 # Fechar conexão
 cur.close()
@@ -54,4 +59,4 @@ fi
 python manage.py migrate
 
 # Criar usuários iniciais em todos os ambientes para teste inicial
-python manage.py create_default_users 
+python manage.py create_default_users
