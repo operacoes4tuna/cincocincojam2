@@ -1516,7 +1516,8 @@ def _create_single_sale(data, description, amount, customer_name, customer_email
     # Campos básicos
     sale.description = description
     sale.amount = amount
-    sale.status = 'PENDING'
+    # CORRIGIDO: Usar o status selecionado pelo usuário em vez de forçar 'PENDING'
+    sale.status = data.get('status', 'PENDING')
     sale.seller = seller
     
     # Dados do cliente
