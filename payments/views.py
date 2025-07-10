@@ -768,9 +768,11 @@ class SingleSaleListView(LoginRequiredMixin, ProfessorRequiredMixin, ListView):
     
     def get_queryset(self):
         # Use only the basic fields to avoid any errors with potentially missing fields
-        queryset = SingleSale.objects.filter(seller=self.request.user).only(
+        queryset = SingleSale.objects.filter(seller=self.request.user).select_related('parent_sale').only(
             'id', 'description', 'amount', 'status', 'customer_name', 
-            'customer_email', 'created_at', 'updated_at', 'paid_at'
+            'customer_email', 'created_at', 'updated_at', 'paid_at',
+            'is_recurring', 'recurrence_number', 'due_date', 'recurrence_count',
+            'parent_sale', 'parent_sale__id', 'parent_sale__description'
         )
         
         # Filtro por status
@@ -790,6 +792,15 @@ class SingleSaleListView(LoginRequiredMixin, ProfessorRequiredMixin, ListView):
                 queryset = queryset.filter(created_at__range=[start, end])
             except ValueError:
                 pass
+        
+        # NOVO: Filtro por tipo de venda
+        type_filter = self.request.GET.get('type')
+        if type_filter == 'original':
+            queryset = queryset.filter(is_recurring=False)
+        elif type_filter == 'recurring':
+            queryset = queryset.filter(is_recurring=True)
+        elif type_filter == 'with_recurrence':
+            queryset = queryset.filter(recurrence_count__gt=0)
         
         return queryset.order_by('-created_at')
     
@@ -812,6 +823,13 @@ class SingleSaleListView(LoginRequiredMixin, ProfessorRequiredMixin, ListView):
         context['total_amount'] = total_amount
         context['total_paid'] = total_paid
         context['total_pending'] = total_pending
+        
+        # Estatísticas de recorrência
+        total_recurring = self.get_queryset().filter(is_recurring=True).count()
+        total_with_recurrence = self.get_queryset().filter(recurrence_count__gt=0).count()
+        
+        context['total_recurring'] = total_recurring
+        context['total_with_recurrence'] = total_with_recurrence
         
         return context
 
@@ -1336,7 +1354,7 @@ def emit_invoice_from_transactions(request, transaction_id):
 @login_required
 def create_singlesale_api(request):
     """
-    API para criar uma venda avulsa com validação simplificada.
+    API para criar uma venda avulsa com recorrência mensal simplificada.
     """
     if request.method != 'POST':
         return JsonResponse({'error': 'Método não permitido'}, status=405)
@@ -1354,10 +1372,8 @@ def create_singlesale_api(request):
         # Verificar ID de sessão para evitar processamento duplicado
         session_id = data.get('session_id')
         if session_id:
-            # Verificar se já existe uma venda com este session_id (usando cache ou banco de dados)
             cache_key = f"singlesale_session_{session_id}"
             
-            # Verificar se já processamos esta submissão
             if cache.get(cache_key):
                 print(f"Submissão duplicada detectada com session_id: {session_id}")
                 return JsonResponse({
@@ -1366,7 +1382,6 @@ def create_singlesale_api(request):
                     'redirect_url': reverse('payments:singlesale_list')
                 })
             
-            # Marcar esta submissão como processada por 10 minutos (tempo suficiente para evitar duplicações acidentais)
             cache.set(cache_key, "processado", 60 * 10)
         
         # Campos essenciais
@@ -1375,6 +1390,21 @@ def create_singlesale_api(request):
         customer_name = data.get('customer_name', '')
         customer_email = data.get('customer_email', '')
         customer_cpf = data.get('customer_cpf', '')
+        
+        # CAMPOS DE RECORRÊNCIA MENSAL
+        has_recurrence = data.get('generate_recurrence') in ['true', 'True', '1', 'on', True]
+        emission_date = data.get('emission_date', '') if has_recurrence else None
+        due_date = data.get('due_date', '') if has_recurrence else None
+        
+        # Tratar recurrence_count com validação
+        try:
+            recurrence_count = int(data.get('recurrence_count', 0)) if has_recurrence else 0
+        except (ValueError, TypeError):
+            recurrence_count = 0
+        
+        # Validar recurrence_count (máximo 12 meses)
+        if recurrence_count > 12:
+            return JsonResponse({'error': 'Máximo de 12 meses de recorrência permitido'}, status=400)
         
         # Validações básicas
         if not description:
@@ -1393,60 +1423,73 @@ def create_singlesale_api(request):
         if not customer_email:
             return JsonResponse({'error': 'Email do cliente é obrigatório'}, status=400)
         
+        # Inicializar variáveis de data
+        emission_date_obj = None
+        due_date_obj = None
+        
+        # Validações de recorrência
+        if has_recurrence:
+            if not emission_date or emission_date.strip() == '':
+                return JsonResponse({'error': 'Data de emissão é obrigatória para recorrências'}, status=400)
+            if not due_date or due_date.strip() == '':
+                return JsonResponse({'error': 'Data de vencimento é obrigatória para recorrências'}, status=400)
+            
+            # Validar datas
+            try:
+                from datetime import datetime
+                emission_date_obj = datetime.strptime(emission_date, '%Y-%m-%d').date()
+                due_date_obj = datetime.strptime(due_date, '%Y-%m-%d').date()
+                
+                if due_date_obj < emission_date_obj:
+                    return JsonResponse({'error': 'Data de vencimento não pode ser anterior à data de emissão'}, status=400)
+            except ValueError:
+                return JsonResponse({'error': 'Formato de data inválido'}, status=400)
+        
         # Limpeza do CPF/CNPJ
         if customer_cpf:
             customer_cpf = ''.join(c for c in customer_cpf if c.isdigit())
         
-        # Criar o objeto de venda
-        sale = SingleSale()
-        sale.description = description
-        sale.amount = amount
-        sale.status = 'PENDING'
-        sale.seller = request.user
+        # CRIAR VENDA ORIGINAL
+        # CORRIGIDO: Se há recorrência, ajustar a descrição para mostrar "1ª parcela de N"
+        original_description = description
+        if has_recurrence and recurrence_count > 1:
+            original_description = f"{description} - 1ª parcela de {recurrence_count}"
         
-        # Dados do cliente
-        sale.customer_name = customer_name
-        sale.customer_email = customer_email
-        sale.customer_cpf = customer_cpf
+        main_sale = _create_single_sale(
+            data=data,
+            description=original_description,
+            amount=amount,
+            customer_name=customer_name,
+            customer_email=customer_email,
+            customer_cpf=customer_cpf,
+            seller=request.user,
+            has_recurrence=has_recurrence,
+            emission_date=emission_date_obj if has_recurrence else None,
+            due_date=due_date_obj if has_recurrence else None,
+            recurrence_count=recurrence_count,
+            is_recurring=False,
+            parent_sale=None,
+            recurrence_number=0
+        )
         
-        # Endereço (opcional)
-        sale.customer_address = data.get('customer_address', '')
-        sale.customer_address_number = data.get('customer_address_number', '')
-        sale.customer_address_complement = data.get('customer_address_complement', '')
-        sale.customer_neighborhood = data.get('customer_neighborhood', '')
-        sale.customer_city = data.get('customer_city', '')
-        sale.customer_state = data.get('customer_state', '')
-        sale.customer_zipcode = data.get('customer_zipcode', '')
-        sale.customer_phone = data.get('customer_phone', '')
+        created_sales = [main_sale]
         
-        # Dados para nota fiscal (opcional)
-        sale.product_code = data.get('product_code', '') or 'SERV'
-        sale.municipal_service_code = data.get('municipal_service_code', '')
-        sale.ncm_code = data.get('ncm_code', '') or '00000000'
-        sale.cfop_code = data.get('cfop_code', '') or '0000'
-        
-        try:
-            quantity = float(data.get('quantity', 1))
-            sale.quantity = quantity if quantity > 0 else 1
-        except ValueError:
-            sale.quantity = 1
-        
-        try:
-            unit_value = float(data.get('unit_value', amount))
-            sale.unit_value = unit_value if unit_value > 0 else amount
-        except ValueError:
-            sale.unit_value = amount
-        
-        sale.invoice_type = data.get('invoice_type', 'nfse')
-        sale.generate_invoice = data.get('generate_invoice') in ['true', 'True', '1', 'on', True]
-        
-        # Salvar o objeto
-        sale.save()
+        # CRIAR VENDAS RECORRENTES (SEMPRE MENSAL)
+        if has_recurrence and recurrence_count > 0:
+            created_sales.extend(
+                _create_monthly_recurring_sales(
+                    main_sale=main_sale,
+                    data=data,
+                    recurrence_count=recurrence_count,
+                    base_due_date=due_date_obj
+                )
+            )
         
         return JsonResponse({
             'success': True,
-            'message': 'Venda criada com sucesso',
-            'sale_id': sale.id,
+            'message': f'Venda criada com sucesso! {len(created_sales)} parcelas geradas.',
+            'sale_id': main_sale.id,
+            'total_sales': len(created_sales),
             'redirect_url': reverse('payments:singlesale_list')
         })
     
@@ -1456,8 +1499,115 @@ def create_singlesale_api(request):
         print(f"Erro ao criar venda via API: {str(e)}")
         print(traceback.format_exc())
         
-        # Retornar erro
         return JsonResponse({
             'error': f'Erro interno: {str(e)}',
             'details': traceback.format_exc()
         }, status=500)
+
+
+def _create_single_sale(data, description, amount, customer_name, customer_email, customer_cpf, seller, 
+                       has_recurrence, emission_date, due_date, recurrence_count, 
+                       is_recurring, parent_sale, recurrence_number):
+    """
+    Função auxiliar para criar uma venda avulsa.
+    """
+    sale = SingleSale()
+    
+    # Campos básicos
+    sale.description = description
+    sale.amount = amount
+    sale.status = 'PENDING'
+    sale.seller = seller
+    
+    # Dados do cliente
+    sale.customer_name = customer_name
+    sale.customer_email = customer_email
+    sale.customer_cpf = customer_cpf
+    
+    # Endereço (opcional)
+    sale.customer_address = data.get('customer_address', '')
+    sale.customer_address_number = data.get('customer_address_number', '')
+    sale.customer_address_complement = data.get('customer_address_complement', '')
+    sale.customer_neighborhood = data.get('customer_neighborhood', '')
+    sale.customer_city = data.get('customer_city', '')
+    sale.customer_state = data.get('customer_state', '')
+    sale.customer_zipcode = data.get('customer_zipcode', '')
+    sale.customer_phone = data.get('customer_phone', '')
+    
+    # Dados para nota fiscal (opcional)
+    sale.product_code = data.get('product_code', '') or 'SERV'
+    sale.municipal_service_code = data.get('municipal_service_code', '')
+    sale.ncm_code = data.get('ncm_code', '') or '00000000'
+    sale.cfop_code = data.get('cfop_code', '') or '0000'
+    
+    try:
+        quantity = float(data.get('quantity', 1))
+        sale.quantity = quantity if quantity > 0 else 1
+    except ValueError:
+        sale.quantity = 1
+    
+    try:
+        unit_value = float(data.get('unit_value', amount))
+        sale.unit_value = unit_value if unit_value > 0 else amount
+    except ValueError:
+        sale.unit_value = amount
+    
+    sale.invoice_type = data.get('invoice_type', 'nfse')
+    sale.generate_invoice = data.get('generate_invoice') in ['true', 'True', '1', 'on', True]
+    
+    # CAMPOS DE RECORRÊNCIA
+    sale.has_recurrence = has_recurrence
+    sale.emission_date = emission_date
+    sale.due_date = due_date
+    sale.recurrence_count = recurrence_count
+    sale.is_recurring = is_recurring
+    sale.parent_sale = parent_sale
+    sale.recurrence_number = recurrence_number
+    
+    # Salvar o objeto
+    sale.save()
+    
+    return sale
+
+
+def _create_monthly_recurring_sales(main_sale, data, recurrence_count, base_due_date):
+    """
+    Função auxiliar para criar vendas recorrentes mensais.
+    """
+    from datetime import timedelta
+    from dateutil.relativedelta import relativedelta
+    
+    recurring_sales = []
+    
+    # CORRIGIDO: Se recurrence_count = 3, criar apenas 2 vendas recorrentes (total = 3)
+    # range(1, recurrence_count) em vez de range(1, recurrence_count + 1)
+    for i in range(1, recurrence_count):
+        # Calcular nova data de vencimento (sempre mensal)
+        new_due_date = base_due_date + relativedelta(months=i)
+        new_emission_date = new_due_date - timedelta(days=5)  # 5 dias antes do vencimento
+        
+        # Criar descrição com número da parcela
+        # CORRIGIDO: total_parcelas agora é igual ao recurrence_count
+        total_parcelas = recurrence_count
+        recurring_description = f"{main_sale.description} - {i+1}ª parcela de {total_parcelas}"
+        
+        recurring_sale = _create_single_sale(
+            data=data,
+            description=recurring_description,
+            amount=main_sale.amount,
+            customer_name=main_sale.customer_name,
+            customer_email=main_sale.customer_email,
+            customer_cpf=main_sale.customer_cpf,
+            seller=main_sale.seller,
+            has_recurrence=True,
+            emission_date=new_emission_date,
+            due_date=new_due_date,
+            recurrence_count=0,  # Vendas recorrentes não têm sub-recorrências
+            is_recurring=True,
+            parent_sale=main_sale,
+            recurrence_number=i
+        )
+        
+        recurring_sales.append(recurring_sale)
+    
+    return recurring_sales
