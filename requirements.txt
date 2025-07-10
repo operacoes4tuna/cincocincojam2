@@ -14,4 +14,5 @@ requests==2.32.3
 sqlparse==0.5.3
 urllib3==2.4.0
 openai==1.30.5  # Versão estável mais recente
-sendgrid==6.11.0python-dateutil>=2.8.0
+sendgrid==6.11.0
+python-dateutil>=2.8.0
