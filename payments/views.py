@@ -1592,8 +1592,12 @@ def _create_monthly_recurring_sales(main_sale, data, recurrence_count, base_due_
         total_parcelas = recurrence_count
         recurring_description = f"{main_sale.description} - {i+1}ª parcela de {total_parcelas}"
         
+        # CORRIGIDO: Criar uma cópia dos dados e forçar status PENDING para vendas recorrentes
+        recurring_data = data.copy()
+        recurring_data['status'] = 'PENDING'  # Vendas recorrentes sempre com status PENDING
+        
         recurring_sale = _create_single_sale(
-            data=data,
+            data=recurring_data,  # Usar dados com status PENDING
             description=recurring_description,
             amount=main_sale.amount,
             customer_name=main_sale.customer_name,
