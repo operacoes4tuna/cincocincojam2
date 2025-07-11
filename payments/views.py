@@ -1450,7 +1450,8 @@ def create_singlesale_api(request):
             customer_cpf = ''.join(c for c in customer_cpf if c.isdigit())
         
         # CRIAR VENDA ORIGINAL
-   fix        
+        original_description = description
+        
         main_sale = _create_single_sale(
             data=data,
             description=original_description,
