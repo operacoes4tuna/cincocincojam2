@@ -1450,11 +1450,7 @@ def create_singlesale_api(request):
             customer_cpf = ''.join(c for c in customer_cpf if c.isdigit())
         
         # CRIAR VENDA ORIGINAL
-        # CORRIGIDO: Se há recorrência, ajustar a descrição para mostrar "1ª parcela de N"
-        original_description = description
-        if has_recurrence and recurrence_count > 1:
-            original_description = f"{description} - 1ª parcela de {recurrence_count}"
-        
+   fix        
         main_sale = _create_single_sale(
             data=data,
             description=original_description,
@@ -1587,10 +1583,8 @@ def _create_monthly_recurring_sales(main_sale, data, recurrence_count, base_due_
         new_due_date = base_due_date + relativedelta(months=i)
         new_emission_date = new_due_date - timedelta(days=5)  # 5 dias antes do vencimento
         
-        # Criar descrição com número da parcela
-        # CORRIGIDO: total_parcelas agora é igual ao recurrence_count
-        total_parcelas = recurrence_count
-        recurring_description = f"{main_sale.description} - {i+1}ª parcela de {total_parcelas}"
+        # Usar a mesma descrição da venda original
+        recurring_description = main_sale.description
         
         # CORRIGIDO: Criar uma cópia dos dados e forçar status PENDING para vendas recorrentes
         recurring_data = data.copy()
