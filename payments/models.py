@@ -219,8 +219,8 @@ class SingleSale(models.Model):
         ordering = ['-created_at']
     
     def __str__(self):
-        recurrence_info = f" ({self.recurrence_number + 1}ª parcela)" if self.is_recurring else ""
-        return f"{self.description}{recurrence_info} - R$ {self.amount} ({self.get_status_display()})"
+        return f"{self.description} - R$ {self.amount} ({self.get_status_display()})"
+
     
     def mark_as_paid(self, save=True):
         """Marca a venda como paga e registra a data/hora do pagamento."""

@@ -263,18 +263,21 @@
                         <div class="form-group{% if form.municipal_service_code.errors %} has-error{% endif %}">
                             <label for="id_municipal_service_code" class="form-label">{{ form.municipal_service_code.label }}</label>
                             <select name="municipal_service_code" id="id_municipal_service_code" class="form-select {% if form.municipal_service_code.errors %}is-invalid{% endif %}">
-                                <option value="">-- {% translate "Selecione um código de serviço" %} --</option>
-                                <!-- Usar código padrão como primeira opção -->
+                                <!-- Usar código padrão como primeira opção selecionada -->
                                 {% if default_service_code %}
-                                <option value="{{ default_service_code }}">
+                                <option value="{{ default_service_code }}" selected>
                                     {{ default_service_code }} - {% translate "Padrão" %}
                                 </option>
+                                {% else %}
+                                <option value="">-- {% translate "Selecione um código de serviço" %} --</option>
                                 {% endif %}
                                 <!-- Listar todos os códigos de serviço disponíveis -->
                                 {% for service_code in service_codes %}
+                                {% if service_code.code != default_service_code %}
                                 <option value="{{ service_code.code }}">
                                     {{ service_code.code }}{% if service_code.description %} - {{ service_code.description }}{% endif %}
                                 </option>
+                                {% endif %}
                                 {% endfor %}
                             </select>
                             {% if form.municipal_service_code.errors %}
