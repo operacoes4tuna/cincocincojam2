@@ -19,6 +19,7 @@
         <div class="card-body">
             <h5 class="card-title">{% translate "Filtros" %}</h5>
             <form method="get" class="row g-3">
+                {% csrf_token %}
                 <div class="col-md-3">
                     <label class="form-label">{% translate "Status" %}</label>
                     <select name="status" class="form-select">
@@ -438,8 +439,78 @@
                         return;
                     }
 
-                    alert(`Ação: Gerar notas para os IDs: ${selectedSales.join(', ')}`);
-                    // Implementação futura do backend
+                    // Mostrar indicador de loading
+                    const originalText = this.innerHTML;
+                    this.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Gerando...';
+                    this.disabled = true;
+
+                    // Mostrar mensagem de loading mais clara
+                    const loadingMessage = document.createElement('div');
+                    loadingMessage.className = 'alert alert-info alert-dismissible fade show';
+                    loadingMessage.innerHTML = `
+                            <strong><i class="fas fa-spinner fa-spin me-2"></i> Gerando notas fiscais em massa...</strong>
+                            <p class="mb-0">Processando ${selectedSales.length} nota(s) selecionada(s). Por favor, aguarde.</p>
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        `;
+
+                    // Adicionar a mensagem no topo da página
+                    const container = document.querySelector('.container.py-4');
+                    container.insertBefore(loadingMessage, container.firstChild);
+
+                    // Fazer requisição AJAX
+                    const formData = new FormData();
+                    selectedSales.forEach(id => {
+                        formData.append('sale_ids[]', id);
+                    });
+
+                    // Obter CSRF token
+                    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+                    formData.append('csrfmiddlewaretoken', csrfToken);
+
+                    fetch('/payments/api/sales/bulk-generate-invoices/', {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-CSRFToken': csrfToken
+                        }
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            // Remover mensagem de loading
+                            loadingMessage.remove();
+
+                            // Restaurar botão
+                            this.innerHTML = originalText;
+                            this.disabled = false;
+
+                            if (data.success) {
+                                showStatusMessage('success', data.message);
+
+                                // Recarregar a página após 1 segundo para mostrar as mudanças
+                                setTimeout(() => {
+                                    window.location.reload();
+                                }, 1000);
+                            } else {
+                                showStatusMessage('danger', data.error || 'Erro ao gerar notas fiscais');
+
+                                // Mostrar erros detalhados se existirem
+                                if (data.details && data.details.errors.length > 0) {
+                                    console.error('Erros detalhados:', data.details.errors);
+                                }
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Erro na requisição:', error);
+
+                            // Remover mensagem de loading
+                            loadingMessage.remove();
+
+                            // Restaurar botão
+                            this.innerHTML = originalText;
+                            this.disabled = false;
+
+                            showStatusMessage('danger', 'Erro de conexão. Tente novamente.');
+                        });
                 }
                 else if (action === 'generate-boletos') {
                     alert('Ação: Gerar todos os boletos');

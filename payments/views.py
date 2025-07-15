@@ -1611,3 +1611,166 @@ def _create_monthly_recurring_sales(main_sale, data, recurrence_count, base_due_
         recurring_sales.append(recurring_sale)
     
     return recurring_sales
+
+
+@login_required
+def bulk_generate_invoices(request):
+    """
+    Gera notas fiscais em massa para vendas selecionadas.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Método não permitido'}, status=405)
+    
+    if not request.user.is_professor:
+        return JsonResponse({'error': 'Permissão negada'}, status=403)
+    
+    try:
+        # Obter IDs das vendas selecionadas
+        selected_ids = request.POST.getlist('sale_ids[]')
+        
+        if not selected_ids:
+            return JsonResponse({'error': 'Nenhuma venda selecionada'}, status=400)
+        
+        # Validar que todas as vendas pertencem ao usuário
+        sales = SingleSale.objects.filter(
+            id__in=selected_ids,
+            seller=request.user
+        )
+        
+        if sales.count() != len(selected_ids):
+            return JsonResponse({'error': 'Algumas vendas não foram encontradas'}, status=400)
+        
+        # Contadores para o resultado
+        success_count = 0
+        error_count = 0
+        already_has_invoice = 0
+        errors = []
+        
+        for sale in sales:
+            try:
+                # Verificar se já existe nota fiscal para esta venda
+                try:
+                    from invoices.models import Invoice
+                    existing_invoice = Invoice.objects.filter(singlesale=sale).first()
+                    if existing_invoice:
+                        already_has_invoice += 1
+                        continue
+                except ImportError:
+                    pass
+                
+                # Tentar gerar a nota fiscal
+                result = _generate_invoice_for_sale(sale, request.user)
+                
+                if result.get('success'):
+                    success_count += 1
+                else:
+                    error_count += 1
+                    errors.append(f"Venda #{sale.id}: {result.get('error', 'Erro desconhecido')}")
+                    
+            except Exception as e:
+                error_count += 1
+                errors.append(f"Venda #{sale.id}: {str(e)}")
+        
+        # Preparar resposta
+        message_parts = []
+        if success_count > 0:
+            message_parts.append(f"{success_count} nota(s) gerada(s) com sucesso")
+        if already_has_invoice > 0:
+            message_parts.append(f"{already_has_invoice} venda(s) já possuía(m) nota fiscal")
+        if error_count > 0:
+            message_parts.append(f"{error_count} erro(s) encontrado(s)")
+        
+        response_data = {
+            'success': success_count > 0 or already_has_invoice > 0,
+            'message': '; '.join(message_parts),
+            'details': {
+                'success_count': success_count,
+                'error_count': error_count,
+                'already_has_invoice': already_has_invoice,
+                'errors': errors
+            }
+        }
+        
+        return JsonResponse(response_data)
+        
+    except Exception as e:
+        import traceback
+        print(f"Erro em bulk_generate_invoices: {str(e)}")
+        print(traceback.format_exc())
+        return JsonResponse({'error': f'Erro interno: {str(e)}'}, status=500)
+
+
+def _generate_invoice_for_sale(sale, user):
+    """
+    Função auxiliar para gerar nota fiscal para uma venda específica.
+    Usa exatamente o mesmo fluxo da emissão individual.
+    """
+    try:
+        # Importar o modelo de Invoice
+        from invoices.models import Invoice
+        from invoices.services import NFEioService
+        
+        # Verificar se já existe uma nota fiscal para esta venda
+        existing_invoice = Invoice.objects.filter(singlesale=sale).first()
+        if existing_invoice:
+            return {'success': False, 'error': 'Nota fiscal já existe'}
+        
+        # Verificar se o professor tem as configurações fiscais completas
+        try:
+            company_config = user.company_config
+            if not company_config.enabled:
+                return {'success': False, 'error': 'A emissão de notas fiscais não está habilitada. Verifique suas configurações fiscais.'}
+            
+            if not company_config.is_complete():
+                return {'success': False, 'error': 'Configure todas as informações fiscais antes de emitir notas fiscais.'}
+        except Exception:
+            return {'success': False, 'error': 'Configure suas informações fiscais antes de emitir notas fiscais.'}
+        
+        # Criar a invoice no banco de dados (mesmo fluxo da emissão individual)
+        invoice = Invoice.objects.create(
+            singlesale=sale,
+            amount=sale.amount,
+            customer_name=sale.customer_name,
+            customer_email=sale.customer_email,
+            customer_tax_id=sale.customer_cpf,
+            description=sale.description,
+            type=sale.invoice_type or 'rps',
+            status='pending'
+        )
+        
+        # Iniciar o processo de emissão da nota fiscal (mesmo fluxo da emissão individual)
+        try:
+            # Inicializar o serviço NFE.io
+            service = NFEioService()
+            
+            # Gerar número RPS
+            service._generate_rps_for_invoice(invoice, user)
+            
+            # Emitir a nota fiscal
+            result = service.emit_invoice(invoice)
+                
+            if not result.get('error', False):
+                # Atualizar o status da invoice
+                invoice.status = 'processing'
+                invoice.emitted_at = timezone.now()
+                invoice.save()
+                
+                return {'success': True, 'invoice_id': invoice.id, 'message': 'Nota fiscal enviada para processamento'}
+            else:
+                # Em caso de erro, atualizar o status da invoice
+                invoice.status = 'error'
+                invoice.error_message = result.get('message', 'Erro desconhecido ao enviar para emissão.')
+                invoice.save()
+                
+                return {'success': False, 'error': result.get('message', 'Erro desconhecido ao enviar para emissão.')}
+        except Exception as e:
+            invoice.status = 'error'
+            invoice.error_message = str(e)
+            invoice.save()
+            
+            return {'success': False, 'error': str(e)}
+        
+    except ImportError:
+        return {'success': False, 'error': 'Módulo de notas fiscais não disponível'}
+    except Exception as e:
+        return {'success': False, 'error': str(e)}

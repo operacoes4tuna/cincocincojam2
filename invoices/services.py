@@ -159,6 +159,7 @@ class NFEioService:
                         print(f"Detalhes: {json.dumps(error_details, indent=2)}")
                     return {"error": True, "message": error_msg, "details": error_details}
                 except Exception as e:
+                    # Se não conseguir fazer parse do JSON, usar o texto da resposta
                     error_msg = f"Erro {response.status_code}: {response.text}"
                     print(f"DEBUG - Erro ao processar resposta: {str(e)}")
                     print(f"DEBUG - {error_msg}")
@@ -252,11 +253,50 @@ class NFEioService:
         response = self._make_request('POST', endpoint, invoice_data)
         
         if response.get('error'):
-            print(f"DEBUG - Erro na API: {response.get('message')}")
-            invoice.status = 'error'
-            invoice.error_message = response.get('message')
-            invoice.save()
-            return response
+            error_message = response.get('message', 'Erro desconhecido')
+            print(f"DEBUG - Erro na API: {error_message}")
+            
+            # Tratar especificamente erros de RPS duplicado
+            if 'already exists' in str(error_message):
+                # Tentar gerar um novo RPS e tentar novamente
+                print("DEBUG - RPS duplicado detectado, tentando gerar novo número...")
+                try:
+                    # Limpar o RPS atual
+                    invoice.rps_numero = None
+                    invoice.rps_serie = None
+                    invoice.save()
+                    
+                    # Gerar novo RPS
+                    self._generate_rps_for_invoice(invoice, professor)
+                    
+                    # Preparar dados novamente com o novo RPS
+                    invoice_data = self._prepare_invoice_data(invoice)
+                    
+                    # Tentar emitir novamente
+                    print("DEBUG - Tentando emissão novamente com novo RPS...")
+                    response = self._make_request('POST', endpoint, invoice_data)
+                    
+                    if response.get('error'):
+                        # Se ainda der erro, marcar como erro
+                        invoice.status = 'error'
+                        invoice.error_message = f"Erro após tentativa de correção: {response.get('message', 'Erro desconhecido')}"
+                        invoice.save()
+                        return response
+                    else:
+                        # Se funcionou, continuar normalmente
+                        print("DEBUG - Emissão bem-sucedida após correção do RPS")
+                except Exception as e:
+                    print(f"DEBUG - Erro ao tentar corrigir RPS: {str(e)}")
+                    invoice.status = 'error'
+                    invoice.error_message = f"Erro ao corrigir RPS duplicado: {str(e)}"
+                    invoice.save()
+                    return {"error": True, "message": f"Erro ao corrigir RPS duplicado: {str(e)}"}
+            else:
+                # Para outros tipos de erro, marcar como erro
+                invoice.status = 'error'
+                invoice.error_message = error_message
+                invoice.save()
+                return response
             
         # 7. Atualizar nota com resposta
         print("DEBUG - Atualizando nota com resposta...")
@@ -772,7 +812,7 @@ class NFEioService:
             # Definir série RPS
             rps_serie = company_config.rps_serie
             
-            # Obter próximo número RPS
+            # Gerar próximo número RPS
             with transaction.atomic():
                 # Recarregar com lock de tabela para evitar condição de corrida
                 company_config = CompanyConfig.objects.select_for_update().get(id=company_config.id)
