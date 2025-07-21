@@ -60,6 +60,7 @@ singlesale_patterns = [
     path('sales/new/', views.SingleSaleCreateView.as_view(), name='singlesale_create'),
     path('sales/<int:pk>/', views.SingleSaleDetailView.as_view(), name='singlesale_detail'),
     path('sales/<int:pk>/edit/', views.SingleSaleUpdateView.as_view(), name='singlesale_update'),
+    path('sales/<int:pk>/delete/', views.SingleSaleDeleteView.as_view(), name='singlesale_delete'),
     path('sales/<int:sale_id>/pix/create/', views.create_singlesale_pix, name='create_singlesale_pix'),
     path('sales/<int:sale_id>/pix/', views.singlesale_pix_detail, name='singlesale_pix_detail'),
     path('sales/<int:sale_id>/check-status/', views.check_singlesale_payment_status, name='check_singlesale_status'),

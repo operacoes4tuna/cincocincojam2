@@ -13,11 +13,27 @@
             <a href="{% url 'payments:singlesale_list' %}" class="btn btn-outline-secondary me-2">
                 <i class="fas fa-arrow-left me-1"></i> {% translate "Voltar" %}
             </a>
-            <a href="{% url 'payments:singlesale_update' pk=sale.id %}" class="btn btn-outline-primary">
+            <a href="{% url 'payments:singlesale_update' pk=sale.id %}" class="btn btn-outline-primary me-2">
                 <i class="fas fa-edit me-1"></i> {% translate "Editar" %}
             </a>
+            {% comment %} Botão de exclusão - só aparece se não tiver nota fiscal {% endcomment %}
+            {% if not sale.invoices.exists %}
+            <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteModal">
+                <i class="fas fa-trash me-1"></i> {% translate "Excluir" %}
+            </button>
+            {% endif %}
         </div>
     </div>
+
+    {% comment %} Alerta informativo quando existe nota fiscal {% endcomment %}
+    {% if sale.invoices.exists %}
+    <div class="alert alert-info d-flex align-items-center mb-4" role="alert">
+        <i class="fas fa-info-circle me-2"></i>
+        <div>
+            {% translate "Este lançamento possui nota fiscal emitida e não pode ser excluído." %}
+        </div>
+    </div>
+    {% endif %}
 
     <div class="row">
         <!-- Detalhes da Venda -->
@@ -302,5 +318,36 @@
             });
     }
 </script>
+
+<!-- Modal de Confirmação de Exclusão -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content" style="background-color: #000000; color: #ffffff;">
+            <div class="modal-header" style="border-bottom: 1px solid #333;">
+                <h5 class="modal-title" style="color: #ffffff;" id="deleteModalLabel">{% translate "Confirmar Exclusão" %}</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p style="color: #ffffff;">{% translate "Tem certeza que deseja excluir este lançamento?" %}</p>
+                <div class="alert alert-warning" role="alert">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    {% translate "Esta ação não pode ser desfeita." %}
+                </div>
+            </div>
+            <div class="modal-footer" style="border-top: 1px solid #333;">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    {% translate "Cancelar" %}
+                </button>
+                <form method="post" action="{% url 'payments:singlesale_delete' pk=sale.id %}" style="display: inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash me-1"></i> {% translate "Confirmar Exclusão" %}
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 {% endblock %} 

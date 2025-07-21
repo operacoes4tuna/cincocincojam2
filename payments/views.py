@@ -1,6 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse_lazy, reverse
-from django.views.generic import ListView, DetailView, TemplateView, View, CreateView, UpdateView
+from django.views.generic import ListView, DetailView, TemplateView, View, CreateView, UpdateView, DeleteView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.decorators import login_required
 from django.db.models import Sum, Count, Q, F, Prefetch
@@ -11,7 +11,7 @@ from django.contrib.auth import get_user_model
 from django.utils import timezone
 from datetime import timedelta
 import uuid
-from django.http import JsonResponse
+from django.http import JsonResponse, Http404
 from django.core.cache import cache
 
 from courses.views import ProfessorRequiredMixin, AdminRequiredMixin, StudentRequiredMixin
@@ -979,8 +979,18 @@ class SingleSaleDetailView(LoginRequiredMixin, ProfessorRequiredMixin, DetailVie
     context_object_name = 'sale'
     
     def get_queryset(self):
-        # Garantir que só mostra vendas do professor atual
-        return SingleSale.objects.filter(seller=self.request.user)
+        # Garantir que só mostra vendas do professor atual e carregar invoices relacionadas
+        queryset = SingleSale.objects.filter(seller=self.request.user)
+        
+        # Tentar carregar as invoices relacionadas
+        try:
+            from invoices.models import Invoice
+            queryset = queryset.prefetch_related('invoices')
+        except ImportError:
+            # App de invoices não disponível
+            pass
+            
+        return queryset
 
 
 # View para gerar pagamento via Pix para uma venda avulsa
@@ -1306,6 +1316,84 @@ class SingleSaleUpdateView(LoginRequiredMixin, ProfessorRequiredMixin, UpdateVie
             messages.error(self.request, _(f'Erro ao atualizar: {str(e)}'))
             form = self.get_form()
             return self.render_to_response(self.get_context_data(form=form))
+
+
+class SingleSaleDeleteView(LoginRequiredMixin, ProfessorRequiredMixin, DeleteView):
+    """
+    Permite ao professor/vendedor excluir uma venda avulsa que ainda não possui nota fiscal emitida.
+    """
+    model = SingleSale
+    success_url = reverse_lazy('payments:singlesale_list')
+    
+    def get_queryset(self):
+        # Garantir que só exclui vendas do professor atual
+        return SingleSale.objects.filter(seller=self.request.user)
+    
+    def dispatch(self, request, *args, **kwargs):
+        """
+        Interceptar a requisição para verificar se a venda pode ser excluída
+        """
+        try:
+            # Obter o objeto primeiro
+            obj = get_object_or_404(SingleSale, pk=kwargs.get('pk'), seller=request.user)
+            
+            # Verificar se existe nota fiscal vinculada
+            try:
+                from invoices.models import Invoice
+                has_invoice = Invoice.objects.filter(singlesale=obj).exists()
+                if has_invoice:
+                    messages.error(
+                        request, 
+                        _('Não é possível excluir esta venda avulsa pois já possui nota fiscal emitida.')
+                    )
+                    return redirect('payments:singlesale_detail', pk=obj.pk)
+            except ImportError:
+                # App de invoices não disponível, permitir exclusão
+                pass
+            
+            return super().dispatch(request, *args, **kwargs)
+            
+        except Exception as e:
+            messages.error(request, _('Erro ao acessar a venda: {}').format(str(e)))
+            return redirect('payments:singlesale_list')
+    
+    def post(self, request, *args, **kwargs):
+        """
+        Processar a exclusão da venda avulsa
+        """
+        try:
+            self.object = self.get_object()
+            
+            # Log da exclusão
+            print(f"Excluindo venda avulsa ID: {self.object.id} - {self.object.description}")
+            
+            # Armazenar descrição para a mensagem
+            sale_description = self.object.description
+            
+            # Excluir o objeto
+            self.object.delete()
+            
+            # Mensagem de sucesso
+            messages.success(
+                request, 
+                _('Lançamento "{}" foi excluído com sucesso.').format(sale_description)
+            )
+            
+            return redirect(self.success_url)
+            
+        except Exception as e:
+            # Log do erro
+            import traceback
+            print(f"Erro ao excluir venda avulsa: {str(e)}")
+            print(traceback.format_exc())
+            
+            # Mensagem de erro
+            messages.error(
+                request, 
+                _('Erro ao excluir lançamento: {}').format(str(e))
+            )
+            
+            return redirect('payments:singlesale_detail', pk=self.kwargs.get('pk'))
 
 
 @login_required
