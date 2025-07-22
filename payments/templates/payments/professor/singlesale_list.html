@@ -266,7 +266,7 @@
                                     {% comment %} Botão de exclusão - só aparece se não tiver nota fiscal emitida com sucesso {% endcomment %}
                                     {% with has_issued=False %}
                                         {% for invoice in sale.invoices.all %}
-                                            {% if invoice.status == 'ISSUED' %}
+                                            {% if invoice.status == 'approved' %}
                                                 {% with has_issued=True %}{% endwith %}
                                             {% endif %}
                                         {% endfor %}
@@ -814,7 +814,7 @@
 {% for sale in object_list %}
 {% with has_issued=False %}
     {% for invoice in sale.invoices.all %}
-        {% if invoice.status == 'ISSUED' %}
+        {% if invoice.status == 'approved' %}
             {% with has_issued=True %}{% endwith %}
         {% endif %}
     {% endfor %}

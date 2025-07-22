@@ -30,6 +30,7 @@ class NFEioService:
     
     def __init__(self):
         self.api_key = settings.NFEIO_API_KEY
+        # Removendo esta linha que pega o company_id das configurações globais
         self.company_id = settings.NFEIO_COMPANY_ID
         self.environment = settings.NFEIO_ENVIRONMENT
         self.base_url = 'https://api.nfe.io'
@@ -249,7 +250,18 @@ class NFEioService:
         
         # 6. Emitir nota
         print("DEBUG - Enviando para API...")
-        endpoint = f"v1/companies/{self.company_id}/serviceinvoices"
+        
+        # Voltar a usar as configurações globais até adicionar campo no modelo
+        company_id = settings.NFEIO_COMPANY_ID
+        if not company_id:
+            error_msg = "NFEIO_COMPANY_ID não configurado nas settings"
+            print(f"DEBUG - {error_msg}")
+            invoice.status = 'error'
+            invoice.error_message = error_msg
+            invoice.save()
+            return {"error": True, "message": error_msg}
+            
+        endpoint = f"v1/companies/{company_id}/serviceinvoices"
         response = self._make_request('POST', endpoint, invoice_data)
         
         if response.get('error'):

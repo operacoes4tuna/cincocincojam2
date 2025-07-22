@@ -1400,8 +1400,8 @@ class SingleSaleDeleteView(LoginRequiredMixin, DeleteView):
         if sale.seller != request.user:
             raise Http404("Venda não encontrada")
 
-        # Verificar se existe nota fiscal EMITIDA (ISSUED)
-        if sale.invoices.filter(status='ISSUED').exists():
+        # Verificar se existe nota fiscal EMITIDA (approved)
+        if sale.invoices.filter(status='approved').exists():
             messages.error(
                 request, "Não é possível excluir esta venda avulsa pois já possui nota fiscal emitida.")
             return redirect('payments:singlesale_detail', pk=sale.id)
