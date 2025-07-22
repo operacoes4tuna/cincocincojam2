@@ -16,24 +16,38 @@
             <a href="{% url 'payments:singlesale_update' pk=sale.id %}" class="btn btn-outline-primary me-2">
                 <i class="fas fa-edit me-1"></i> {% translate "Editar" %}
             </a>
-            {% comment %} Botão de exclusão - só aparece se não tiver nota fiscal {% endcomment %}
-            {% if not sale.invoices.exists %}
-            <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteModal">
-                <i class="fas fa-trash me-1"></i> {% translate "Excluir" %}
-            </button>
-            {% endif %}
+            {% comment %} Botão de exclusão - só aparece se não tiver nota fiscal emitida com sucesso {% endcomment %}
+            {% with has_issued=False %}
+                {% for invoice in sale.invoices.all %}
+                    {% if invoice.status == 'ISSUED' %}
+                        {% with has_issued=True %}{% endwith %}
+                    {% endif %}
+                {% endfor %}
+                {% if not has_issued %}
+                <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteModal">
+                    <i class="fas fa-trash me-1"></i> {% translate "Excluir" %}
+                </button>
+                {% endif %}
+            {% endwith %}
         </div>
     </div>
 
-    {% comment %} Alerta informativo quando existe nota fiscal {% endcomment %}
-    {% if sale.invoices.exists %}
-    <div class="alert alert-info d-flex align-items-center mb-4" role="alert">
-        <i class="fas fa-info-circle me-2"></i>
-        <div>
-            {% translate "Este lançamento possui nota fiscal emitida e não pode ser excluído." %}
+    {% comment %} Alerta informativo quando existe nota fiscal emitida {% endcomment %}
+    {% with has_issued=False %}
+        {% for invoice in sale.invoices.all %}
+            {% if invoice.status == 'ISSUED' %}
+                {% with has_issued=True %}{% endwith %}
+            {% endif %}
+        {% endfor %}
+        {% if has_issued %}
+        <div class="alert alert-info d-flex align-items-center mb-4" role="alert">
+            <i class="fas fa-info-circle me-2"></i>
+            <div>
+                {% translate "Este lançamento possui nota fiscal emitida e não pode ser excluído." %}
+            </div>
         </div>
-    </div>
-    {% endif %}
+        {% endif %}
+    {% endwith %}
 
     <div class="row">
         <!-- Detalhes da Venda -->
@@ -350,4 +364,4 @@
 </div>
 
 {% endblock %}
-{% endblock %} 
+{% endblock %}

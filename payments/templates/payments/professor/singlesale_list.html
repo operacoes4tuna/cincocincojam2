@@ -263,12 +263,19 @@
                                         <i class="fas fa-edit"></i>
                                     </a>
                                     
-                                    {% comment %} Botão de exclusão - só aparece se não tiver nota fiscal {% endcomment %}
-                                    {% if not sale.invoices.exists %}
-                                    <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteModal-{{ sale.id }}">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                    {% endif %}
+                                    {% comment %} Botão de exclusão - só aparece se não tiver nota fiscal emitida com sucesso {% endcomment %}
+                                    {% with has_issued=False %}
+                                        {% for invoice in sale.invoices.all %}
+                                            {% if invoice.status == 'ISSUED' %}
+                                                {% with has_issued=True %}{% endwith %}
+                                            {% endif %}
+                                        {% endfor %}
+                                        {% if not has_issued %}
+                                        <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteModal-{{ sale.id }}">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                        {% endif %}
+                                    {% endwith %}
                                 </div>
                             </td>
                         </tr>
@@ -805,38 +812,45 @@
 
 <!-- Modais de Confirmação de Exclusão -->
 {% for sale in object_list %}
-{% if not sale.invoices.exists %}
-<div class="modal fade" id="deleteModal-{{ sale.id }}" tabindex="-1" aria-labelledby="deleteModalLabel-{{ sale.id }}" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content" style="background-color: #000000; color: #ffffff;">
-            <div class="modal-header" style="border-bottom: 1px solid #333;">
-                <h5 class="modal-title" style="color: #ffffff;" id="deleteModalLabel-{{ sale.id }}">{% translate "Confirmar Exclusão" %}</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <p style="color: #ffffff;">{% translate "Tem certeza que deseja excluir a venda" %} <strong style="color: #ffffff;">#{{ sale.id }}</strong>?</p>
-                <p style="color: #ffffff;"><strong style="color: #ffffff;">{% translate "Cliente:" %}</strong> <span style="color: #ffffff;">{{ sale.customer_name }}</span></p>
-                <p style="color: #ffffff;"><strong style="color: #ffffff;">{% translate "Valor:" %}</strong> <span style="color: #ffffff;">R$ {{ sale.amount|floatformat:2 }}</span></p>
-                <div class="alert alert-warning" role="alert">
-                    <i class="fas fa-exclamation-triangle me-2"></i>
-                    {% translate "Esta ação não pode ser desfeita." %}
+{% with has_issued=False %}
+    {% for invoice in sale.invoices.all %}
+        {% if invoice.status == 'ISSUED' %}
+            {% with has_issued=True %}{% endwith %}
+        {% endif %}
+    {% endfor %}
+    {% if not has_issued %}
+    <div class="modal fade" id="deleteModal-{{ sale.id }}" tabindex="-1" aria-labelledby="deleteModalLabel-{{ sale.id }}" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content" style="background-color: #000000; color: #ffffff;">
+                <div class="modal-header" style="border-bottom: 1px solid #333;">
+                    <h5 class="modal-title" style="color: #ffffff;" id="deleteModalLabel-{{ sale.id }}">{% translate "Confirmar Exclusão" %}</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-            </div>
-            <div class="modal-footer" style="border-top: 1px solid #333;">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                    {% translate "Cancelar" %}
-                </button>
-                <form method="post" action="{% url 'payments:singlesale_delete' pk=sale.id %}" style="display: inline;">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-danger">
-                        <i class="fas fa-trash me-1"></i> {% translate "Confirmar Exclusão" %}
+                <div class="modal-body">
+                    <p style="color: #ffffff;">{% translate "Tem certeza que deseja excluir a venda" %} <strong style="color: #ffffff;">#{{ sale.id }}</strong>?</p>
+                    <p style="color: #ffffff;"><strong style="color: #ffffff;">{% translate "Cliente:" %}</strong> <span style="color: #ffffff;">{{ sale.customer_name }}</span></p>
+                    <p style="color: #ffffff;"><strong style="color: #ffffff;">{% translate "Valor:" %}</strong> <span style="color: #ffffff;">R$ {{ sale.amount|floatformat:2 }}</span></p>
+                    <div class="alert alert-warning" role="alert">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        {% translate "Esta ação não pode ser desfeita." %}
+                    </div>
+                </div>
+                <div class="modal-footer" style="border-top: 1px solid #333;">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        {% translate "Cancelar" %}
                     </button>
-                </form>
+                    <form method="post" action="{% url 'payments:singlesale_delete' pk=sale.id %}" style="display: inline;">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-danger">
+                            <i class="fas fa-trash me-1"></i> {% translate "Confirmar Exclusão" %}
+                        </button>
+                    </form>
+                </div>
             </div>
         </div>
     </div>
-</div>
-{% endif %}
+    {% endif %}
+{% endwith %}
 {% endfor %}
 
 {% endblock %}
