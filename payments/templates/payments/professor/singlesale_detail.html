@@ -19,7 +19,7 @@
             {% comment %} Botão de exclusão - só aparece se não tiver nota fiscal emitida com sucesso {% endcomment %}
             {% with has_issued=False %}
                 {% for invoice in sale.invoices.all %}
-                    {% if invoice.status == 'ISSUED' %}
+                    {% if invoice.status == 'approved' %}
                         {% with has_issued=True %}{% endwith %}
                     {% endif %}
                 {% endfor %}
@@ -35,7 +35,7 @@
     {% comment %} Alerta informativo quando existe nota fiscal emitida {% endcomment %}
     {% with has_issued=False %}
         {% for invoice in sale.invoices.all %}
-            {% if invoice.status == 'ISSUED' %}
+            {% if invoice.status == 'approved' %}
                 {% with has_issued=True %}{% endwith %}
             {% endif %}
         {% endfor %}
@@ -364,4 +364,4 @@
 </div>
 
 {% endblock %}
-{% endblock %}
+{% endblock %

@@ -21,6 +21,10 @@
             <form method="get" class="row g-3">
                 {% csrf_token %}
                 <div class="col-md-3">
+                    <label class="form-label">{% translate "Buscar Cliente" %}</label>
+                    <input type="text" class="form-control" name="search" value="{{ request.GET.search }}" placeholder="{% translate 'Nome ou email do cliente' %}">
+                </div>
+                <div class="col-md-3">
                     <label class="form-label">{% translate "Status" %}</label>
                     <select name="status" class="form-select">
                         <option value="">{% translate "Todos" %}</option>
@@ -31,15 +35,28 @@
                         {% endfor %}
                     </select>
                 </div>
-                <div class="col-md-3">
-                    <label class="form-label">{% translate "Data Inicial" %}</label>
-                    <input type="date" class="form-control" name="start_date" value="{{ start_date }}">
+                
+                <!-- Filtros de Data de Lançamento -->
+                <div class="col-md-2">
+                    <label class="form-label">{% translate "Data Lançamento - Início" %}</label>
+                    <input type="date" class="form-control" name="start_date" value="{{ request.GET.start_date }}">
                 </div>
-                <div class="col-md-3">
-                    <label class="form-label">{% translate "Data Final" %}</label>
-                    <input type="date" class="form-control" name="end_date" value="{{ end_date }}">
+                <div class="col-md-2">
+                    <label class="form-label">{% translate "Data Lançamento - Fim" %}</label>
+                    <input type="date" class="form-control" name="end_date" value="{{ request.GET.end_date }}">
                 </div>
-                <div class="col-md-3">
+                
+                <!-- NOVOS: Filtros de Data de Vencimento -->
+                <div class="col-md-2">
+                    <label class="form-label">{% translate "Data Vencimento - Início" %}</label>
+                    <input type="date" class="form-control" name="due_start_date" value="{{ request.GET.due_start_date }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">{% translate "Data Vencimento - Fim" %}</label>
+                    <input type="date" class="form-control" name="due_end_date" value="{{ request.GET.due_end_date }}">
+                </div>
+                
+                <div class="col-md-1">
                     <label class="form-label">{% translate "Tipo" %}</label>
                     <select name="type" class="form-select">
                         <option value="">{% translate "Todos" %}</option>
@@ -48,8 +65,8 @@
                         <option value="with_recurrence" {% if request.GET.type == 'with_recurrence' %}selected{% endif %}>{% translate "Com Recorrência" %}</option>
                     </select>
                 </div>
-                <div class="col-md-3 d-flex align-items-end">
-                    <button type="submit" class="btn btn-outline-primary w-100">
+                <div class="col-md-12 d-flex justify-content-end">
+                    <button type="submit" class="btn btn-outline-primary">
                         <i class="fas fa-filter me-1"></i> {% translate "Filtrar" %}
                     </button>
                 </div>
@@ -145,7 +162,8 @@
                             <th>{% translate "Cliente" %}</th>
                             <th>{% translate "Valor" %}</th>
                             <th>{% translate "Status" %}</th>
-                            <th>{% translate "Data" %}</th>
+                            <th>{% translate "Data Lançamento" %}</th>
+                            <th>{% translate "Data Vencimento" %}</th>
                             <th>{% translate "Ações" %}</th>
                         </tr>
                     </thead>
@@ -209,6 +227,13 @@
                             </td>
                             <td>{{ sale.created_at|date:"d/m/Y H:i" }}</td>
                             <td>
+                                {% if sale.due_date %}
+                                    {{ sale.due_date|date:"d/m/Y" }}
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
                                 <div class="btn-group">
                                     <a href="{% url 'payments:singlesale_detail' pk=sale.id %}" class="btn btn-sm btn-outline-primary">
                                         <i class="fas fa-eye"></i>
@@ -266,7 +291,7 @@
                                     {% comment %} Botão de exclusão - só aparece se não tiver nota fiscal emitida com sucesso {% endcomment %}
                                     {% with has_issued=False %}
                                         {% for invoice in sale.invoices.all %}
-                                            {% if invoice.status == 'ISSUED' %}
+                                            {% if invoice.status == 'approved' %}
                                                 {% with has_issued=True %}{% endwith %}
                                             {% endif %}
                                         {% endfor %}
@@ -814,7 +839,7 @@
 {% for sale in object_list %}
 {% with has_issued=False %}
     {% for invoice in sale.invoices.all %}
-        {% if invoice.status == 'ISSUED' %}
+        {% if invoice.status == 'approved' %}
             {% with has_issued=True %}{% endwith %}
         {% endif %}
     {% endfor %}

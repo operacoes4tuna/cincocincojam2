@@ -519,6 +519,33 @@ class AdminTransactionListView(LoginRequiredMixin, AdminRequiredMixin, ListView)
         if date_to:
             queryset = queryset.filter(created_at__lte=date_to)
 
+        # Filtro por período de LANÇAMENTO (Data de Criação)
+        start_date = self.request.GET.get('start_date')
+        end_date = self.request.GET.get('end_date')
+        if start_date and end_date:
+            try:
+                from datetime import datetime
+                start = datetime.strptime(start_date, '%Y-%m-%d')
+                end = datetime.strptime(end_date, '%Y-%m-%d')
+                end = end.replace(hour=23, minute=59, second=59)  # Fim do dia
+                queryset = queryset.filter(created_at__range=[start, end])
+            except ValueError:
+                pass
+
+        # NOVO: Filtro por período de VENCIMENTO (Data de Vencimento)
+        due_start_date = self.request.GET.get('due_start_date')
+        due_end_date = self.request.GET.get('due_end_date')
+        if due_start_date and due_end_date:
+            try:
+                from datetime import datetime
+                due_start = datetime.strptime(due_start_date, '%Y-%m-%d')
+                due_end = datetime.strptime(due_end_date, '%Y-%m-%d')
+                due_end = due_end.replace(hour=23, minute=59, second=59)
+                queryset = queryset.filter(
+                    due_date__range=[due_start, due_end])
+            except ValueError:
+                pass
+
         return queryset.order_by('-created_at')
 
     def get_context_data(self, **kwargs):
@@ -799,6 +826,14 @@ class SingleSaleListView(LoginRequiredMixin, ProfessorRequiredMixin, ListView):
             'is_recurring', 'recurrence_number', 'due_date', 'recurrence_count',
             'parent_sale', 'parent_sale__id', 'parent_sale__description'
         )
+
+        # NOVO: Filtro por busca de cliente
+        search = self.request.GET.get('search')
+        if search:
+            queryset = queryset.filter(
+                Q(customer_name__icontains=search) |
+                Q(customer_email__icontains=search)
+            )
 
         # Filtro por status
         status = self.request.GET.get('status')
@@ -1400,8 +1435,8 @@ class SingleSaleDeleteView(LoginRequiredMixin, DeleteView):
         if sale.seller != request.user:
             raise Http404("Venda não encontrada")
 
-        # Verificar se existe nota fiscal EMITIDA (ISSUED)
-        if sale.invoices.filter(status='ISSUED').exists():
+        # Verificar se existe nota fiscal EMITIDA (approved)
+        if sale.invoices.filter(status='approved').exists():
             messages.error(
                 request, "Não é possível excluir esta venda avulsa pois já possui nota fiscal emitida.")
             return redirect('payments:singlesale_detail', pk=sale.id)
