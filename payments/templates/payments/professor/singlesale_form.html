@@ -225,29 +225,7 @@
                             </select>
                         </div>
                     </div>
-                    <div class="col-md-3">
-                        <div class="form-group">
-                            <label class="form-label">{% translate "Total de parcelas" %}</label>
-                            <div class="d-flex align-items-center border rounded p-2 bg-light" style="height: 38px;">
-                                <span id="total_parcelas" class="fw-bold">1</span>
-                            </div>
-                        </div>
-                    </div>
                 </div>
-                <!-- Script para atualizar o total de parcelas -->
-                <script>
-                    document.addEventListener('DOMContentLoaded', function () {
-                        const recurrenceCountSelect = document.getElementById('recurrence_count');
-                        const totalParcelasSpan = document.getElementById('total_parcelas');
-
-                        if (recurrenceCountSelect && totalParcelasSpan) {
-                            recurrenceCountSelect.addEventListener('change', function () {
-                                const count = parseInt(this.value) || 0;
-                                totalParcelasSpan.textContent = count + 1; // +1 porque inclui a venda original
-                            });
-                        }
-                    });
-                </script>
                 {% endif %}
 
                 <!-- Seção para informações fiscais -->
