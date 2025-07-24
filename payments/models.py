@@ -198,7 +198,7 @@ class SingleSale(models.Model):
     recurrence_count = models.IntegerField(
         _('Quantidade de Recorrências'), 
         default=0, 
-        help_text=_('0 = sem recorrência, 1-12 = meses de recorrência')
+        help_text=_('0 = sem recorrência, 1-24 = meses de recorrência')
     )
     
     # Campos para controle de recorrência

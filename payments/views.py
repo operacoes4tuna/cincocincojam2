@@ -1548,8 +1548,8 @@ def create_singlesale_api(request):
             recurrence_count = 0
 
         # Validar recurrence_count (máximo 12 meses)
-        if recurrence_count > 12:
-            return JsonResponse({'error': 'Máximo de 12 meses de recorrência permitido'}, status=400)
+        if recurrence_count > 24:
+            return JsonResponse({'error': 'Máximo de 24 meses de recorrência permitido'}, status=400)
 
         # Validações básicas
         if not description:
