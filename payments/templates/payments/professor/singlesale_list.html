@@ -17,17 +17,26 @@
     <!-- Filtros -->
     <div class="card mb-4">
         <div class="card-body">
-            <h5 class="card-title">{% translate "Filtros" %}</h5>
+            <h5 class="card-title mb-3">
+                <i class="fas fa-filter me-2"></i>{% translate "Filtros de Pesquisa" %}
+            </h5>
             <form method="get" class="row g-3">
                 {% csrf_token %}
-                <div class="col-md-3">
-                    <label class="form-label">{% translate "Buscar Cliente" %}</label>
-                    <input type="text" class="form-control" name="search" value="{{ request.GET.search }}" placeholder="{% translate 'Nome ou email do cliente' %}">
+                
+                <!-- LINHA 1: Busca e Status -->
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">
+                        <i class="fas fa-search me-1"></i>{% translate "Buscar Cliente" %}
+                    </label>
+                    <input type="text" class="form-control" name="search" value="{{ request.GET.search }}" 
+                           placeholder="{% translate 'Nome, email ou descrição...' %}">
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label">{% translate "Status" %}</label>
+                    <label class="form-label fw-bold">
+                        <i class="fas fa-flag me-1"></i>{% translate "Status" %}
+                    </label>
                     <select name="status" class="form-select">
-                        <option value="">{% translate "Todos" %}</option>
+                        <option value="" {% if selected_status == '' %}selected{% endif %}>{% translate "Todos" %}</option>
                         {% for status_code, status_name in status_choices %}
                         <option value="{{ status_code }}" {% if selected_status == status_code %}selected{% endif %}>
                             {{ status_name }}
@@ -35,40 +44,71 @@
                         {% endfor %}
                     </select>
                 </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-bold">
+                        <i class="fas fa-tags me-1"></i>{% translate "Tipo de Venda" %}
+                    </label>
+                    <select name="type" class="form-select">
+                        <option value="">{% translate "Todos os Tipos" %}</option>
+                        <option value="original" {% if request.GET.type == 'original' %}selected{% endif %}>
+                            {% translate "Vendas Originais" %}
+                        </option>
+                        <option value="recurring" {% if request.GET.type == 'recurring' %}selected{% endif %}>
+                            {% translate "Parcelas Recorrentes" %}
+                        </option>
+                        <option value="with_recurrence" {% if request.GET.type == 'with_recurrence' %}selected{% endif %}>
+                            {% translate "Com Recorrência" %}
+                        </option>
+                    </select>
+                </div>
                 
-                <!-- Filtros de Data de Lançamento -->
-                <div class="col-md-2">
-                    <label class="form-label">{% translate "Data Lançamento - Início" %}</label>
+                <!-- LINHA 2: Períodos de Data -->
+                <div class="col-12">
+                    <hr class="my-3">
+                    <h6 class="text-muted mb-3">
+                        <i class="fas fa-calendar-alt me-2"></i>{% translate "Filtros de Data" %}
+                    </h6>
+                </div>
+                
+                <!-- Data de Lançamento -->
+                <div class="col-md-3">
+                    <label class="form-label fw-bold text-primary">
+                        <i class="fas fa-calendar-plus me-1"></i>{% translate "Lançamento - Início" %}
+                    </label>
                     <input type="date" class="form-control" name="start_date" value="{{ request.GET.start_date }}">
                 </div>
-                <div class="col-md-2">
-                    <label class="form-label">{% translate "Data Lançamento - Fim" %}</label>
+                <div class="col-md-3">
+                    <label class="form-label fw-bold text-primary">
+                        <i class="fas fa-calendar-plus me-1"></i>{% translate "Lançamento - Fim" %}
+                    </label>
                     <input type="date" class="form-control" name="end_date" value="{{ request.GET.end_date }}">
                 </div>
                 
-                <!-- NOVOS: Filtros de Data de Vencimento -->
-                <div class="col-md-2">
-                    <label class="form-label">{% translate "Data Vencimento - Início" %}</label>
+                <!-- Data de Vencimento -->
+                <div class="col-md-3">
+                    <label class="form-label fw-bold text-warning">
+                        <i class="fas fa-calendar-times me-1"></i>{% translate "Vencimento - Início" %}
+                    </label>
                     <input type="date" class="form-control" name="due_start_date" value="{{ request.GET.due_start_date }}">
                 </div>
-                <div class="col-md-2">
-                    <label class="form-label">{% translate "Data Vencimento - Fim" %}</label>
+                <div class="col-md-3">
+                    <label class="form-label fw-bold text-warning">
+                        <i class="fas fa-calendar-times me-1"></i>{% translate "Vencimento - Fim" %}
+                    </label>
                     <input type="date" class="form-control" name="due_end_date" value="{{ request.GET.due_end_date }}">
                 </div>
                 
-                <div class="col-md-1">
-                    <label class="form-label">{% translate "Tipo" %}</label>
-                    <select name="type" class="form-select">
-                        <option value="">{% translate "Todos" %}</option>
-                        <option value="original" {% if request.GET.type == 'original' %}selected{% endif %}>{% translate "Vendas Originais" %}</option>
-                        <option value="recurring" {% if request.GET.type == 'recurring' %}selected{% endif %}>{% translate "Parcelas Recorrentes" %}</option>
-                        <option value="with_recurrence" {% if request.GET.type == 'with_recurrence' %}selected{% endif %}>{% translate "Com Recorrência" %}</option>
-                    </select>
-                </div>
-                <div class="col-md-12 d-flex justify-content-end">
-                    <button type="submit" class="btn btn-outline-primary">
-                        <i class="fas fa-filter me-1"></i> {% translate "Filtrar" %}
-                    </button>
+                <!-- Botões de Ação -->
+                <div class="col-12">
+                    <hr class="my-3">
+                    <div class="d-flex justify-content-end">
+                        <a href="{% url 'payments:singlesale_list' %}" class="btn btn-outline-secondary me-2">
+                            <i class="fas fa-eraser me-1"></i> {% translate "Limpar Filtros" %}
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-search me-1"></i> {% translate "Pesquisar" %}
+                        </button>
+                    </div>
                 </div>
             </form>
         </div>
@@ -832,50 +872,86 @@
                     showStatusMessage('danger', 'Erro ao sincronizar status da nota fiscal. Tente novamente.');
                 });
         }
-    });
-</script>
 
-<!-- Modais de Confirmação de Exclusão -->
-{% for sale in object_list %}
-{% with has_issued=False %}
-    {% for invoice in sale.invoices.all %}
-        {% if invoice.status == 'approved' %}
-            {% with has_issued=True %}{% endwith %}
-        {% endif %}
-    {% endfor %}
-    {% if not has_issued %}
-    <div class="modal fade" id="deleteModal-{{ sale.id }}" tabindex="-1" aria-labelledby="deleteModalLabel-{{ sale.id }}" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content" style="background-color: #000000; color: #ffffff;">
-                <div class="modal-header" style="border-bottom: 1px solid #333;">
-                    <h5 class="modal-title" style="color: #ffffff;" id="deleteModalLabel-{{ sale.id }}">{% translate "Confirmar Exclusão" %}</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <p style="color: #ffffff;">{% translate "Tem certeza que deseja excluir a venda" %} <strong style="color: #ffffff;">#{{ sale.id }}</strong>?</p>
-                    <p style="color: #ffffff;"><strong style="color: #ffffff;">{% translate "Cliente:" %}</strong> <span style="color: #ffffff;">{{ sale.customer_name }}</span></p>
-                    <p style="color: #ffffff;"><strong style="color: #ffffff;">{% translate "Valor:" %}</strong> <span style="color: #ffffff;">R$ {{ sale.amount|floatformat:2 }}</span></p>
-                    <div class="alert alert-warning" role="alert">
-                        <i class="fas fa-exclamation-triangle me-2"></i>
-                        {% translate "Esta ação não pode ser desfeita." %}
+        // ✅ BOTÃO LIMPAR FILTROS (manter este)
+        const clearFiltersBtn = document.querySelector('a[href*="singlesale_list"]:not([href*="?"]):not([href*="singlesale_detail"]):not([href*="singlesale_update"])');
+        if (clearFiltersBtn && clearFiltersBtn.textContent.includes('Limpar')) {
+            clearFiltersBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                
+                // Limpar todos os campos do formulário
+                const form = document.querySelector('form[method="get"]');
+                const inputs = form.querySelectorAll('input[type="text"], input[type="date"]');
+                const selects = form.querySelectorAll('select');
+                
+                // Limpar inputs
+                inputs.forEach(input => {
+                    input.value = '';
+                });
+                
+                // Resetar selects para valores padrão
+                selects.forEach(select => {
+                    if (select.name === 'status') {
+                        // Status padrão: PENDING
+                        select.value = 'PENDING';
+                    } else {
+                        // Outros selects: primeira opção (vazia)
+                        select.selectedIndex = 0;
+                    }
+                });
+                
+                // Mostrar mensagem de confirmação
+                showStatusMessage('info', 'Filtros limpos! Status definido como "Pendente" por padrão.');
+                
+                // Submeter o formulário automaticamente após 1 segundo
+                setTimeout(() => {
+                    form.submit();
+                }, 1000);
+            });
+        }
+
+        // Modais de Confirmação de Exclusão
+        {% for sale in object_list %}
+        {% with has_issued=False %}
+            {% for invoice in sale.invoices.all %}
+                {% if invoice.status == 'approved' %}
+                    {% with has_issued=True %}{% endwith %}
+                {% endif %}
+            {% endfor %}
+            {% if not has_issued %}
+            <div class="modal fade" id="deleteModal-{{ sale.id }}" tabindex="-1" aria-labelledby="deleteModalLabel-{{ sale.id }}" aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content" style="background-color: #000000; color: #ffffff;">
+                        <div class="modal-header" style="border-bottom: 1px solid #333;">
+                            <h5 class="modal-title" style="color: #ffffff;" id="deleteModalLabel-{{ sale.id }}">{% translate "Confirmar Exclusão" %}</h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p style="color: #ffffff;">{% translate "Tem certeza que deseja excluir a venda" %} <strong style="color: #ffffff;">#{{ sale.id }}</strong>?</p>
+                            <p style="color: #ffffff;"><strong style="color: #ffffff;">{% translate "Cliente:" %}</strong> <span style="color: #ffffff;">{{ sale.customer_name }}</span></p>
+                            <p style="color: #ffffff;"><strong style="color: #ffffff;">{% translate "Valor:" %}</strong> <span style="color: #ffffff;">R$ {{ sale.amount|floatformat:2 }}</span></p>
+                            <div class="alert alert-warning" role="alert">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                {% translate "Esta ação não pode ser desfeita." %}
+                            </div>
+                        </div>
+                        <div class="modal-footer" style="border-top: 1px solid #333;">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                {% translate "Cancelar" %}
+                            </button>
+                            <form method="post" action="{% url 'payments:singlesale_delete' pk=sale.id %}" style="display: inline;">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-danger">
+                                    <i class="fas fa-trash me-1"></i> {% translate "Confirmar Exclusão" %}
+                                </button>
+                            </form>
+                        </div>
                     </div>
                 </div>
-                <div class="modal-footer" style="border-top: 1px solid #333;">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                        {% translate "Cancelar" %}
-                    </button>
-                    <form method="post" action="{% url 'payments:singlesale_delete' pk=sale.id %}" style="display: inline;">
-                        {% csrf_token %}
-                        <button type="submit" class="btn btn-danger">
-                            <i class="fas fa-trash me-1"></i> {% translate "Confirmar Exclusão" %}
-                        </button>
-                    </form>
-                </div>
             </div>
-        </div>
-    </div>
-    {% endif %}
-{% endwith %}
-{% endfor %}
-
+            {% endif %}
+        {% endwith %}
+        {% endfor %}
+    });
+</script>
 {% endblock %}

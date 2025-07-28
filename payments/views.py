@@ -809,90 +809,83 @@ def emit_payment_charge(request, transaction_id):
 
 
 # Views para vendas avulsas
-class SingleSaleListView(LoginRequiredMixin, ProfessorRequiredMixin, ListView):
-    """
-    Lista todas as vendas avulsas criadas pelo professor/vendedor.
-    """
+class SingleSaleListView(ProfessorRequiredMixin, ListView):
     model = SingleSale
     template_name = 'payments/professor/singlesale_list.html'
     context_object_name = 'sales'
     paginate_by = 20
 
     def get_queryset(self):
-        # Use only the basic fields to avoid any errors with potentially missing fields
-        queryset = SingleSale.objects.filter(seller=self.request.user).select_related('parent_sale').only(
-            'id', 'description', 'amount', 'status', 'customer_name',
-            'customer_email', 'created_at', 'updated_at', 'paid_at',
-            'is_recurring', 'recurrence_number', 'due_date', 'recurrence_count',
-            'parent_sale', 'parent_sale__id', 'parent_sale__description'
-        )
+        # ✅ CORRIGIR: professor → seller
+        queryset = SingleSale.objects.filter(
+            seller=self.request.user).order_by('-created_at')
 
-        # NOVO: Filtro por busca de cliente
+        # ✅ STATUS PADRÃO: PENDING (se não tiver filtro específico)
+        status = self.request.GET.get('status', 'PENDING')  # PADRÃO = PENDING
+
+        # Aplicar filtros
+        if status and status != '':
+            queryset = queryset.filter(status=status)
+
+        # Filtro de busca
         search = self.request.GET.get('search')
         if search:
             queryset = queryset.filter(
                 Q(customer_name__icontains=search) |
-                Q(customer_email__icontains=search)
+                Q(customer_email__icontains=search) |
+                Q(description__icontains=search)
             )
 
-        # Filtro por status
-        status = self.request.GET.get('status')
-        if status:
-            queryset = queryset.filter(status=status)
-
-        # Filtro por período
+        # Filtros de data de lançamento
         start_date = self.request.GET.get('start_date')
         end_date = self.request.GET.get('end_date')
-        if start_date and end_date:
-            try:
-                from datetime import datetime
-                start = datetime.strptime(start_date, '%Y-%m-%d')
-                end = datetime.strptime(end_date, '%Y-%m-%d')
-                end = end.replace(hour=23, minute=59, second=59)  # Fim do dia
-                queryset = queryset.filter(created_at__range=[start, end])
-            except ValueError:
-                pass
 
-        # NOVO: Filtro por tipo de venda
+        if start_date:
+            queryset = queryset.filter(created_at__gte=start_date)
+        if end_date:
+            # Incluir todo o dia final
+            from datetime import datetime
+            end_date = datetime.strptime(
+                end_date, '%Y-%m-%d').replace(hour=23, minute=59, second=59)
+            queryset = queryset.filter(created_at__lte=end_date)
+
+        # ✅ FILTROS DE DATA DE VENCIMENTO
+        due_start_date = self.request.GET.get('due_start_date')
+        due_end_date = self.request.GET.get('due_end_date')
+
+        if due_start_date:
+            queryset = queryset.filter(due_date__gte=due_start_date)
+        if due_end_date:
+            queryset = queryset.filter(due_date__lte=due_end_date)
+
+        # Filtro de tipo
         type_filter = self.request.GET.get('type')
         if type_filter == 'original':
-            queryset = queryset.filter(is_recurring=False)
+            queryset = queryset.filter(parent_sale__isnull=True)
         elif type_filter == 'recurring':
-            queryset = queryset.filter(is_recurring=True)
+            queryset = queryset.filter(parent_sale__isnull=False)
         elif type_filter == 'with_recurrence':
-            queryset = queryset.filter(recurrence_count__gt=0)
+            queryset = queryset.filter(
+                recurring_sales__isnull=False).distinct()
 
-        return queryset.order_by('-created_at')
+        return queryset
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
-        # Status possíveis para o filtro
+        # ✅ STATUS PADRÃO NO CONTEXTO
+        context['selected_status'] = self.request.GET.get('status', 'PENDING')
+
+        # ✅ CORRIGIR: STATUS_CHOICES → Status.choices
         context['status_choices'] = SingleSale.Status.choices
 
-        # Filtros ativos
-        context['selected_status'] = self.request.GET.get('status', '')
-        context['start_date'] = self.request.GET.get('start_date', '')
-        context['end_date'] = self.request.GET.get('end_date', '')
-
-        # Totalizadores
-        total_amount = self.get_queryset().aggregate(
-            Sum('amount'))['amount__sum'] or 0
-        total_paid = self.get_queryset().filter(
-            status=SingleSale.Status.PAID).aggregate(Sum('amount'))['amount__sum'] or 0
-        total_pending = self.get_queryset().filter(
-            status=SingleSale.Status.PENDING).aggregate(Sum('amount'))['amount__sum'] or 0
-
-        context['total_amount'] = total_amount
-        context['total_paid'] = total_paid
-        context['total_pending'] = total_pending
-
-        # Estatísticas de recorrência
-        total_recurring = self.get_queryset().filter(is_recurring=True).count()
-        total_with_recurrence = self.get_queryset().filter(recurrence_count__gt=0).count()
-
-        context['total_recurring'] = total_recurring
-        context['total_with_recurrence'] = total_with_recurrence
+        # Calcular totais
+        sales = context['sales']
+        context['total_amount'] = sum(sale.amount for sale in sales)
+        context['total_paid'] = sum(
+            sale.amount for sale in sales if sale.status == 'PAID')
+        context['total_pending'] = sum(
+            sale.amount for sale in sales if sale.status == 'PENDING')
 
         return context
 
@@ -1929,3 +1922,4 @@ def _generate_invoice_for_sale(sale, user):
         return {'success': False, 'error': 'Módulo de notas fiscais não disponível'}
     except Exception as e:
         return {'success': False, 'error': str(e)}
+
