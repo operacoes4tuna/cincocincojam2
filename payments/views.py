@@ -1,9 +1,9 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse_lazy, reverse
-from django.views.generic import ListView, DetailView, TemplateView, View, CreateView, UpdateView, DeleteView
+from django.views.generic import TemplateView, ListView, DetailView, CreateView, UpdateView, DeleteView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.decorators import login_required
-from django.db.models import Sum, Count, Q, F, Prefetch
+from django.db.models import Sum
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django.contrib import messages
@@ -818,6 +818,15 @@ class SingleSaleListView(LoginRequiredMixin, ProfessorRequiredMixin, ListView):
     context_object_name = 'sales'
     paginate_by = 20
 
+    def get_paginate_by(self, queryset):
+        paginate_by = self.request.GET.get('paginate_by')
+        if paginate_by == 'all':
+            return None  # Mostra todos
+        try:
+            return int(paginate_by)
+        except (TypeError, ValueError):
+            return 15  # Padrão
+
     def get_queryset(self):
         # Use only the basic fields to avoid any errors with potentially missing fields
         queryset = SingleSale.objects.filter(seller=self.request.user).select_related('parent_sale').only(
@@ -886,6 +895,9 @@ class SingleSaleListView(LoginRequiredMixin, ProfessorRequiredMixin, ListView):
         context['total_amount'] = total_amount
         context['total_paid'] = total_paid
         context['total_pending'] = total_pending
+
+        # Contagem total de vendas filtradas (antes da paginação)
+        context['total_sales_count'] = self.get_queryset().count()
 
         # Estatísticas de recorrência
         total_recurring = self.get_queryset().filter(is_recurring=True).count()
