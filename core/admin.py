@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.utils.translation import gettext_lazy as _
 
-from .models import User
+from .models import User, ModulePermission
 
 
 @admin.register(User)
@@ -28,3 +28,37 @@ class UserAdmin(BaseUserAdmin):
             'fields': ('email', 'password1', 'password2', 'user_type', 'first_name', 'last_name', 'is_staff', 'is_superuser'),
         }),
     )
+
+
+class ModulePermissionInline(admin.TabularInline):
+    """
+    Inline para exibir e editar permissões de módulos diretamente na página de edição do usuário.
+    """
+    model = ModulePermission
+    extra = 1
+    verbose_name = _('Permissão de Módulo')
+    verbose_name_plural = _('Permissões de Módulos')
+
+
+# Adiciona o inline de permissões de módulos ao admin de usuários para professores
+UserAdmin.inlines = [ModulePermissionInline]
+
+
+@admin.register(ModulePermission)
+class ModulePermissionAdmin(admin.ModelAdmin):
+    """
+    Configuração da interface de administração para o modelo ModulePermission.
+    """
+    list_display = ('user', 'module', 'has_access', 'updated_at')
+    list_filter = ('module', 'has_access', 'user__user_type')
+    search_fields = ('user__email', 'user__first_name', 'user__last_name')
+    ordering = ('user__email', 'module')
+    list_editable = ('has_access',)
+    
+    fieldsets = (
+        (None, {'fields': ('user', 'module', 'has_access')}),
+    )
+    
+    def get_queryset(self, request):
+        # Filtra apenas usuários do tipo professor
+        return super().get_queryset(request).filter(user__user_type=User.Types.PROFESSOR)
