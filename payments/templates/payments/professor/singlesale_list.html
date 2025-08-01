@@ -300,19 +300,21 @@
                                         <i class="fas fa-edit"></i>
                                     </a>
                                     
-                                    {% comment %} Botão de exclusão - só aparece se não tiver nota fiscal emitida com sucesso {% endcomment %}
-                                    {% with has_issued=False %}
-                                        {% for invoice in sale.invoices.all %}
-                                            {% if invoice.status == 'approved' %}
-                                                {% with has_issued=True %}{% endwith %}
+                                    {% comment %} Botão de exclusão - só aparece se NÃO tiver nota fiscal emitida com sucesso {% endcomment %}
+                                    {% if sale.invoices.exists %}
+                                        {% with invoice=sale.invoices.first %}
+                                            {% if invoice.status != 'approved' %}
+                                            <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteModal-{{ sale.id }}">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
                                             {% endif %}
-                                        {% endfor %}
-                                        {% if not has_issued %}
+                                        {% endwith %}
+                                    {% else %}
+                                        {% comment %} Sem invoice - pode excluir {% endcomment %}
                                         <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteModal-{{ sale.id }}">
                                             <i class="fas fa-trash"></i>
                                         </button>
-                                        {% endif %}
-                                    {% endwith %}
+                                    {% endif %}
                                 </div>
                             </td>
                         </tr>
