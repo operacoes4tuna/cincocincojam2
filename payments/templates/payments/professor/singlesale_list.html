@@ -376,11 +376,104 @@
 
 {% block extra_js %}
 <script>
-    document.addEventListener('DOMContentLoaded', function () {
-        // Removido o cálculo JS dos totais dos cards. Os valores agora vêm apenas do backend.
-        // (Se desejar, pode manter outras funções JS úteis aqui, mas não sobrescrever os cards de totais)
+document.addEventListener('DOMContentLoaded', function() {
+    
+    // ✅ SISTEMA DE SINCRONIZAÇÃO SIMPLES E FUNCIONAL
+    document.querySelectorAll('.sync-invoice-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const invoiceId = this.getAttribute('data-invoice-id');
+            
+            if (!invoiceId) {
+                showAlert('error', 'ID da nota fiscal não encontrado');
+                return;
+            }
+            
+            // Mostrar loading
+            const originalHtml = this.innerHTML;
+            this.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            this.disabled = true;
+            
+            // Fazer requisição para sincronizar status
+            fetch(`/invoices/sync/${invoiceId}/`)
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Resposta da API:', data); // DEBUG
+                    
+                    if (data.success) {
+                        showAlert('success', 'Status sincronizado! Atualizando página...');
+                        
+                        // ✅ SEMPRE RECARREGAR - SOLUÇÃO MAIS CONFIÁVEL
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 800);
+                        
+                    } else {
+                        this.innerHTML = originalHtml;
+                        this.disabled = false;
+                        showAlert('error', data.message || 'Erro ao sincronizar status');
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro:', error);
+                    this.innerHTML = originalHtml;
+                    this.disabled = false;
+                    showAlert('error', 'Erro ao conectar com o servidor');
+                });
+        });
     });
+    
+    // ✅ FUNÇÃO PARA MOSTRAR ALERTAS (CORRIGIDA)
+    function showAlert(type, message) {
+        // Remover alertas existentes
+        const existingAlerts = document.querySelectorAll('.alert-auto-hide');
+        existingAlerts.forEach(alert => alert.remove());
+        
+        // Determinar classe do alerta
+        let alertClass = 'alert-info';
+        if (type === 'success') alertClass = 'alert-success';
+        if (type === 'error') alertClass = 'alert-danger';
+        if (type === 'warning') alertClass = 'alert-warning';
+        
+        // Criar alerta
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert ${alertClass} alert-dismissible fade show alert-auto-hide`;
+        alertDiv.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        `;
+        
+        // ✅ INSERIR NO MESMO LOCAL QUE O BOTÃO "EMITIR NF" (FUNCIONANDO)
+        const targetContainer = document.querySelector('.container.py-4') || document.querySelector('.container');
+        if (targetContainer) {
+            // Inserir após o título, antes dos filtros
+            const title = targetContainer.querySelector('.d-flex.justify-content-between.align-items-center.mb-4');
+            if (title) {
+                title.insertAdjacentElement('afterend', alertDiv);
+            } else {
+                targetContainer.insertBefore(alertDiv, targetContainer.firstChild);
+            }
+        }
+        
+        // Auto-remover após 4 segundos
+        setTimeout(() => {
+            if (alertDiv && alertDiv.parentNode) {
+                alertDiv.remove();
+            }
+        }, 4000);
+    }
+    
+    // ✅ MANTER FUNCIONALIDADE DO BOTÃO GERAR BOLETO
+    document.querySelectorAll('.generate-boleto-btn').forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            const invoiceId = this.getAttribute('data-invoice-id');
+            showAlert('info', `Gerando boleto para a nota fiscal ${invoiceId}...`);
+            // Implementação futura do boleto
+        });
+    });
+});
 </script>
+{% endblock %}
 
 <!-- Modais de Confirmação de Exclusão -->
 {% for sale in object_list %}
@@ -424,5 +517,3 @@
     {% endif %}
 {% endwith %}
 {% endfor %}
-
-{% endblock %}
