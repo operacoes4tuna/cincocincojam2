@@ -407,9 +407,105 @@
 {% block extra_js %}
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        // Removido o cálculo JS dos totais dos cards. Os valores agora vêm apenas do backend.
-        // (Se desejar, pode manter outras funções JS úteis aqui, mas não sobrescrever os cards de totais)
+        // Event listeners para botões de sincronização de status
+        const syncButtons = document.querySelectorAll('.sync-invoice-btn, .check-status-btn');
+        syncButtons.forEach(button => {
+            button.addEventListener('click', function(event) {
+                event.preventDefault();
+                const invoiceId = this.getAttribute('data-invoice-id');
+                if (invoiceId) {
+                    // Desabilitar botão durante a requisição
+                    this.disabled = true;
+                    const originalHtml = this.innerHTML;
+                    this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verificando...';
+                    
+                    // Fazer requisição para verificar status
+                    const url = `/invoices/check-status/${invoiceId}/json/`;
+                    
+                    fetch(url)
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error(`Erro HTTP: ${response.status}`);
+                            }
+                            return response.json();
+                        })
+                        .then(data => {
+                            // Atualizar UI baseado no status
+                            updateSalesListStatus(invoiceId, data.status, data.message);
+                            
+                            // Mostrar mensagem de sucesso
+                            showStatusMessage('Status atualizado com sucesso!', 'success');
+                        })
+                        .catch(error => {
+                            console.error('Erro ao verificar status:', error);
+                            showStatusMessage('Erro ao verificar status: ' + error.message, 'danger');
+                        })
+                        .finally(() => {
+                            // Reabilitar botão
+                            this.disabled = false;
+                            this.innerHTML = originalHtml;
+                        });
+                }
+            });
+        });
     });
+
+    function updateSalesListStatus(invoiceId, status, message) {
+        // Encontrar a linha da tabela que contém esta invoice
+        const button = document.querySelector(`[data-invoice-id="${invoiceId}"]`);
+        if (!button) return;
+        
+        const tableRow = button.closest('tr');
+        if (!tableRow) return;
+        
+        const statusCell = tableRow.querySelector('td:nth-child(6)'); // Coluna de status
+        const actionsCell = tableRow.querySelector('td:last-child'); // Coluna de ações
+        
+        if (statusCell && actionsCell) {
+            // Atualizar badge de status
+            let statusBadge = '';
+            switch (status) {
+                case 'approved':
+                    statusBadge = '<span class="badge bg-success"><i class="fas fa-check-circle me-1"></i> NF Emitida</span>';
+                    // Recarregar a página para mostrar os novos botões
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1500);
+                    break;
+                case 'processing':
+                case 'pending':
+                    statusBadge = '<span class="badge bg-warning"><i class="fas fa-spinner fa-spin me-1"></i> NF Em processamento</span>';
+                    break;
+                case 'error':
+                    statusBadge = '<span class="badge bg-danger"><i class="fas fa-exclamation-triangle me-1"></i> Erro na NFe</span>';
+                    break;
+            }
+            
+            // Atualizar apenas o badge, mantendo outros elementos da célula
+            const existingBadge = actionsCell.querySelector('.badge');
+            if (existingBadge) {
+                existingBadge.outerHTML = statusBadge;
+            }
+        }
+    }
+
+    function showStatusMessage(message, type) {
+        // Criar elemento de alerta
+        const alert = document.createElement('div');
+        alert.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+        alert.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+        alert.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        document.body.appendChild(alert);
+        
+        // Remover automaticamente após 5 segundos
+        setTimeout(() => {
+            alert.remove();
+        }, 5000);
+    }
 </script>
 {% endblock %}
 

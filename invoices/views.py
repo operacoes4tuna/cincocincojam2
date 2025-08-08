@@ -207,9 +207,18 @@ def check_invoice_status(request, invoice_id, format=None):
         # Obter a nota fiscal
         invoice = get_object_or_404(Invoice, id=invoice_id)
         
-        # Verificar permissão (apenas o professor que emitiu ou o aluno destinatário)
-        if not (request.user == invoice.transaction.enrollment.course.professor or 
-                request.user == invoice.transaction.enrollment.student):
+        # Verificar permissão baseado no tipo de invoice (transação ou venda avulsa)
+        has_permission = False
+        
+        if invoice.transaction:
+            # Invoice de transação - verificar se é o professor ou aluno
+            has_permission = (request.user == invoice.transaction.enrollment.course.professor or 
+                            request.user == invoice.transaction.enrollment.student)
+        elif invoice.singlesale:
+            # Invoice de venda avulsa - verificar se é o vendedor que criou
+            has_permission = (request.user == invoice.singlesale.seller)
+        
+        if not has_permission:
             if format == 'json':
                 return JsonResponse({
                     'status': 'error',
