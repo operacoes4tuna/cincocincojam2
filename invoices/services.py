@@ -26,11 +26,22 @@ class FocusNFeService:
 class NFEioService:
     """
     Serviço para integração com a API do NFE.io
+    Cada instância é específica para uma configuração de empresa/professor
     """
     
-    def __init__(self):
+    def __init__(self, company_config=None):
+        # API Key é sempre global (do sistema)
         self.api_key = settings.NFEIO_API_KEY
-        self.company_id = settings.NFEIO_COMPANY_ID
+        
+        # Company ID específico da empresa do professor ou fallback para global
+        if company_config and company_config.nfeio_company_id:
+            self.company_id = company_config.nfeio_company_id
+            logger.info(f"NFEioService inicializado para empresa específica: {company_config.razao_social}")
+        else:
+            # Fallback para configurações globais (manter compatibilidade)
+            self.company_id = settings.NFEIO_COMPANY_ID
+            logger.warning("NFEioService usando company_id global - considere configurar company_id específico")
+        
         self.environment = settings.NFEIO_ENVIRONMENT
         self.base_url = 'https://api.nfe.io'
         self.max_retries = 3
@@ -47,7 +58,7 @@ class NFEioService:
             'Content-Type': 'application/json'
         }
         
-        logger.info(f"NFEioService inicializado: ambiente={self.environment}, base_url={self.base_url}, offline_mode={self.offline_mode}")
+        logger.info(f"NFEioService inicializado: company_id={self.company_id}, ambiente={self.environment}, base_url={self.base_url}, offline_mode={self.offline_mode}")
 
     def validate_company_config(self, company_config):
         """
@@ -61,6 +72,10 @@ class NFEioService:
             
         if not company_config.is_complete():
             return False, "Configurações fiscais incompletas para este professor"
+            
+        # Validar configurações específicas da API NFE.io
+        if not company_config.nfeio_company_id:
+            return False, "ID da empresa no NFE.io não configurado"
             
         return True, "Configuração válida"
 

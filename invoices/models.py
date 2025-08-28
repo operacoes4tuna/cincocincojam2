@@ -150,6 +150,15 @@ class CompanyConfig(models.Model):
         help_text=_('Código de serviço padrão do município para atividades educacionais')
     )
     
+    # Configurações da API NFE.io específicas para cada empresa
+    nfeio_company_id = models.CharField(
+        max_length=50,
+        blank=True,
+        null=True,
+        verbose_name=_('ID da empresa no NFE.io'),
+        help_text=_('ID específico da empresa cadastrada na plataforma NFE.io')
+    )
+    
     # Campos para controle de RPS (Recibo Provisório de Serviço)
     rps_serie = models.CharField(
         max_length=5,
@@ -205,7 +214,8 @@ class CompanyConfig(models.Model):
             self.municipio, 
             self.uf, 
             self.cep,
-            self.city_service_code
+            self.city_service_code,
+            self.nfeio_company_id
         ]
         
         return all(field is not None and field != '' for field in required_fields) and self.enabled

@@ -172,6 +172,20 @@
                                 </div>
                             </div>
                             
+                            <h5 class="border-bottom pb-2 mb-4 mt-5">Configuração da API NFE.io</h5>
+                            <div class="alert alert-warning">
+                                <i class="fas fa-exclamation-triangle"></i> <strong>Importante:</strong> Cada professor deve ter sua própria conta e empresa cadastrada na plataforma NFE.io. 
+                                Insira abaixo apenas o ID da sua empresa específica obtido no painel do NFE.io.
+                            </div>
+                            
+                            <div class="row mb-3">
+                                <div class="col-md-12">
+                                    {{ form.nfeio_company_id|as_crispy_field }}
+                                    <small class="text-muted">ID único da sua empresa no NFE.io (obrigatório)</small>
+                                </div>
+                            </div>
+                            
+                            
                             <h5 class="border-bottom pb-2 mb-4 mt-5">Configuração RPS (Recibo Provisório de Serviços)</h5>
                             <div class="alert alert-info">
                                 <i class="fas fa-info-circle"></i> O RPS (Recibo Provisório de Serviços) é um documento obrigatório para emissão de NFS-e. Configure aqui os números sequenciais de RPS que serão utilizados.

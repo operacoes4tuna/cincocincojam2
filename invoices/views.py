@@ -117,7 +117,9 @@ def emit_invoice(request, transaction_id):
         try:
             # Tentar emitir a nota fiscal
             logger.info(f"Iniciando emissão via NFEioService para transação {transaction_id}")
-            service = NFEioService()
+            # Usar configuração específica do professor
+            company_config = transaction.enrollment.course.professor.company_config
+            service = NFEioService(company_config)
             try:
                 logger.debug(f"Chamando service.emit_invoice para transação {transaction_id}")
                 # Criar a invoice antes de chamar o serviço
@@ -168,7 +170,16 @@ def retry_invoice(request, invoice_id):
         )
         logger.debug(f"Invoice encontrada: {invoice_id}, status atual: {invoice.status}")
         
-        service = NFEioService()
+        # Obter configuração da empresa baseada no tipo de invoice
+        if invoice.transaction:
+            company_config = invoice.transaction.enrollment.course.professor.company_config
+        elif invoice.singlesale:
+            company_config = invoice.singlesale.seller.company_config
+        else:
+            messages.error(request, _('Invoice não está associada a uma transação ou venda.'))
+            return redirect('payments:professor_transactions')
+            
+        service = NFEioService(company_config)
         try:
             logger.debug(f"Chamando service.emit_invoice para retry da invoice ID {invoice_id}")
             response = service.emit_invoice(invoice)
@@ -219,7 +230,15 @@ def check_invoice_status(request, invoice_id, format=None):
             return redirect('payments:transactions')
         
         # Verificar status atual na API NFE.io
-        nfe_service = NFEioService()
+        # Obter configuração da empresa baseada no tipo de invoice
+        if invoice.transaction:
+            company_config = invoice.transaction.enrollment.course.professor.company_config
+        elif invoice.singlesale:
+            company_config = invoice.singlesale.seller.company_config
+        else:
+            company_config = None
+            
+        nfe_service = NFEioService(company_config)
         status_result = nfe_service.check_invoice_status(invoice)
         
         # Atualizar o status da nota fiscal no banco de dados
@@ -284,7 +303,16 @@ def cancel_invoice(request, invoice_id):
                 messages.error(request, _('A justificativa para cancelamento é obrigatória.'))
                 return redirect('payments:professor_transactions')
             
-            service = NFEioService()
+            # Obter configuração da empresa baseada no tipo de invoice
+            if invoice.transaction:
+                company_config = invoice.transaction.enrollment.course.professor.company_config
+            elif invoice.singlesale:
+                company_config = invoice.singlesale.seller.company_config
+            else:
+                messages.error(request, _('Invoice não está associada a uma transação ou venda.'))
+                return redirect('payments:professor_transactions')
+                
+            service = NFEioService(company_config)
             try:
                 logger.debug(f"Chamando service.cancel_invoice para invoice ID {invoice_id}")
                 response = service.cancel_invoice(invoice, cancel_reason)
@@ -582,8 +610,16 @@ def download_pdf(request, invoice_id):
             messages.error(request, _('Nota fiscal inválida.'))
             return redirect('dashboard')
         
+        # Obter configuração da empresa baseada no tipo de invoice
+        if invoice.transaction:
+            company_config = invoice.transaction.enrollment.course.professor.company_config
+        elif invoice.singlesale:
+            company_config = invoice.singlesale.seller.company_config
+        else:
+            company_config = None
+            
         # Inicializar o serviço
-        service = NFEioService()
+        service = NFEioService(company_config)
         
         # Construir a URL da API
         api_url = f"{service.base_url}/v1/companies/{service.company_id}/serviceinvoices/{invoice_id}/pdf"
@@ -617,8 +653,16 @@ def retry_waiting_invoices(request):
     Esta view pode ser acessada manualmente pelo professor ou administrador.
     """
     try:
+        # Obter configuração da empresa baseada no tipo de invoice
+        if invoice.transaction:
+            company_config = invoice.transaction.enrollment.course.professor.company_config
+        elif invoice.singlesale:
+            company_config = invoice.singlesale.seller.company_config
+        else:
+            company_config = None
+            
         # Inicializar o serviço NFE.io
-        service = NFEioService()
+        service = NFEioService(company_config)
         
         # Verificar se o usuário é admin ou professor
         is_admin = hasattr(request.user, 'is_admin') and request.user.is_admin
@@ -721,8 +765,16 @@ def sync_invoice_status(request, invoice_id):
                 singlesale__seller=request.user
             )
         
+        # Obter configuração da empresa baseada no tipo de invoice
+        if invoice.transaction:
+            company_config = invoice.transaction.enrollment.course.professor.company_config
+        elif invoice.singlesale:
+            company_config = invoice.singlesale.seller.company_config
+        else:
+            company_config = None
+            
         # Inicializar o serviço NFE.io
-        service = NFEioService()
+        service = NFEioService(company_config)
         
         # Verificar o status atual na API
         status_result = service.check_invoice_status(invoice)
@@ -799,7 +851,7 @@ def emit_singlesale_invoice(request, sale_id):
         # Iniciar o processo de emissão da nota fiscal
         try:
             # Inicializar o serviço NFE.io
-            service = NFEioService()
+            service = NFEioService(request.user.company_config)
             
             # Gerar número RPS
             service._generate_rps_for_invoice(invoice, request.user)
@@ -895,7 +947,15 @@ def invoice_detail_json(request, invoice_id):
         # Verificar o status novamente na API se necessário
         if 'refresh' in request.GET and request.GET['refresh'] == 'true':
             try:
-                service = NFEioService()
+                # Obter configuração da empresa baseada no tipo de invoice
+                if invoice.transaction:
+                    company_config = invoice.transaction.enrollment.course.professor.company_config
+                elif invoice.singlesale:
+                    company_config = invoice.singlesale.seller.company_config
+                else:
+                    company_config = None
+                    
+                service = NFEioService(company_config)
                 status_result = service.check_invoice_status(invoice)
                 data['refresh_status'] = status_result
                 
