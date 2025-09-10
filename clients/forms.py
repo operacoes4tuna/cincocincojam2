@@ -327,11 +327,12 @@ class ClientRegistrationForm(forms.Form):
                     self.add_error('cpf', _('Este CPF já está cadastrado no sistema.'))
         
         elif client_type == Client.Type.COMPANY:
-            # Validar campos de pessoa jurídica
-            required_fields = ['company_name', 'cnpj']
-            for field in required_fields:
-                if not cleaned_data.get(field):
-                    self.add_error(field, _('Este campo é obrigatório para pessoa jurídica.'))
+            # Validar campos de pessoa jurídica com mensagens mais amigáveis
+            if not cleaned_data.get('company_name'):
+                self.add_error('company_name', 'Por favor, informe a razão social da empresa.')
+            
+            if not cleaned_data.get('cnpj'):
+                self.add_error('cnpj', 'Por favor, informe o CNPJ da empresa.')
             
             # Validar CNPJ único
             cnpj = cleaned_data.get('cnpj')
@@ -348,7 +349,7 @@ class ClientRegistrationForm(forms.Form):
                 cleaned_data['cnpj'] = formatted_cnpj
                 
                 if CompanyClient.objects.filter(cnpj=formatted_cnpj).exists():
-                    self.add_error('cnpj', _('Este CNPJ já está cadastrado no sistema.'))
+                    self.add_error('cnpj', 'Este CNPJ já está cadastrado no sistema.')
         
         return cleaned_data
     
@@ -405,12 +406,12 @@ class ClientRegistrationForm(forms.Form):
             company = CompanyClient(
                 client=client,
                 company_name=self.cleaned_data['company_name'],
-                trade_name=self.cleaned_data['trade_name'],
+                trade_name=self.cleaned_data.get('trade_name', ''),
                 cnpj=cnpj,
                 state_registration=self.cleaned_data.get('state_registration', ''),
                 municipal_registration=self.cleaned_data.get('municipal_registration', ''),
-                responsible_name=self.cleaned_data['responsible_name'],
-                responsible_cpf=self.cleaned_data['responsible_cpf']
+                responsible_name=self.cleaned_data.get('responsible_name', ''),
+                responsible_cpf=self.cleaned_data.get('responsible_cpf', '')
             )
             company.save()
             return client, company

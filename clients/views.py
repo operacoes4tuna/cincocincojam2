@@ -404,6 +404,10 @@ class CompanyClientRegistrationView(LoginRequiredMixin, ProfessorRequiredMixin, 
         form.fields.pop('rg', None)
         form.fields.pop('birth_date', None)
         
+        # Tornar campos de empresa obrigatórios
+        form.fields['company_name'].required = True
+        form.fields['cnpj'].required = True
+        
         return render(request, self.template_name, {'form': form})
     
     def post(self, request):
@@ -412,13 +416,34 @@ class CompanyClientRegistrationView(LoginRequiredMixin, ProfessorRequiredMixin, 
         post_data['client_type'] = Client.Type.COMPANY
         
         form = ClientRegistrationForm(post_data, professor=request.user)
+        
+        # Remover os campos específicos para pessoa física do formulário
+        form.fields.pop('full_name', None)
+        form.fields.pop('cpf', None)
+        form.fields.pop('rg', None)
+        form.fields.pop('birth_date', None)
+        
+        # Tornar campos de empresa obrigatórios
+        form.fields['company_name'].required = True
+        form.fields['cnpj'].required = True
+        
+        # Revalidar o formulário após ajustar os campos
+        form.full_clean()
+        
         if form.is_valid():
-            client, specific = form.save()
-            messages.success(
-                request, 
-                _('Cliente pessoa jurídica cadastrado com sucesso!')
-            )
-            return redirect('clients:client_detail', pk=client.pk)
+            try:
+                client, specific = form.save()
+                messages.success(
+                    request, 
+                    'Cliente pessoa jurídica cadastrado com sucesso!'
+                )
+                return redirect('clients:client_detail', pk=client.pk)
+            except Exception as e:
+                messages.error(request, 'Ocorreu um erro ao salvar. Por favor, tente novamente.')
+        else:
+            # Mensagem de erro mais amigável
+            messages.error(request, "Por favor, verifique os campos destacados abaixo.")
+            
         return render(request, self.template_name, {'form': form})
 
 

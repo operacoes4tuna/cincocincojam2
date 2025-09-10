@@ -829,8 +829,8 @@ class SingleSaleListView(ProfessorRequiredMixin, ListView):
         queryset = SingleSale.objects.filter(
             seller=self.request.user).order_by('-created_at')
 
-        # ✅ STATUS PADRÃO: PENDING (se não tiver filtro específico)
-        status = self.request.GET.get('status', 'PENDING')  # PADRÃO = PENDING
+        # Aplicar filtros apenas se especificado
+        status = self.request.GET.get('status')
 
         # Aplicar filtros
         if status and status != '':
@@ -882,10 +882,7 @@ class SingleSaleListView(ProfessorRequiredMixin, ListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
-        # ✅ STATUS PADRÃO NO CONTEXTO
-        context['selected_status'] = self.request.GET.get('status', 'PENDING')
-
-        # ✅ CORRIGIR: STATUS_CHOICES → Status.choices
+        # Status choices para o filtro
         context['status_choices'] = SingleSale.Status.choices
 
         # Filtros ativos
