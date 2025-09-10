@@ -334,14 +334,20 @@
                                     {% if sale.invoices.exists %}
                                         {% with invoice=sale.invoices.first %}
                                             {% if invoice.status != 'approved' %}
-                                            <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteModal-{{ sale.id }}">
+                                            <button type="button" class="btn btn-sm btn-outline-danger delete-sale-btn" 
+                                                    data-sale-id="{{ sale.id }}" 
+                                                    data-sale-customer="{{ sale.customer_name }}"
+                                                    data-sale-amount="{{ sale.amount|floatformat:2 }}">
                                                 <i class="fas fa-trash"></i>
                                             </button>
                                             {% endif %}
                                         {% endwith %}
                                     {% else %}
                                         {% comment %} Sem invoice - pode excluir {% endcomment %}
-                                        <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteModal-{{ sale.id }}">
+                                        <button type="button" class="btn btn-sm btn-outline-danger delete-sale-btn" 
+                                                data-sale-id="{{ sale.id }}" 
+                                                data-sale-customer="{{ sale.customer_name }}"
+                                                data-sale-amount="{{ sale.amount|floatformat:2 }}">
                                             <i class="fas fa-trash"></i>
                                         </button>
                                     {% endif %}
@@ -507,47 +513,41 @@
         }, 5000);
     }
 </script>
-{% endblock %}
 
-<!-- Modais de Confirmação de Exclusão -->
-{% for sale in object_list %}
-{% with has_issued=False %}
-    {% for invoice in sale.invoices.all %}
-        {% if invoice.status == 'approved' %}
-            {% with has_issued=True %}{% endwith %}
-        {% endif %}
-    {% endfor %}
-    {% if not has_issued %}
-    <div class="modal fade" id="deleteModal-{{ sale.id }}" tabindex="-1" aria-labelledby="deleteModalLabel-{{ sale.id }}" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content" style="background-color: #000000; color: #ffffff;">
-                <div class="modal-header" style="border-bottom: 1px solid #333;">
-                    <h5 class="modal-title" style="color: #ffffff;" id="deleteModalLabel-{{ sale.id }}">{% translate "Confirmar Exclusão" %}</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <p style="color: #ffffff;">{% translate "Tem certeza que deseja excluir a venda" %} <strong style="color: #ffffff;">#{{ sale.id }}</strong>?</p>
-                    <p style="color: #ffffff;"><strong style="color: #ffffff;">{% translate "Cliente:" %}</strong> <span style="color: #ffffff;">{{ sale.customer_name }}</span></p>
-                    <p style="color: #ffffff;"><strong style="color: #ffffff;">{% translate "Valor:" %}</strong> <span style="color: #ffffff;">R$ {{ sale.amount|floatformat:2 }}</span></p>
-                    <div class="alert alert-warning" role="alert">
-                        <i class="fas fa-exclamation-triangle me-2"></i>
-                        {% translate "Esta ação não pode ser desfeita." %}
-                    </div>
-                </div>
-                <div class="modal-footer" style="border-top: 1px solid #333;">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                        {% translate "Cancelar" %}
-                    </button>
-                    <form method="post" action="{% url 'payments:singlesale_delete' pk=sale.id %}" style="display: inline;">
-                        {% csrf_token %}
-                        <button type="submit" class="btn btn-danger">
-                            <i class="fas fa-trash me-1"></i> {% translate "Confirmar Exclusão" %}
-                        </button>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-    {% endif %}
-{% endwith %}
-{% endfor %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Gerenciar exclusão de vendas
+    const deleteButtons = document.querySelectorAll('.delete-sale-btn');
+    
+    deleteButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const saleId = this.getAttribute('data-sale-id');
+            const customerName = this.getAttribute('data-sale-customer');
+            const amount = this.getAttribute('data-sale-amount');
+            
+            // Confirmação simples
+            const message = `Tem certeza que deseja excluir a venda #${saleId}?\n\nCliente: ${customerName}\nValor: R$ ${amount}\n\nEsta ação não pode ser desfeita.`;
+            
+            if (confirm(message)) {
+                // Criar um formulário temporário para enviar a requisição POST
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = `/payments/sales/${saleId}/delete/`;
+                
+                // Adicionar o CSRF token
+                const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+                const csrfInput = document.createElement('input');
+                csrfInput.type = 'hidden';
+                csrfInput.name = 'csrfmiddlewaretoken';
+                csrfInput.value = csrfToken;
+                form.appendChild(csrfInput);
+                
+                // Adicionar ao documento e submeter
+                document.body.appendChild(form);
+                form.submit();
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

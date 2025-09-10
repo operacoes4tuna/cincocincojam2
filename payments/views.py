@@ -1441,7 +1441,7 @@ class SingleSaleDeleteView(LoginRequiredMixin, DeleteView):
     """
     model = SingleSale
     success_url = reverse_lazy('payments:singlesale_list')
-    template_name = 'payments/professor/singlesale_confirm_delete.html'
+    http_method_names = ['post', 'delete']  # Aceita apenas POST e DELETE
 
     def dispatch(self, request, *args, **kwargs):
         sale = self.get_object()
@@ -1457,6 +1457,10 @@ class SingleSaleDeleteView(LoginRequiredMixin, DeleteView):
             return redirect('payments:singlesale_detail', pk=sale.id)
 
         return super().dispatch(request, *args, **kwargs)
+    
+    def get(self, request, *args, **kwargs):
+        # Redireciona GET para a lista, já que não temos template de confirmação
+        return redirect('payments:singlesale_list')
 
     def delete(self, request, *args, **kwargs):
         messages.success(request, "Venda avulsa excluída com sucesso.")
