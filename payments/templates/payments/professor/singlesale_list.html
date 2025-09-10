@@ -17,29 +17,98 @@
     <!-- Filtros -->
     <div class="card mb-4">
         <div class="card-body">
-            <h5 class="card-title">{% translate "Filtros" %}</h5>
+            <h5 class="card-title mb-3">
+                <i class="fas fa-filter me-2"></i>{% translate "Filtros de Pesquisa" %}
+            </h5>
             <form method="get" class="row g-3">
+                {% csrf_token %}
+                
+                <!-- LINHA 1: Busca e Status -->
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">
+                        <i class="fas fa-search me-1"></i>{% translate "Buscar Cliente" %}
+                    </label>
+                    <input type="text" class="form-control" name="search" value="{{ request.GET.search }}" 
+                           placeholder="{% translate 'Nome, email ou descrição...' %}">
+                </div>
                 <div class="col-md-3">
-                    <label class="form-label">{% translate "Status" %}</label>
+                    <label class="form-label fw-bold">
+                        <i class="fas fa-flag me-1"></i>{% translate "Status" %}
+                    </label>
                     <select name="status" class="form-select">
-                        <option value="">{% translate "Todos" %}</option>
+                        <option value="" {% if selected_status == '' %}selected{% endif %}>{% translate "Todos" %}</option>
                         {% for status_code, status_name in status_choices %}
-                            <option value="{{ status_code }}" {% if selected_status == status_code %}selected{% endif %}>
-                                {{ status_name }}
-                            </option>
+                        <option value="{{ status_code }}" {% if selected_status == status_code %}selected{% endif %}>
+                            {{ status_name }}
+                        </option>
                         {% endfor %}
                     </select>
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label">{% translate "Data Inicial" %}</label>
-                    <input type="date" class="form-control" name="start_date" value="{{ start_date }}">
+                    <label class="form-label fw-bold">
+                        <i class="fas fa-tags me-1"></i>{% translate "Tipo de Venda" %}
+                    </label>
+                    <select name="type" class="form-select">
+                        <option value="">{% translate "Todos os Tipos" %}</option>
+                        <option value="original" {% if request.GET.type == 'original' %}selected{% endif %}>
+                            {% translate "Vendas Originais" %}
+                        </option>
+                        <option value="recurring" {% if request.GET.type == 'recurring' %}selected{% endif %}>
+                            {% translate "Parcelas Recorrentes" %}
+                        </option>
+                        <option value="with_recurrence" {% if request.GET.type == 'with_recurrence' %}selected{% endif %}>
+                            {% translate "Com Recorrência" %}
+                        </option>
+                    </select>
+                </div>
+                
+                <!-- LINHA 2: Períodos de Data -->
+                <div class="col-12">
+                    <hr class="my-3">
+                    <h6 class="text-muted mb-3">
+                        <i class="fas fa-calendar-alt me-2"></i>{% translate "Filtros de Data" %}
+                    </h6>
+                </div>
+                
+                <!-- Data de Lançamento -->
+                <div class="col-md-3">
+                    <label class="form-label fw-bold text-primary">
+                        <i class="fas fa-calendar-plus me-1"></i>{% translate "Lançamento - Início" %}
+                    </label>
+                    <input type="date" class="form-control" name="start_date" value="{{ request.GET.start_date }}">
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label">{% translate "Data Final" %}</label>
-                    <input type="date" class="form-control" name="end_date" value="{{ end_date }}">
+                    <label class="form-label fw-bold text-primary">
+                        <i class="fas fa-calendar-plus me-1"></i>{% translate "Lançamento - Fim" %}
+                    </label>
+                    <input type="date" class="form-control" name="end_date" value="{{ request.GET.end_date }}">
                 </div>
-                <div class="col-md-3 d-flex align-items-end">
-                    <button type="submit" class="btn btn-outline-primary w-100">
+                
+                <!-- Data de Vencimento -->
+                <div class="col-md-3">
+                    <label class="form-label fw-bold text-warning">
+                        <i class="fas fa-calendar-times me-1"></i>{% translate "Vencimento - Início" %}
+                    </label>
+                    <input type="date" class="form-control" name="due_start_date" value="{{ request.GET.due_start_date }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-bold text-warning">
+                        <i class="fas fa-calendar-times me-1"></i>{% translate "Vencimento - Fim" %}
+                    </label>
+                    <input type="date" class="form-control" name="due_end_date" value="{{ request.GET.due_end_date }}">
+                </div>
+                
+                <div class="col-md-1">
+                    <label class="form-label">{% translate "Tipo" %}</label>
+                    <select name="type" class="form-select">
+                        <option value="">{% translate "Todos" %}</option>
+                        <option value="original" {% if request.GET.type == 'original' %}selected{% endif %}>{% translate "Vendas Originais" %}</option>
+                        <option value="recurring" {% if request.GET.type == 'recurring' %}selected{% endif %}>{% translate "Parcelas Recorrentes" %}</option>
+                        <option value="with_recurrence" {% if request.GET.type == 'with_recurrence' %}selected{% endif %}>{% translate "Com Recorrência" %}</option>
+                    </select>
+                </div>
+                <div class="col-md-12 d-flex justify-content-end">
+                    <button type="submit" class="btn btn-outline-primary">
                         <i class="fas fa-filter me-1"></i> {% translate "Filtrar" %}
                     </button>
                 </div>
@@ -55,7 +124,7 @@
                     <h5 class="card-title text-primary">{% translate "Total de Vendas Avulsas" %}</h5>
                     <div class="display-6">R$ {{ total_amount|floatformat:2|intcomma }}</div>
                     <div class="text-muted mt-2">
-                        <div>{% translate "Qtd. Vendas" %}: {{ sales|length }}</div>
+                        <div>{% translate "Qtd. Vendas" %}: {{ total_sales_count }}</div>
                     </div>
                 </div>
             </div>
@@ -89,7 +158,7 @@
         <div class="card-body">
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <h5 class="card-title mb-0">{% translate "Lista de Notas Avulsas" %}</h5>
-                
+
                 <div class="dropdown">
                     <button class="btn btn-outline-primary dropdown-toggle" type="button" id="bulkActionDropdown" data-bs-toggle="dropdown" aria-expanded="false">
                         <i class="fas fa-tasks me-1"></i> {% translate "Ações em massa" %}
@@ -118,162 +187,217 @@
                     </ul>
                 </div>
             </div>
-            
+
             {% if sales %}
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead>
-                            <tr>
-                                <th>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="selectAll">
-                                        <label class="form-check-label" for="selectAll"></label>
-                                    </div>
-                                </th>
-                                <th>{% translate "ID" %}</th>
-                                <th>{% translate "Descrição" %}</th>
-                                <th>{% translate "Cliente" %}</th>
-                                <th>{% translate "Valor" %}</th>
-                                <th>{% translate "Status" %}</th>
-                                <th>{% translate "Data" %}</th>
-                                <th>{% translate "Ações" %}</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for sale in sales %}
-                                <tr>
-                                    <td>
-                                        <div class="form-check">
-                                            <input class="form-check-input sale-checkbox" type="checkbox" id="sale{{ sale.id }}" value="{{ sale.id }}">
-                                            <label class="form-check-label" for="sale{{ sale.id }}"></label>
-                                        </div>
-                                    </td>
-                                    <td>{{ sale.id }}</td>
-                                    <td>{{ sale.description }}</td>
-                                    <td>{{ sale.customer_name }}</td>
-                                    <td>R$ {{ sale.amount|floatformat:2 }}</td>
-                                    <td>
-                                        {% if sale.status == 'PAID' %}
-                                            <span class="badge bg-success">{{ sale.get_status_display }}</span>
-                                        {% elif sale.status == 'PENDING' %}
-                                            <span class="badge bg-warning text-dark">{{ sale.get_status_display }}</span>
-                                        {% elif sale.status == 'REFUNDED' %}
-                                            <span class="badge bg-info">{{ sale.get_status_display }}</span>
-                                        {% else %}
-                                            <span class="badge bg-danger">{{ sale.get_status_display }}</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>{{ sale.created_at|date:"d/m/Y H:i" }}</td>
-                                    <td>
-                                        <div class="btn-group">
-                                            <a href="{% url 'payments:singlesale_detail' pk=sale.id %}" class="btn btn-sm btn-outline-primary">
-                                                <i class="fas fa-eye"></i>
-                                            </a>
-                                            
-                                            {% if sale.invoices.exists %}
-                                                {% with invoice=sale.invoices.first %}
-                                                    {% if invoice.status == 'approved' %}
-                                                        <span class="badge bg-success ms-1 me-1">
-                                                            <i class="fas fa-check-circle me-1"></i> NF Emitida
-                                                        </span>
-                                                        {% if invoice.focus_pdf_url %}
-                                                            <a href="{% url 'invoices:view_pdf' invoice_id=invoice.id %}" target="_blank" class="btn btn-sm btn-outline-primary" title="{% translate 'Visualizar PDF' %}">
-                                                                <i class="fas fa-file-pdf"></i>
-                                                            </a>
-                                                        {% else %}
-                                                            <a href="{% url 'invoices:view_pdf' invoice_id=invoice.id %}" target="_blank" class="btn btn-sm btn-outline-primary" title="{% translate 'Visualizar PDF' %}">
-                                                                <i class="fas fa-file-pdf"></i>
-                                                            </a>
-                                                        {% endif %}
-                                                        
-                                                        <!-- Novos botões: email e boleto -->
-                                                        <a href="{% url 'invoices:send_email' invoice.id %}" class="btn btn-sm btn-outline-info" title="{% translate 'Enviar por Email' %}" target="_blank">
-                                                            <i class="fas fa-envelope"></i>
-                                                        </a>
-                                                        <a href="#" class="btn btn-sm btn-outline-warning generate-boleto-btn" data-invoice-id="{{ invoice.id }}" title="{% translate 'Gerar Boleto' %}">
-                                                            <i class="fas fa-file-invoice-dollar"></i>
-                                                        </a>
-                                                    {% elif invoice.status == 'pending' or invoice.status == 'processing' %}
-                                                        <span class="badge bg-warning ms-1 me-1">
-                                                            <i class="fas fa-clock me-1"></i> NF Em processamento
-                                                        </span>
-                                                        <button class="btn btn-sm btn-outline-secondary sync-invoice-btn" 
-                                                                data-invoice-id="{{ invoice.id }}" 
-                                                                title="{% translate 'Sincronizar status' %}">
-                                                            <i class="fas fa-sync-alt"></i>
-                                                        </button>
-                                                    {% elif invoice.status == 'error' %}
-                                                        <span class="badge bg-warning ms-1 me-1">
-                                                            <i class="fas fa-clock me-1"></i> Aguardando
-                                                        </span>
-                                                        <button class="btn btn-sm btn-outline-secondary check-status-btn" data-invoice-id="{{ invoice.id }}" title="{% translate 'Sincronizar Status' %}">
-                                                            <i class="fas fa-sync"></i>
-                                                        </button>
-                                                    {% endif %}
-                                                {% endwith %}
-                                            {% else %}
-                                                <a href="{% url 'invoices:emit_sale' sale_id=sale.id %}" class="btn btn-sm btn-outline-success emit-nfe-btn" title="{% translate 'Emitir NFe' %}">
-                                                    <i class="fas fa-file-invoice"></i> Emitir NFe
-                                                </a>
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="selectAll">
+                                    <label class="form-check-label" for="selectAll"></label>
+                                </div>
+                            </th>
+                            <th>{% translate "ID" %}</th>
+                            <th>{% translate "Descrição" %}</th>
+                            <th>{% translate "Cliente" %}</th>
+                            <th>{% translate "Valor" %}</th>
+                            <th>{% translate "Status" %}</th>
+                            <th>{% translate "Data Lançamento" %}</th>
+                            <th>{% translate "Data Vencimento" %}</th>
+                            <th>{% translate "Ações" %}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for sale in sales %}
+                        <tr {% if sale.is_recurring %}class="table-light" {% endif %}>
+                            <td>
+                                <div class="form-check">
+                                    <input class="form-check-input sale-checkbox" type="checkbox" id="sale{{ sale.id }}" value="{{ sale.id }}">
+                                    <label class="form-check-label" for="sale{{ sale.id }}"></label>
+                                </div>
+                            </td>
+                            <td>
+                                {{ sale.id }}
+                                {% if sale.is_recurring %}
+                                <small class="text-muted d-block">
+                                    <i class="fas fa-link me-1"></i>
+                                    <a href="{% url 'payments:singlesale_detail' pk=sale.parent_sale.id %}" class="text-decoration-none">
+                                        Original: #{{ sale.parent_sale.id }}
+                                    </a>
+                                </small>
+                                {% elif sale.recurring_sales.exists %}
+                                <small class="text-success d-block">
+                                    <i class="fas fa-repeat me-1"></i>
+                                    {{ sale.recurring_sales.count }} parcelas
+                                </small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {{ sale.description }}
+                                {% if sale.is_recurring %}
+                                <small class="badge bg-info ms-2">
+                                    <i class="fas fa-calendar-alt me-1"></i>
+                                    {{ sale.recurrence_number|add:1 }}ª parcela
+                                </small>
+                                {% endif %}
+                                {% if sale.due_date %}
+                                <small class="text-muted d-block">
+                                    <i class="fas fa-calendar me-1"></i>
+                                    Vencimento: {{ sale.due_date|date:"d/m/Y" }}
+                                </small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {{ sale.customer_name }}
+                                {% if sale.customer_email %}
+                                <small class="text-muted d-block">{{ sale.customer_email }}</small>
+                                {% endif %}
+                            </td>
+                            <td>R$ {{ sale.amount|floatformat:2 }}</td>
+                            <td>
+                                {% if sale.status == 'PAID' %}
+                                <span class="badge bg-success">{{ sale.get_status_display }}</span>
+                                {% elif sale.status == 'PENDING' %}
+                                <span class="badge bg-warning text-dark">{{ sale.get_status_display }}</span>
+                                {% elif sale.status == 'REFUNDED' %}
+                                <span class="badge bg-info">{{ sale.get_status_display }}</span>
+                                {% else %}
+                                <span class="badge bg-danger">{{ sale.get_status_display }}</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ sale.created_at|date:"d/m/Y H:i" }}</td>
+                            <td>
+                                {% if sale.due_date %}
+                                    {{ sale.due_date|date:"d/m/Y" }}
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group">
+                                    <a href="{% url 'payments:singlesale_detail' pk=sale.id %}" class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+
+                                    {% if sale.invoices.exists %}
+                                    {% with invoice=sale.invoices.first %}
+                                    {% if invoice.status == 'approved' %}
+                                    <span class="badge bg-success ms-1 me-1">
+                                        <i class="fas fa-check-circle me-1"></i> NF Emitida
+                                    </span>
+                                    {% if invoice.focus_pdf_url %}
+                                    <a href="{% url 'invoices:view_pdf' invoice_id=invoice.id %}" target="_blank" class="btn btn-sm btn-outline-primary" title="{% translate 'Visualizar PDF' %}">
+                                        <i class="fas fa-file-pdf"></i>
+                                    </a>
+                                    {% else %}
+                                    <a href="{% url 'invoices:view_pdf' invoice_id=invoice.id %}" target="_blank" class="btn btn-sm btn-outline-primary" title="{% translate 'Visualizar PDF' %}">
+                                        <i class="fas fa-file-pdf"></i>
+                                    </a>
+                                    {% endif %}
+
+                                    <!-- Novos botões: email e boleto -->
+                                    <a href="{% url 'invoices:send_email' invoice.id %}" class="btn btn-sm btn-outline-info" title="{% translate 'Enviar por Email' %}" target="_blank">
+                                        <i class="fas fa-envelope"></i>
+                                    </a>
+                                    <a href="#" class="btn btn-sm btn-outline-warning generate-boleto-btn" data-invoice-id="{{ invoice.id }}" title="{% translate 'Gerar Boleto' %}">
+                                        <i class="fas fa-file-invoice-dollar"></i>
+                                    </a>
+                                    {% elif invoice.status == 'pending' or invoice.status == 'processing' %}
+                                    <span class="badge bg-warning ms-1 me-1">
+                                        <i class="fas fa-clock me-1"></i> NF Em processamento
+                                    </span>
+                                    <button class="btn btn-sm btn-outline-secondary sync-invoice-btn" data-invoice-id="{{ invoice.id }}" title="{% translate 'Sincronizar status' %}">
+                                        <i class="fas fa-sync-alt"></i>
+                                    </button>
+                                    {% elif invoice.status == 'error' %}
+                                    <span class="badge bg-warning ms-1 me-1">
+                                        <i class="fas fa-clock me-1"></i> Aguardando
+                                    </span>
+                                    <button class="btn btn-sm btn-outline-secondary check-status-btn" data-invoice-id="{{ invoice.id }}" title="{% translate 'Sincronizar Status' %}">
+                                        <i class="fas fa-sync"></i>
+                                    </button>
+                                    {% endif %}
+                                    {% endwith %}
+                                    {% else %}
+                                    <a href="{% url 'invoices:emit_sale' sale_id=sale.id %}" class="btn btn-sm btn-outline-success emit-nfe-btn" title="{% translate 'Emitir NFe' %}">
+                                        <i class="fas fa-file-invoice"></i> Emitir NFe
+                                    </a>
+                                    {% endif %}
+
+                                    <a href="{% url 'payments:singlesale_update' pk=sale.id %}" class="btn btn-sm btn-outline-secondary">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    
+                                    {% comment %} Botão de exclusão - só aparece se NÃO tiver nota fiscal emitida com sucesso {% endcomment %}
+                                    {% if sale.invoices.exists %}
+                                        {% with invoice=sale.invoices.first %}
+                                            {% if invoice.status != 'approved' %}
+                                            <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteModal-{{ sale.id }}">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
                                             {% endif %}
-                                            
-                                            <a href="{% url 'payments:singlesale_update' pk=sale.id %}" class="btn btn-sm btn-outline-secondary">
-                                                <i class="fas fa-edit"></i>
-                                            </a>
-                                        </div>
-                                    </td>
-                                </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                
-                <!-- Paginação -->
-                {% if is_paginated %}
-                <nav aria-label="Paginação">
-                    <ul class="pagination justify-content-center">
-                        {% if page_obj.has_previous %}
-                            <li class="page-item">
-                                <a class="page-link" href="?page=1{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" aria-label="Primeira">
-                                    <span aria-hidden="true">&laquo;&laquo;</span>
-                                </a>
-                            </li>
-                            <li class="page-item">
-                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" aria-label="Anterior">
-                                    <span aria-hidden="true">&laquo;</span>
-                                </a>
-                            </li>
-                        {% endif %}
-                        
-                        {% for num in page_obj.paginator.page_range %}
-                            {% if page_obj.number == num %}
-                                <li class="page-item active"><a class="page-link">{{ num }}</a></li>
-                            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
-                                <li class="page-item">
-                                    <a class="page-link" href="?page={{ num }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{{ num }}</a>
-                                </li>
-                            {% endif %}
+                                        {% endwith %}
+                                    {% else %}
+                                        {% comment %} Sem invoice - pode excluir {% endcomment %}
+                                        <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteModal-{{ sale.id }}">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
                         {% endfor %}
-                        
-                        {% if page_obj.has_next %}
-                            <li class="page-item">
-                                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" aria-label="Próxima">
-                                    <span aria-hidden="true">&raquo;</span>
-                                </a>
-                            </li>
-                            <li class="page-item">
-                                <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" aria-label="Última">
-                                    <span aria-hidden="true">&raquo;&raquo;</span>
-                                </a>
-                            </li>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Paginação -->
+            {% if is_paginated %}
+            <nav aria-label="Paginação">
+                <ul class="pagination justify-content-center">
+                    {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page=1{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" aria-label="Primeira">
+                            <span aria-hidden="true">&laquo;&laquo;</span>
+                        </a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" aria-label="Anterior">
+                            <span aria-hidden="true">&laquo;</span>
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                    <li class="page-item active"><a class="page-link">{{ num }}</a></li>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %} <li class="page-item">
+                        <a class="page-link" href="?page={{ num }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{{ num }}</a>
+                        </li>
                         {% endif %}
-                    </ul>
-                </nav>
-                {% endif %}
+                        {% endfor %}
+
+                        {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" aria-label="Próxima">
+                                <span aria-hidden="true">&raquo;</span>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" aria-label="Última">
+                                <span aria-hidden="true">&raquo;&raquo;</span>
+                            </a>
+                        </li>
+                        {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
             {% else %}
-                <div class="alert alert-info">
-                    {% translate "Nenhuma venda avulsa encontrada." %}
-                </div>
+            <div class="alert alert-info">
+                {% translate "Nenhuma venda avulsa encontrada." %}
+            </div>
             {% endif %}
         </div>
     </div>
@@ -282,406 +406,148 @@
 
 {% block extra_js %}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Função para formatar valores no padrão brasileiro (R$)
-    function formatarMoedaBR(valor) {
-        return valor.toLocaleString('pt-BR', { 
-            style: 'currency', 
-            currency: 'BRL',
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
-        });
-    }
-
-    // Função para extrair o valor numérico de um texto com formato monetário
-    function extrairValor(texto) {
-        return parseFloat(texto.replace(/[^\d,.-]/g, '').replace('.', '').replace(',', '.').trim());
-    }
-
-    // Calcular os totais com base nos valores da tabela
-    function calcularTotais() {
-        let totalVendas = 0;
-        let totalRecebido = 0;
-        let totalPendente = 0;
-        
-        // Selecionar todas as linhas da tabela (exceto o cabeçalho)
-        const linhas = document.querySelectorAll('table tbody tr');
-        
-        linhas.forEach(linha => {
-            // Encontrar a coluna de valor (5ª coluna)
-            const colunaValor = linha.querySelector('td:nth-child(5)');
-            // Encontrar a coluna de status (6ª coluna)
-            const colunaStatus = linha.querySelector('td:nth-child(6)');
-            
-            if (colunaValor && colunaStatus) {
-                const valor = extrairValor(colunaValor.textContent);
-                
-                if (!isNaN(valor)) {
-                    // Adicionar ao total geral
-                    totalVendas += valor;
+    document.addEventListener('DOMContentLoaded', function () {
+        // Event listeners para botões de sincronização de status
+        const syncButtons = document.querySelectorAll('.sync-invoice-btn, .check-status-btn');
+        syncButtons.forEach(button => {
+            button.addEventListener('click', function(event) {
+                event.preventDefault();
+                const invoiceId = this.getAttribute('data-invoice-id');
+                if (invoiceId) {
+                    // Desabilitar botão durante a requisição
+                    this.disabled = true;
+                    const originalHtml = this.innerHTML;
+                    this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verificando...';
                     
-                    // Verificar o status e adicionar ao total correspondente
-                    if (colunaStatus.textContent.includes('PAID') || 
-                        colunaStatus.querySelector('.badge.bg-success')) {
-                        totalRecebido += valor;
-                    } else if (colunaStatus.textContent.includes('PENDING') || 
-                               colunaStatus.querySelector('.badge.bg-warning')) {
-                        totalPendente += valor;
-                    }
-                }
-            }
-        });
-        
-        // Atualizar os elementos na página
-        const totalVendasElement = document.querySelector('.card-title.text-primary + .display-6');
-        const totalRecebidoElement = document.querySelector('.card-title.text-success + .display-6');
-        const totalPendenteElement = document.querySelector('.card-title.text-warning + .display-6');
-        
-        if (totalVendasElement) {
-            totalVendasElement.textContent = formatarMoedaBR(totalVendas);
-        }
-        
-        if (totalRecebidoElement) {
-            totalRecebidoElement.textContent = formatarMoedaBR(totalRecebido);
-        }
-        
-        if (totalPendenteElement) {
-            totalPendenteElement.textContent = formatarMoedaBR(totalPendente);
-        }
-    }
-    
-    // Executar o cálculo dos totais
-    calcularTotais();
-    
-    // Formatar os valores na tabela
-    const celulasValores = document.querySelectorAll('td');
-    celulasValores.forEach(celula => {
-        if (celula.textContent.trim().startsWith('R$')) {
-            const valor = extrairValor(celula.textContent);
-            if (!isNaN(valor)) {
-                celula.textContent = formatarMoedaBR(valor);
-            }
-        }
-    });
-
-    // Handlers para os novos botões
-    document.querySelectorAll('.send-email-btn').forEach(button => {
-        button.addEventListener('click', function(e) {
-            e.preventDefault();
-            const invoiceId = this.getAttribute('data-invoice-id');
-            alert(`Enviando nota fiscal ${invoiceId} por email...`);
-            // Implementação futura
-        });
-    });
-    
-    document.querySelectorAll('.generate-boleto-btn').forEach(button => {
-        button.addEventListener('click', function(e) {
-            e.preventDefault();
-            const invoiceId = this.getAttribute('data-invoice-id');
-            alert(`Gerando boleto para a nota fiscal ${invoiceId}...`);
-            // Implementação futura
-        });
-    });
-    
-    // Manipulador para ações em massa
-    document.querySelectorAll('.bulk-action').forEach(button => {
-        button.addEventListener('click', function(e) {
-            e.preventDefault();
-            
-            const action = this.getAttribute('data-action');
-            const selectedSales = Array.from(document.querySelectorAll('.sale-checkbox:checked'))
-                .map(checkbox => checkbox.value);
-                
-            if (action === 'generate-invoices') {
-                if (selectedSales.length === 0) {
-                    alert('Por favor, selecione pelo menos uma nota para gerar.');
-                    return;
-                }
-                
-                alert(`Ação: Gerar notas para os IDs: ${selectedSales.join(', ')}`);
-                // Implementação futura do backend
-            } 
-            else if (action === 'generate-boletos') {
-                alert('Ação: Gerar todos os boletos');
-                // Implementação futura do backend
-            }
-            else if (action === 'send-boletos') {
-                alert('Ação: Enviar todos os boletos');
-                // Implementação futura do backend
-            }
-        });
-    });
-    
-    // Lógica para selecionar todos os checkboxes
-    const selectAllCheckbox = document.getElementById('selectAll');
-    const saleCheckboxes = document.querySelectorAll('.sale-checkbox');
-    
-    if (selectAllCheckbox) {
-        selectAllCheckbox.addEventListener('change', function() {
-            saleCheckboxes.forEach(checkbox => {
-                checkbox.checked = selectAllCheckbox.checked;
-            });
-        });
-    }
-    
-    // Ao desmarcar qualquer checkbox individual, desmarcar também o "selecionar todos"
-    saleCheckboxes.forEach(checkbox => {
-        checkbox.addEventListener('change', function() {
-            if (!this.checked && selectAllCheckbox.checked) {
-                selectAllCheckbox.checked = false;
-            } else if (this.checked) {
-                // Verificar se todos estão marcados para marcar o "selecionar todos"
-                const allChecked = Array.from(saleCheckboxes).every(cb => cb.checked);
-                selectAllCheckbox.checked = allChecked;
-            }
-        });
-    });
-    
-    // Handle click on check status buttons
-    document.querySelectorAll('.check-status-btn').forEach(button => {
-        button.addEventListener('click', function(e) {
-            e.preventDefault();
-            const invoiceId = this.getAttribute('data-invoice-id');
-            checkInvoiceStatus(invoiceId);
-        });
-    });
-    
-    // Function to check invoice status
-    function checkInvoiceStatus(invoiceId) {
-        // Mostrar indicador de carregamento
-        const button = document.querySelector(`[data-invoice-id="${invoiceId}"]`);
-        const originalHtml = button ? button.innerHTML : '<i class="fas fa-sync"></i>';
-        
-        if (button) {
-            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-            button.disabled = true;
-        }
-        
-        // Usar a URL com refresh=true para forçar a verificação na API
-        fetch(`/invoices/detail/${invoiceId}/json/?refresh=true`)
-            .then(response => response.json())
-            .then(data => {
-                if (!data.error) {
-                    console.log("Dados da nota fiscal após verificação:", data);
+                    // Fazer requisição para verificar status
+                    const url = `/invoices/check-status/${invoiceId}/json/`;
                     
-                    // Se a nota foi aprovada, atualizar a interface imediatamente
-                    if (data.status === 'approved') {
-                        // Obter o elemento TD pai
-                        const tdElement = button.closest('td');
-                        if (tdElement) {
-                            // Preservar o botão de visualização e o botão de edição
-                            const viewButton = tdElement.querySelector('a.btn-outline-primary');
-                            const editButton = tdElement.querySelector('a[href*="singlesale_update"]');
-                            
-                            // URL do PDF
-                            const pdfUrl = data.focus_pdf_url || `/invoices/view_pdf/${invoiceId}/`;
-                            
-                            // Criar conteúdo atualizado
-                            const btnGroup = document.createElement('div');
-                            btnGroup.className = 'btn-group';
-                            
-                            btnGroup.innerHTML = `
-                                ${viewButton ? viewButton.outerHTML : ''}
-                                <span class="badge bg-success ms-1 me-1">
-                                    <i class="fas fa-check-circle me-1"></i> NF Emitida
-                                </span>
-                                <a href="${pdfUrl}" target="_blank" class="btn btn-sm btn-outline-primary" title="Visualizar PDF">
-                                    <i class="fas fa-file-pdf"></i>
-                                </a>
-                                ${editButton ? editButton.outerHTML : ''}
-                            `;
-                            
-                            // Atualizar o conteúdo
-                            tdElement.innerHTML = '';
-                            tdElement.appendChild(btnGroup);
-                            
-                            showStatusMessage('success', 'Nota fiscal aprovada! O PDF está disponível para visualização.');
-                        }
-                    } else {
-                        // Se não foi aprovada, apenas restaurar o botão
-                        button.disabled = false;
-                        button.innerHTML = originalHtml;
-                        
-                        // Exibir mensagem de status atual
-                        let statusMsg = `Status atual: ${data.status}`;
-                        if (data.focus_status) {
-                            statusMsg += ` (${data.focus_status})`;
-                        }
-                        
-                        showStatusMessage('info', statusMsg);
-                    }
-                } else {
-                    // Show an error message
-                    showStatusMessage('danger', data.error || 'Erro ao verificar status da nota fiscal.');
-                    
-                    // Restaurar o botão
-                    if (button) {
-                        button.innerHTML = originalHtml;
-                        button.disabled = false;
-                    }
-                }
-            })
-            .catch(error => {
-                console.error('Error checking invoice status:', error);
-                showStatusMessage('danger', 'Erro ao verificar status da nota fiscal.');
-                
-                // Restaurar o botão
-                if (button) {
-                    button.innerHTML = originalHtml;
-                    button.disabled = false;
-                }
-            });
-    }
-    
-    // Function to show status messages
-    function showStatusMessage(type, message) {
-        // Create a status message element
-        const messageDiv = document.createElement('div');
-        messageDiv.className = `alert alert-${type} alert-dismissible fade show`;
-        messageDiv.role = 'alert';
-        
-        messageDiv.innerHTML = `
-            ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        `;
-        
-        // Insert it at the top of the content
-        const container = document.querySelector('.container.py-4');
-        container.insertBefore(messageDiv, container.firstChild);
-        
-        // Auto-dismiss after 5 seconds
-        setTimeout(() => {
-            messageDiv.remove();
-        }, 5000);
-    }
-
-    // Listen for clicks on the sync invoice button
-    document.addEventListener('click', function(event) {
-        // Check if clicked element is a sync button or one of its children
-        const syncButton = event.target.closest('.sync-invoice-btn');
-        if (syncButton) {
-            event.preventDefault();
-            const invoiceId = syncButton.dataset.invoiceId;
-            
-            // Add loading state to button
-            syncButton.disabled = true;
-            syncButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-            
-            // Call the sync API endpoint
-            syncInvoiceStatus(invoiceId, syncButton);
-        }
-
-        // Verificar se o botão de emitir NFe foi clicado
-        const emitButton = event.target.closest('.emit-nfe-btn');
-        if (emitButton) {
-            event.preventDefault();
-            const href = emitButton.getAttribute('href');
-            
-            // Mostrar mensagem de loading
-            const loadingMessage = document.createElement('div');
-            loadingMessage.className = 'alert alert-info alert-dismissible fade show';
-            loadingMessage.innerHTML = `
-                <strong><i class="fas fa-spinner fa-spin me-2"></i> Sua nota fiscal está sendo criada.</strong>
-                <p class="mb-0">Por favor, aguarde enquanto processamos sua solicitação.</p>
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            `;
-            
-            // Adicionar a mensagem no topo da página
-            const container = document.querySelector('.container.py-4');
-            container.insertBefore(loadingMessage, container.firstChild);
-            
-            // Substituir o botão por um spinner
-            emitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processando...';
-            emitButton.disabled = true;
-            
-            // Redirecionar para a URL de emissão
-            setTimeout(() => {
-                window.location.href = href;
-            }, 500);
-        }
-    });
-    
-    // Function to sync invoice status
-    function syncInvoiceStatus(invoiceId, button) {
-        fetch(`/invoices/sync/${invoiceId}/`)
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    showStatusMessage('success', 'Status da nota fiscal sincronizado com sucesso.');
-                    
-                    // Forçar uma atualização imediata da interface
-                    // Primeiro, verificar o status atual da nota
-                    fetch(`/invoices/detail/${invoiceId}/json/?refresh=true`)
-                        .then(response => response.json())
-                        .then(invoiceData => {
-                            console.log("Dados da nota fiscal após sincronização:", invoiceData);
-                            
-                            // Se a nota foi aprovada, atualizar a interface imediatamente
-                            if (invoiceData.status === 'approved') {
-                                // Obter o elemento TD pai
-                                const tdElement = button.closest('td');
-                                if (tdElement) {
-                                    // Preservar o botão de visualização e o botão de edição
-                                    const viewButton = tdElement.querySelector('a.btn-outline-primary');
-                                    const editButton = tdElement.querySelector('a[href*="singlesale_update"]');
-                                    
-                                    // URL do PDF
-                                    const pdfUrl = invoiceData.focus_pdf_url || `/invoices/view_pdf/${invoiceId}/`;
-                                    
-                                    // Criar conteúdo atualizado
-                                    const btnGroup = document.createElement('div');
-                                    btnGroup.className = 'btn-group';
-                                    
-                                    btnGroup.innerHTML = `
-                                        ${viewButton ? viewButton.outerHTML : ''}
-                                        <span class="badge bg-success ms-1 me-1">
-                                            <i class="fas fa-check-circle me-1"></i> NF Emitida
-                                        </span>
-                                        <a href="${pdfUrl}" target="_blank" class="btn btn-sm btn-outline-primary" title="Visualizar PDF">
-                                            <i class="fas fa-file-pdf"></i>
-                                        </a>
-                                        ${editButton ? editButton.outerHTML : ''}
-                                    `;
-                                    
-                                    // Atualizar o conteúdo
-                                    tdElement.innerHTML = '';
-                                    tdElement.appendChild(btnGroup);
-                                    
-                                    showStatusMessage('success', 'Nota fiscal aprovada! O PDF está disponível para visualização.');
-                                }
-                            } else {
-                                // Se não foi aprovada, apenas restaurar o botão
-                                button.disabled = false;
-                                button.innerHTML = '<i class="fas fa-sync-alt"></i>';
-                                
-                                // Exibir mensagem de status atual
-                                let statusMsg = `Status atual: ${invoiceData.status}`;
-                                if (invoiceData.focus_status) {
-                                    statusMsg += ` (${invoiceData.focus_status})`;
-                                }
-                                
-                                showStatusMessage('info', statusMsg);
+                    fetch(url)
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error(`Erro HTTP: ${response.status}`);
                             }
+                            return response.json();
+                        })
+                        .then(data => {
+                            // Atualizar UI baseado no status
+                            updateSalesListStatus(invoiceId, data.status, data.message);
+                            
+                            // Mostrar mensagem de sucesso
+                            showStatusMessage('Status atualizado com sucesso!', 'success');
                         })
                         .catch(error => {
-                            console.error('Erro ao obter detalhes após sincronização:', error);
-                            button.disabled = false;
-                            button.innerHTML = '<i class="fas fa-sync-alt"></i>';
-                            showStatusMessage('warning', 'Status sincronizado, mas não foi possível verificar o resultado.');
+                            console.error('Erro ao verificar status:', error);
+                            showStatusMessage('Erro ao verificar status: ' + error.message, 'danger');
+                        })
+                        .finally(() => {
+                            // Reabilitar botão
+                            this.disabled = false;
+                            this.innerHTML = originalHtml;
                         });
-                } else {
-                    button.disabled = false;
-                    button.innerHTML = '<i class="fas fa-sync-alt"></i>';
-                    showStatusMessage('danger', data.message || 'Erro ao sincronizar status da nota fiscal.');
                 }
-            })
-            .catch(error => {
-                console.error('Erro ao sincronizar:', error);
-                button.disabled = false;
-                button.innerHTML = '<i class="fas fa-sync-alt"></i>';
-                showStatusMessage('danger', 'Erro ao sincronizar status da nota fiscal. Tente novamente.');
             });
+        });
+    });
+
+    function updateSalesListStatus(invoiceId, status, message) {
+        // Encontrar a linha da tabela que contém esta invoice
+        const button = document.querySelector(`[data-invoice-id="${invoiceId}"]`);
+        if (!button) return;
+        
+        const tableRow = button.closest('tr');
+        if (!tableRow) return;
+        
+        const statusCell = tableRow.querySelector('td:nth-child(6)'); // Coluna de status
+        const actionsCell = tableRow.querySelector('td:last-child'); // Coluna de ações
+        
+        if (statusCell && actionsCell) {
+            // Atualizar badge de status
+            let statusBadge = '';
+            switch (status) {
+                case 'approved':
+                    statusBadge = '<span class="badge bg-success"><i class="fas fa-check-circle me-1"></i> NF Emitida</span>';
+                    // Recarregar a página para mostrar os novos botões
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1500);
+                    break;
+                case 'processing':
+                case 'pending':
+                    statusBadge = '<span class="badge bg-warning"><i class="fas fa-spinner fa-spin me-1"></i> NF Em processamento</span>';
+                    break;
+                case 'error':
+                    statusBadge = '<span class="badge bg-danger"><i class="fas fa-exclamation-triangle me-1"></i> Erro na NFe</span>';
+                    break;
+            }
+            
+            // Atualizar apenas o badge, mantendo outros elementos da célula
+            const existingBadge = actionsCell.querySelector('.badge');
+            if (existingBadge) {
+                existingBadge.outerHTML = statusBadge;
+            }
+        }
     }
-});
+
+    function showStatusMessage(message, type) {
+        // Criar elemento de alerta
+        const alert = document.createElement('div');
+        alert.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+        alert.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+        alert.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        document.body.appendChild(alert);
+        
+        // Remover automaticamente após 5 segundos
+        setTimeout(() => {
+            alert.remove();
+        }, 5000);
+    }
 </script>
-{% endblock %} 
+{% endblock %}
+
+<!-- Modais de Confirmação de Exclusão -->
+{% for sale in object_list %}
+{% with has_issued=False %}
+    {% for invoice in sale.invoices.all %}
+        {% if invoice.status == 'approved' %}
+            {% with has_issued=True %}{% endwith %}
+        {% endif %}
+    {% endfor %}
+    {% if not has_issued %}
+    <div class="modal fade" id="deleteModal-{{ sale.id }}" tabindex="-1" aria-labelledby="deleteModalLabel-{{ sale.id }}" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content" style="background-color: #000000; color: #ffffff;">
+                <div class="modal-header" style="border-bottom: 1px solid #333;">
+                    <h5 class="modal-title" style="color: #ffffff;" id="deleteModalLabel-{{ sale.id }}">{% translate "Confirmar Exclusão" %}</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p style="color: #ffffff;">{% translate "Tem certeza que deseja excluir a venda" %} <strong style="color: #ffffff;">#{{ sale.id }}</strong>?</p>
+                    <p style="color: #ffffff;"><strong style="color: #ffffff;">{% translate "Cliente:" %}</strong> <span style="color: #ffffff;">{{ sale.customer_name }}</span></p>
+                    <p style="color: #ffffff;"><strong style="color: #ffffff;">{% translate "Valor:" %}</strong> <span style="color: #ffffff;">R$ {{ sale.amount|floatformat:2 }}</span></p>
+                    <div class="alert alert-warning" role="alert">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        {% translate "Esta ação não pode ser desfeita." %}
+                    </div>
+                </div>
+                <div class="modal-footer" style="border-top: 1px solid #333;">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        {% translate "Cancelar" %}
+                    </button>
+                    <form method="post" action="{% url 'payments:singlesale_delete' pk=sale.id %}" style="display: inline;">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-danger">
+                            <i class="fas fa-trash me-1"></i> {% translate "Confirmar Exclusão" %}
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+{% endwith %}
+{% endfor %}

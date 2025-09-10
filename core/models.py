@@ -176,3 +176,45 @@ class User(AbstractUser):
     # Método para verificar se um usuário é de um tipo específico
     def is_of_type(self, user_type):
         return self.user_type == user_type
+
+
+class ModulePermission(models.Model):
+    """
+    Modelo para gerenciar permissões de acesso aos módulos do sistema para cada usuário.
+    """
+    class ModuleChoices(models.TextChoices):
+        DASHBOARD = 'DASHBOARD', _('Dashboard')
+        AGENDA = 'AGENDA', _('Agenda')
+        CURSOS = 'CURSOS', _('Cursos')
+        FINANCAS = 'FINANCAS', _('Finanças')
+        CLIENTES = 'CLIENTES', _('Clientes')
+    
+    user = models.ForeignKey(
+        User, 
+        on_delete=models.CASCADE, 
+        related_name='module_permissions',
+        verbose_name=_('usuário'),
+        limit_choices_to={'user_type': User.Types.PROFESSOR}
+    )
+    
+    module = models.CharField(
+        _('módulo'),
+        max_length=20,
+        choices=ModuleChoices.choices
+    )
+    
+    has_access = models.BooleanField(
+        _('tem acesso'),
+        default=True
+    )
+    
+    created_at = models.DateTimeField(_('criado em'), auto_now_add=True)
+    updated_at = models.DateTimeField(_('atualizado em'), auto_now=True)
+    
+    class Meta:
+        verbose_name = _('permissão de módulo')
+        verbose_name_plural = _('permissões de módulos')
+        unique_together = ['user', 'module']
+    
+    def __str__(self):
+        return f"{self.user.email} - {self.get_module_display()} - {'Acesso' if self.has_access else 'Bloqueado'}"

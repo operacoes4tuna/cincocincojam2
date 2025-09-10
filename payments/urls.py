@@ -60,6 +60,7 @@ singlesale_patterns = [
     path('sales/new/', views.SingleSaleCreateView.as_view(), name='singlesale_create'),
     path('sales/<int:pk>/', views.SingleSaleDetailView.as_view(), name='singlesale_detail'),
     path('sales/<int:pk>/edit/', views.SingleSaleUpdateView.as_view(), name='singlesale_update'),
+    path('sales/<int:pk>/delete/', views.SingleSaleDeleteView.as_view(), name='singlesale_delete'),
     path('sales/<int:sale_id>/pix/create/', views.create_singlesale_pix, name='create_singlesale_pix'),
     path('sales/<int:sale_id>/pix/', views.singlesale_pix_detail, name='singlesale_pix_detail'),
     path('sales/<int:sale_id>/check-status/', views.check_singlesale_payment_status, name='check_singlesale_status'),
@@ -68,6 +69,8 @@ singlesale_patterns = [
     path('transactions/emit-invoice/<int:transaction_id>/', views.emit_invoice_from_transactions, name='emit_invoice_from_transactions'),
     # Nova URL para API de criação de venda
     path('api/sales/create/', views.create_singlesale_api, name='create_singlesale_api'),
+    # Nova URL para API de geração de notas fiscais em massa
+    path('api/sales/bulk-generate-invoices/', views.bulk_generate_invoices, name='bulk_generate_invoices'),
 ]
 
 urlpatterns = [

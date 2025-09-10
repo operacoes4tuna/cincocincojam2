@@ -191,6 +191,28 @@ class SingleSale(models.Model):
     # Metadados adicionais (para uso flexível)
     metadata = models.JSONField(_('Metadados'), default=dict, blank=True)
     
+    # CAMPOS PARA RECORRÊNCIA MENSAL SIMPLIFICADA
+    has_recurrence = models.BooleanField(_('Possui Recorrência'), default=False)
+    emission_date = models.DateField(_('Data de Emissão'), null=True, blank=True)
+    due_date = models.DateField(_('Data de Vencimento'), null=True, blank=True)
+    recurrence_count = models.IntegerField(
+        _('Quantidade de Recorrências'), 
+        default=0, 
+        help_text=_('0 = sem recorrência, 1-24 = meses de recorrência')
+    )
+    
+    # Campos para controle de recorrência
+    is_recurring = models.BooleanField(_('É Recorrente'), default=False)
+    parent_sale = models.ForeignKey(
+        'self', 
+        on_delete=models.CASCADE, 
+        null=True, 
+        blank=True,
+        related_name='recurring_sales',
+        verbose_name=_('Venda Pai')
+    )
+    recurrence_number = models.IntegerField(_('Número da Recorrência'), default=0, help_text=_('0 = venda original'))
+    
     class Meta:
         verbose_name = _('Venda Avulsa')
         verbose_name_plural = _('Vendas Avulsas')
@@ -198,6 +220,7 @@ class SingleSale(models.Model):
     
     def __str__(self):
         return f"{self.description} - R$ {self.amount} ({self.get_status_display()})"
+
     
     def mark_as_paid(self, save=True):
         """Marca a venda como paga e registra a data/hora do pagamento."""

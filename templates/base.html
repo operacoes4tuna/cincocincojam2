@@ -214,11 +214,11 @@
                 <ul class="navbar-nav ms-auto">
                     {% if user.is_authenticated %}
                     {% if user.is_admin %}
-                <!--    <li class="nav-item">
+                    <li class="nav-item">
                         <a class="nav-link" href="{% url 'users:dashboard' %}">
                             <i class="fas fa-tachometer-alt"></i> Dashboard
                         </a>
-                    </li>-->
+                    </li>
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'users:user_list' %}">
                             <i class="fas fa-users"></i> Usuários
@@ -232,10 +232,13 @@
                     {% endif %}
 
                     {% if user.is_professor %}
-                    <!--<li class="nav-item">
+                    {% if has_dashboard_access %}
+                    <li class="nav-item">
                         <a class="nav-link" href="{% url 'courses:dashboard' %}">Dashboard</a>
-                    </li>-->
-                    <!--<li class="nav-item dropdown">
+                    </li>
+                    {% endif %}
+                    {% if has_agenda_access %}
+                    <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="agendaDropdown" role="button"
                             data-bs-toggle="dropdown" aria-expanded="false">
                             <i class="fas fa-calendar-alt"></i> Agenda
@@ -252,7 +255,9 @@
                                 </a>
                             </li>
                         </ul>
-                    </li>-->
+                    </li>
+                    {% endif %}
+                    {% if has_financas_access %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="financasDropdown" role="button"
                             data-bs-toggle="dropdown" aria-expanded="false">
@@ -271,7 +276,9 @@
                             </li>
                         </ul>
                     </li>
-                    <!--<li class="nav-item dropdown">
+                    {% endif %}
+                    {% if has_cursos_access %}
+                    <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="cursosDropdown" role="button"
                             data-bs-toggle="dropdown" aria-expanded="false">
                             <i class="fas fa-book"></i> Cursos
@@ -293,8 +300,10 @@
                                 </a>
                             </li>
                         </ul>
-                    </li>-->
+                    </li>
+                    {% endif %}
                     
+                    {% if has_clientes_access %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="clientesDropdown" role="button"
                             data-bs-toggle="dropdown" aria-expanded="false">
@@ -329,6 +338,7 @@
                             </li>
                         </ul>
                     </li>
+                    {% endif %}
                     {% endif %}
 
                     {% if user.is_student %}
