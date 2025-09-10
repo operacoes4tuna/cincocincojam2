@@ -36,11 +36,13 @@ class NFEioService:
         # Company ID específico da empresa do professor ou fallback para global
         if company_config and company_config.nfeio_company_id:
             self.company_id = company_config.nfeio_company_id
-            logger.info(f"NFEioService inicializado para empresa específica: {company_config.razao_social}")
+            logger.info(f"NFEioService inicializado para empresa específica: {company_config.razao_social} (ID: {self.company_id})")
+            print(f"DEBUG - Usando company_id específico: {self.company_id} para {company_config.razao_social}")
         else:
             # Fallback para configurações globais (manter compatibilidade)
             self.company_id = settings.NFEIO_COMPANY_ID
-            logger.warning("NFEioService usando company_id global - considere configurar company_id específico")
+            logger.warning(f"NFEioService usando company_id global: {self.company_id} - considere configurar company_id específico")
+            print(f"DEBUG - Usando company_id global (fallback): {self.company_id}")
         
         self.environment = settings.NFEIO_ENVIRONMENT
         self.base_url = 'https://api.nfe.io'
@@ -265,10 +267,16 @@ class NFEioService:
         # 6. Emitir nota
         print("DEBUG - Enviando para API...")
         
-        # Voltar a usar as configurações globais até adicionar campo no modelo
-        company_id = settings.NFEIO_COMPANY_ID
+        # Usar o company_id específico do professor ou fallback para global
+        if professor.company_config and professor.company_config.nfeio_company_id:
+            company_id = professor.company_config.nfeio_company_id
+            print(f"DEBUG - Usando company_id específico do professor: {company_id}")
+        else:
+            company_id = settings.NFEIO_COMPANY_ID
+            print(f"DEBUG - Usando company_id global (fallback): {company_id}")
+            
         if not company_id:
-            error_msg = "NFEIO_COMPANY_ID não configurado nas settings"
+            error_msg = "Company ID não configurado (nem específico nem global)"
             print(f"DEBUG - {error_msg}")
             invoice.status = 'error'
             invoice.error_message = error_msg
