@@ -254,6 +254,9 @@ class CourseCreateView(LoginRequiredMixin, ProfessorOrAdminRequiredMixin, Create
         kwargs = super().get_form_kwargs()
         # Passa o professor atual para o formulário
         kwargs['professor'] = self.request.user
+        # Adiciona os arquivos do request para processar uploads
+        if self.request.method == 'POST':
+            kwargs['files'] = self.request.FILES
         return kwargs
     
     def form_valid(self, form):
@@ -268,6 +271,13 @@ class CourseUpdateView(LoginRequiredMixin, ProfessorCourseMixin, UpdateView):
     model = Course
     form_class = CourseForm
     template_name = 'courses/course_form.html'
+    
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        # Adiciona os arquivos do request para processar uploads
+        if self.request.method == 'POST':
+            kwargs['files'] = self.request.FILES
+        return kwargs
     
     def get_success_url(self):
         return reverse('courses:course_detail', kwargs={'pk': self.object.pk})

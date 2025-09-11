@@ -3,6 +3,8 @@ from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
 from django.utils.text import slugify
+import uuid
+import os
 
 class ClassGroup(models.Model):
     """
@@ -48,6 +50,17 @@ class ClassGroup(models.Model):
         """Retorna o número de cursos na turma."""
         return self.courses.count()
 
+
+def course_image_upload_path(instance, filename):
+    """
+    Função para gerar o caminho de upload das imagens de curso.
+    Organiza por ano/mês e adiciona UUID para evitar conflitos.
+    """
+    ext = filename.split('.')[-1]
+    filename = f"{uuid.uuid4()}.{ext}"
+    return os.path.join('course_images', timezone.now().strftime('%Y/%m'), filename)
+
+
 class Course(models.Model):
     """
     Modelo para representar um curso oferecido por um professor.
@@ -80,7 +93,7 @@ class Course(models.Model):
         choices=Status.choices,
         default=Status.DRAFT
     )
-    image = models.ImageField(_('imagem'), upload_to='course_images/', blank=True, null=True)
+    image = models.ImageField(_('imagem'), upload_to=course_image_upload_path, blank=True, null=True)
     created_at = models.DateTimeField(_('data de criação'), auto_now_add=True)
     updated_at = models.DateTimeField(_('última atualização'), auto_now=True)
     

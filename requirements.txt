@@ -16,3 +16,5 @@ urllib3==2.4.0
 openai==1.30.5  # Versão estável mais recente
 sendgrid==6.11.0
 python-dateutil>=2.8.0
+django-storages==1.14.2
+boto3==1.34.11

@@ -28,6 +28,7 @@ class CourseForm(forms.ModelForm):
         instance = super().save(commit=False)
         if self.professor and not instance.pk:  # Somente em criação, não em edição
             instance.professor = self.professor
+            
         if commit:
             instance.save()
         return instance
