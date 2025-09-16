@@ -7,7 +7,7 @@ from django.db.models import Q, Count, Case, When, IntegerField
 from django.http import HttpResponseRedirect, JsonResponse
 from django.utils import timezone
 
-from .models import Course, Lesson, Enrollment, LessonProgress, ClassGroup, LessonRelease
+from .models import Course, Lesson, Enrollment, LessonProgress, ClassGroup, LessonRelease, Module, ModuleProgress
 from .forms import CourseEnrollForm, CourseSearchForm
 from core.models import User
 from scheduler.models import EventParticipant
@@ -666,26 +666,31 @@ class CourseLearnView(LoginRequiredMixin, DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         course = self.object
-        
+
         # Verifica se o usuário é um professor e autor do curso
         is_professor = self.request.user.user_type == User.Types.PROFESSOR
         is_course_author = is_professor and course.professor == self.request.user
-        
+
         context['is_professor'] = is_professor
         context['is_course_author'] = is_course_author
-        
+
+        # Obtém módulos do curso
+        modules = Module.objects.filter(course=course, is_active=True).order_by('order').prefetch_related('lessons')
+        context['modules'] = modules
+        context['sequential_modules'] = course.sequential_modules
+
         # Se é professor e autor do curso, permite acesso sem matrícula
         if is_professor and is_course_author:
             enrollment = None
             context['enrollment'] = None
             context['progress_width'] = "100%"
             context['viewing_as_professor'] = True
-            
+
             # Obtém todas as aulas do curso em ordem
             lessons = Lesson.objects.filter(
                 course=course,
                 status=Lesson.Status.PUBLISHED
-            ).order_by('order')
+            ).order_by('module__order', 'order')
         else:
             # Obtém a matrícula do aluno
             enrollment = get_object_or_404(
@@ -697,6 +702,23 @@ class CourseLearnView(LoginRequiredMixin, DetailView):
             
             context['enrollment'] = enrollment
             context['progress_width'] = f"{enrollment.progress}%"
+
+            # Adiciona progresso dos módulos
+            if course.sequential_modules and modules.exists():
+                module_progresses = []
+                for module in modules:
+                    module_progress, created = ModuleProgress.objects.get_or_create(
+                        enrollment=enrollment,
+                        module=module
+                    )
+                    # Verifica se o módulo está acessível
+                    is_accessible = module.is_accessible_by_student(enrollment)
+                    module_progresses.append({
+                        'module': module,
+                        'progress': module_progress,
+                        'is_accessible': is_accessible
+                    })
+                context['module_progresses'] = module_progresses
             
             # Verifica se o aluno está matriculado através de uma turma
             if enrollment.class_group:
@@ -711,7 +733,7 @@ class CourseLearnView(LoginRequiredMixin, DetailView):
                     course=course,
                     status=Lesson.Status.PUBLISHED,
                     id__in=released_lesson_ids
-                ).order_by('order')
+                ).order_by('module__order', 'order')
                 
                 # Se não houver aulas liberadas explicitamente, verificamos se há configurações de liberação
                 has_releases = LessonRelease.objects.filter(
@@ -745,13 +767,13 @@ class CourseLearnView(LoginRequiredMixin, DetailView):
                     lessons = Lesson.objects.filter(
                         course=course,
                         status=Lesson.Status.PUBLISHED
-                    ).order_by('order')
+                    ).order_by('module__order', 'order')
             else:
                 # Se não tem turma, mostra todas as aulas
                 lessons = Lesson.objects.filter(
                     course=course,
                     status=Lesson.Status.PUBLISHED
-                ).order_by('order')
+                ).order_by('module__order', 'order')
         
         context['lessons'] = lessons
         

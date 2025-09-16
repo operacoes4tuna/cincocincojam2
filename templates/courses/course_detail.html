@@ -19,6 +19,11 @@
             {% else %}
             <span class="badge bg-secondary">Rascunho</span>
             {% endif %}
+            {% if course.sequential_modules %}
+            <span class="badge bg-warning">Módulos Sequenciais</span>
+            {% else %}
+            <span class="badge bg-info">Acesso Livre</span>
+            {% endif %}
             <span class="text-muted">Criado em {{ course.created_at|date:"d/m/Y" }}</span>
         </div>
     </div>
@@ -33,6 +38,9 @@
             <i class="fas fa-check-circle"></i> Publicar
         </a>
         {% endif %}
+        <a href="{% url 'courses:module_create' course.id %}" class="btn btn-success me-2">
+            <i class="fas fa-layer-group"></i> Novo Módulo
+        </a>
         <a href="{% url 'courses:lesson_create' course.id %}" class="btn btn-primary">
             <i class="fas fa-plus"></i> Nova Aula
         </a>
@@ -58,7 +66,18 @@
                 <p>{{ course.description|linebreaks|truncatewords:50 }}</p>
 
                 <div class="row mt-3">
-                    <div class="col-sm-4">
+                    <div class="col-sm-3">
+                        <div class="d-flex align-items-center">
+                            <div class="me-2">
+                                <i class="fas fa-layer-group text-success"></i>
+                            </div>
+                            <div>
+                                <span class="d-block text-muted small">Módulos</span>
+                                <span class="fw-bold">{{ modules|length }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-sm-3">
                         <div class="d-flex align-items-center">
                             <div class="me-2">
                                 <i class="fas fa-book text-primary"></i>
@@ -69,7 +88,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col-sm-4">
+                    <div class="col-sm-3">
                         <div class="d-flex align-items-center">
                             <div class="me-2">
                                 <i class="fas fa-users text-success"></i>
@@ -80,7 +99,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col-sm-4">
+                    <div class="col-sm-3">
                         <div class="d-flex align-items-center">
                             <div class="me-2">
                                 <i class="fas fa-money-bill-wave text-info"></i>
@@ -108,11 +127,21 @@
                                 </span>
                             </li>
                             <li class="list-group-item d-flex justify-content-between px-0">
-                                <span>Criado em:</span>
+                                <span>Acesso:</span>
+                                <span>
+                                    {% if course.sequential_modules %}
+                                    <span class="badge bg-warning">Sequencial</span>
+                                    {% else %}
+                                    <span class="badge bg-info">Livre</span>
+                                    {% endif %}
+                                </span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between px-0">
+                                <span>Criado:</span>
                                 <span>{{ course.created_at|date:"d/m/Y" }}</span>
                             </li>
                             <li class="list-group-item d-flex justify-content-between px-0">
-                                <span>Atualizado em:</span>
+                                <span>Atualizado:</span>
                                 <span>{{ course.updated_at|date:"d/m/Y" }}</span>
                             </li>
                         </ul>
@@ -124,91 +153,154 @@
 </div>
 
 <div class="row">
-    <!-- Lista de Aulas -->
+    <!-- Módulos e Aulas -->
     <div class="col-lg-8">
         <div class="card shadow mb-4">
             <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-                <h5 class="mb-0"><i class="fas fa-list-alt me-2"></i> Aulas do Curso</h5>
-                <a href="{% url 'courses:lesson_create' course.id %}" class="btn btn-sm btn-light">
-                    <i class="fas fa-plus"></i> Nova Aula
-                </a>
+                <h5 class="mb-0"><i class="fas fa-layer-group me-2"></i> Módulos e Aulas</h5>
+                <div>
+                    <a href="{% url 'courses:module_create' course.id %}" class="btn btn-sm btn-light me-2">
+                        <i class="fas fa-layer-group"></i> Novo Módulo
+                    </a>
+                    <a href="{% url 'courses:lesson_create' course.id %}" class="btn btn-sm btn-light">
+                        <i class="fas fa-plus"></i> Nova Aula
+                    </a>
+                </div>
             </div>
             <div class="card-body">
-                {% if lessons %}
-                <!-- Progress bar -->
-                <div class="mb-4">
-                    <div class="d-flex justify-content-between mb-1">
-                        <span>Progresso do Curso</span>
-                        <span>
-                            {{ lessons|length }} aulas criadas
-                            {% with published=lessons|length %}
-                            ({% if published > 0 %}{{ published }}{% else %}0{% endif %} publicadas)
-                            {% endwith %}
-                        </span>
-                    </div>
-                    <div class="progress" style="height: 10px;">
-                        <div class="progress-bar bg-success" role="progressbar" style="width: 100%;" aria-valuenow="100"
-                            aria-valuemin="0" aria-valuemax="100"></div>
-                    </div>
-                </div>
-
-                <div class="list-group">
-                    {% for lesson in lessons %}
-                    <div
-                        class="list-group-item border-start border-3 {% if lesson.status == 'PUBLISHED' %}border-success{% else %}border-secondary{% endif %}">
-                        <div class="row align-items-center">
-                            <div class="col-md-7">
-                                <div class="d-flex align-items-center">
-                                    <span class="badge bg-primary rounded-circle me-2">{{ lesson.order }}</span>
-                                    <h5 class="mb-1">{{ lesson.title }}</h5>
+                {% if modules %}
+                <!-- Módulos com suas aulas -->
+                <div class="accordion" id="modulesAccordion">
+                    {% for module in modules %}
+                    <div class="accordion-item mb-3 border-start border-3 {% if module.is_active %}border-success{% else %}border-warning{% endif %}">
+                        <h2 class="accordion-header" id="heading{{ module.id }}">
+                            <button class="accordion-button {% if not forloop.first %}collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ module.id }}"
+                                aria-expanded="{% if forloop.first %}true{% else %}false{% endif %}" aria-controls="collapse{{ module.id }}">
+                                <div class="d-flex justify-content-between align-items-center w-100 me-3">
+                                    <div>
+                                        <span class="badge bg-primary rounded-circle me-2">{{ module.order }}</span>
+                                        <strong>{{ module.title }}</strong>
+                                        {% if not module.is_active %}
+                                        <span class="badge bg-warning ms-2">Inativo</span>
+                                        {% endif %}
+                                    </div>
+                                    <div>
+                                        <span class="badge bg-secondary">{{ module.get_total_lessons }} aulas</span>
+                                    </div>
                                 </div>
-                                {% if lesson.description %}
-                                <p class="mb-1 text-muted small">{{ lesson.description|truncatechars:100 }}</p>
+                            </button>
+                        </h2>
+                        <div id="collapse{{ module.id }}" class="accordion-collapse collapse {% if forloop.first %}show{% endif %}"
+                            aria-labelledby="heading{{ module.id }}" data-bs-parent="#modulesAccordion">
+                            <div class="accordion-body">
+                                {% if module.description %}
+                                <p class="text-muted">{{ module.description }}</p>
                                 {% endif %}
-                                <div>
-                                    {% if lesson.status == 'PUBLISHED' %}
-                                    <span class="badge bg-success">Publicada</span>
-                                    {% else %}
-                                    <span class="badge bg-secondary">Rascunho</span>
-                                    {% endif %}
-                                    {% if lesson.video_url %}
-                                    <span class="badge bg-info"><i class="fas fa-video me-1"></i> Vídeo
-                                        disponível</span>
-                                    {% endif %}
-                                </div>
-                            </div>
-                            <div class="col-md-5 text-end">
-                                <div class="btn-group">
-                                    {% if lesson.video_url %}
-                                    {% comment %}
-                                    <a href="{{ lesson.video_url }}" target="_blank"
-                                        class="btn btn-sm btn-outline-primary" title="Ver Vídeo">
-                                        <i class="fas fa-play"></i> Ver Vídeo
+
+                                <div class="d-flex justify-content-end mb-3">
+                                    <a href="{% url 'courses:module_update' module.id %}" class="btn btn-sm btn-warning me-2">
+                                        <i class="fas fa-edit"></i> Editar Módulo
                                     </a>
-                                    {% endcomment %}
-                                    {% endif %}
-                                    <a href="{% url 'courses:lesson_update' lesson.id %}" class="btn btn-sm btn-warning"
-                                        title="Editar">
-                                        <i class="fas fa-edit"></i> Editar
-                                    </a>
-                                    <a href="{% url 'courses:lesson_delete' lesson.id %}" class="btn btn-sm btn-danger"
-                                        title="Excluir">
-                                        <i class="fas fa-trash"></i>
+                                    <a href="{% url 'courses:module_delete' module.id %}" class="btn btn-sm btn-danger">
+                                        <i class="fas fa-trash"></i> Excluir Módulo
                                     </a>
                                 </div>
+
+                                {% if module.lessons.all %}
+                                <div class="list-group">
+                                    {% for lesson in module.lessons.all %}
+                                    <div class="list-group-item">
+                                        <div class="row align-items-center">
+                                            <div class="col-md-7">
+                                                <div class="d-flex align-items-center">
+                                                    <span class="badge bg-secondary rounded-circle me-2">{{ lesson.order }}</span>
+                                                    <h6 class="mb-1">{{ lesson.title }}</h6>
+                                                </div>
+                                                {% if lesson.description %}
+                                                <p class="mb-1 text-muted small">{{ lesson.description|truncatechars:100 }}</p>
+                                                {% endif %}
+                                                <div>
+                                                    {% if lesson.status == 'PUBLISHED' %}
+                                                    <span class="badge bg-success">Publicada</span>
+                                                    {% else %}
+                                                    <span class="badge bg-secondary">Rascunho</span>
+                                                    {% endif %}
+                                                    {% if lesson.video_url or lesson.private_video_url %}
+                                                    <span class="badge bg-info"><i class="fas fa-video me-1"></i> Vídeo</span>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                            <div class="col-md-5 text-end">
+                                                <div class="btn-group">
+                                                    <a href="{% url 'courses:lesson_update' lesson.id %}" class="btn btn-sm btn-warning" title="Editar">
+                                                        <i class="fas fa-edit"></i>
+                                                    </a>
+                                                    <a href="{% url 'courses:lesson_delete' lesson.id %}" class="btn btn-sm btn-danger" title="Excluir">
+                                                        <i class="fas fa-trash"></i>
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                {% else %}
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle"></i> Este módulo ainda não possui aulas.
+                                </div>
+                                {% endif %}
                             </div>
                         </div>
                     </div>
                     {% endfor %}
                 </div>
+
+                <!-- Aulas sem módulo (se houver) -->
+                {% if lessons %}
+                    {% for lesson in lessons %}
+                        {% if not lesson.module %}
+                            {% if forloop.first %}
+                            <div class="alert alert-warning mt-4">
+                                <h6><i class="fas fa-exclamation-triangle"></i> Aulas sem módulo</h6>
+                                <p class="small mb-2">As seguintes aulas não estão associadas a nenhum módulo:</p>
+                                <div class="list-group">
+                            {% endif %}
+                                    <div class="list-group-item">
+                                        <div class="row align-items-center">
+                                            <div class="col-md-7">
+                                                <h6 class="mb-1">{{ lesson.title }}</h6>
+                                                {% if lesson.status == 'PUBLISHED' %}
+                                                <span class="badge bg-success">Publicada</span>
+                                                {% else %}
+                                                <span class="badge bg-secondary">Rascunho</span>
+                                                {% endif %}
+                                            </div>
+                                            <div class="col-md-5 text-end">
+                                                <a href="{% url 'courses:lesson_update' lesson.id %}" class="btn btn-sm btn-warning">
+                                                    <i class="fas fa-edit"></i> Editar
+                                                </a>
+                                                <a href="{% url 'courses:lesson_delete' lesson.id %}" class="btn btn-sm btn-danger">
+                                                    <i class="fas fa-trash"></i>
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </div>
+                            {% if forloop.last %}
+                                </div>
+                            </div>
+                            {% endif %}
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
+
                 {% else %}
                 <div class="alert alert-info text-center">
                     <i class="fas fa-info-circle me-2"></i>
-                    <strong>Este curso ainda não possui aulas.</strong>
-                    <p class="mb-0 mt-2">Comece adicionando aulas para criar seu conteúdo.</p>
+                    <strong>Este curso ainda não possui módulos.</strong>
+                    <p class="mb-0 mt-2">Organize seu conteúdo criando módulos e adicionando aulas a eles.</p>
                     <div class="mt-3">
-                        <a href="{% url 'courses:lesson_create' course.id %}" class="btn btn-primary">
-                            <i class="fas fa-plus-circle"></i> Adicionar primeira aula
+                        <a href="{% url 'courses:module_create' course.id %}" class="btn btn-success">
+                            <i class="fas fa-layer-group"></i> Criar primeiro módulo
                         </a>
                     </div>
                 </div>
@@ -229,28 +321,42 @@
                 <div class="mb-4">
                     {{ course.description|linebreaks }}
                 </div>
+
+                {% if course.sequential_modules %}
+                <div class="alert alert-warning">
+                    <h6><i class="fas fa-lock"></i> Acesso Sequencial Ativado</h6>
+                    <p class="small mb-0">Os alunos só poderão acessar o próximo módulo após completar todas as aulas do módulo anterior.</p>
+                </div>
+                {% else %}
+                <div class="alert alert-info">
+                    <h6><i class="fas fa-unlock"></i> Acesso Livre</h6>
+                    <p class="small mb-0">Os alunos podem acessar todos os módulos e aulas livremente.</p>
+                </div>
+                {% endif %}
             </div>
         </div>
 
         <!-- Dicas para completar o curso -->
         <div class="card shadow">
             <div class="card-header bg-info text-white">
-                <h5 class="mb-0"><i class="fas fa-lightbulb me-2"></i> Dicas para completar seu curso</h5>
+                <h5 class="mb-0"><i class="fas fa-lightbulb me-2"></i> Dicas para organizar seu curso</h5>
             </div>
             <div class="card-body">
                 <div class="mb-3 border-start border-3 border-success ps-3">
-                    <h6 class="mb-1"><i class="fas fa-check-circle text-success me-1"></i> Adicione pelo menos 5 aulas
-                    </h6>
-                    <p class="small mb-0">Os alunos preferem cursos com conteúdo substancial.</p>
+                    <h6 class="mb-1"><i class="fas fa-layer-group text-success me-1"></i> Crie módulos temáticos</h6>
+                    <p class="small mb-0">Organize as aulas em módulos para facilitar o aprendizado progressivo.</p>
                 </div>
                 <div class="mb-3 border-start border-3 border-warning ps-3">
-                    <h6 class="mb-1"><i class="fas fa-image text-warning me-1"></i> Inclua uma imagem atrativa</h6>
-                    <p class="small mb-0">Cursos com imagens de capa têm mais inscrições.</p>
+                    <h6 class="mb-1"><i class="fas fa-sort-numeric-up text-warning me-1"></i> Use ordenação lógica</h6>
+                    <p class="small mb-0">Numere módulos e aulas em ordem crescente de dificuldade.</p>
                 </div>
                 <div class="mb-3 border-start border-3 border-info ps-3">
-                    <h6 class="mb-1"><i class="fas fa-align-left text-info me-1"></i> Escreva uma descrição detalhada
-                    </h6>
-                    <p class="small mb-0">Explique o que os alunos irão aprender com seu curso.</p>
+                    <h6 class="mb-1"><i class="fas fa-lock text-info me-1"></i> Configure o acesso</h6>
+                    <p class="small mb-0">Decida se os alunos devem seguir uma ordem específica ou ter acesso livre.</p>
+                </div>
+                <div class="mb-3 border-start border-3 border-primary ps-3">
+                    <h6 class="mb-1"><i class="fas fa-video text-primary me-1"></i> Adicione vídeos</h6>
+                    <p class="small mb-0">Inclua vídeos explicativos em cada aula para melhor engajamento.</p>
                 </div>
             </div>
         </div>

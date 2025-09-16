@@ -1,0 +1,115 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}
+    {% if form.instance.pk %}
+        Editar Módulo - {{ course.title }}
+    {% else %}
+        Novo Módulo - {{ course.title }}
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'courses:course_list' %}">Meus Cursos</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'courses:course_detail' course.pk %}">{{ course.title }}</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">
+                        {% if form.instance.pk %}
+                            Editar Módulo
+                        {% else %}
+                            Novo Módulo
+                        {% endif %}
+                    </li>
+                </ol>
+            </nav>
+
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">
+                        {% if form.instance.pk %}
+                            Editar Módulo
+                        {% else %}
+                            Adicionar Novo Módulo
+                        {% endif %}
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+
+                        <div class="mb-3">
+                            <label for="{{ form.title.id_for_label }}" class="form-label">{{ form.title.label }}</label>
+                            {{ form.title }}
+                            {% if form.title.errors %}
+                                <div class="text-danger small">
+                                    {{ form.title.errors.0 }}
+                                </div>
+                            {% endif %}
+                            {% if form.title.help_text %}
+                                <div class="form-text">{{ form.title.help_text }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.description.id_for_label }}" class="form-label">{{ form.description.label }}</label>
+                            {{ form.description }}
+                            {% if form.description.errors %}
+                                <div class="text-danger small">
+                                    {{ form.description.errors.0 }}
+                                </div>
+                            {% endif %}
+                            {% if form.description.help_text %}
+                                <div class="form-text">{{ form.description.help_text }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.order.id_for_label }}" class="form-label">{{ form.order.label }}</label>
+                            {{ form.order }}
+                            {% if form.order.errors %}
+                                <div class="text-danger small">
+                                    {{ form.order.errors.0 }}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">Define a ordem em que este módulo aparecerá no curso.</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="form-check">
+                                {{ form.is_active }}
+                                <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
+                                    {{ form.is_active.label }}
+                                </label>
+                            </div>
+                            {% if form.is_active.errors %}
+                                <div class="text-danger small">
+                                    {{ form.is_active.errors.0 }}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">Módulos inativos não serão exibidos para os alunos.</div>
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'courses:course_detail' course.pk %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i>
+                                {% if form.instance.pk %}
+                                    Salvar Alterações
+                                {% else %}
+                                    Criar Módulo
+                                {% endif %}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

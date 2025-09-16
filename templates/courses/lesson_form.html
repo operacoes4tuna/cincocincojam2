@@ -47,6 +47,11 @@
                     {% csrf_token %}
 
                     <div class="mb-4">
+                        {{ form.module|as_crispy_field }}
+                        <small class="form-text text-muted">Selecione o módulo ao qual esta aula pertence (opcional).</small>
+                    </div>
+
+                    <div class="mb-4">
                         {{ form.title|as_crispy_field }}
                         <small class="form-text text-muted">Um título claro e descritivo do conteúdo da aula.</small>
                     </div>

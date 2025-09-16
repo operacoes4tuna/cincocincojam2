@@ -6,7 +6,7 @@ from django.shortcuts import redirect, render
 from django.template.response import TemplateResponse
 from django.urls import path
 
-from .models import Course, Lesson, Enrollment, ClassGroup, LessonRelease
+from .models import Course, Lesson, Enrollment, ClassGroup, LessonRelease, Module, ModuleProgress
 
 
 @admin.register(ClassGroup)
@@ -73,11 +73,22 @@ class LessonReleaseAdmin(admin.ModelAdmin):
 
 class LessonInline(admin.TabularInline):
     """
-    Inline para gerenciar aulas dentro da interface de administração de um curso.
+    Inline para gerenciar aulas dentro da interface de administração de um módulo.
     """
     model = Lesson
     extra = 1
     fields = ('title', 'order', 'video_url', 'status')
+    ordering = ['order']
+
+
+class ModuleInline(admin.TabularInline):
+    """
+    Inline para gerenciar módulos dentro da interface de administração de um curso.
+    """
+    model = Module
+    extra = 1
+    fields = ('title', 'order', 'description', 'is_active')
+    ordering = ['order']
     
 
 @admin.register(Course)
@@ -95,15 +106,50 @@ class CourseAdmin(admin.ModelAdmin):
         (None, {
             'fields': ('professor', 'title', 'slug', 'description', 'short_description', 'price', 'image')
         }),
+        (_('Configurações de Acesso'), {
+            'fields': ('sequential_modules',)
+        }),
         (_('Status e Controle'), {
             'fields': ('status', 'created_at', 'updated_at')
         }),
     )
-    
-    inlines = [LessonInline]
+
+    inlines = [ModuleInline]
     
     def get_lessons_count(self, obj):
         """Retorna o número de aulas do curso."""
+        return obj.lessons.count()
+    get_lessons_count.short_description = _('Aulas')
+
+
+@admin.register(Module)
+class ModuleAdmin(admin.ModelAdmin):
+    """
+    Configuração da interface de administração para o modelo Module.
+    """
+    list_display = ('title', 'course', 'order', 'is_active', 'get_lessons_count', 'created_at')
+    list_filter = ('is_active', 'course', 'created_at')
+    search_fields = ('title', 'description', 'course__title')
+    readonly_fields = ('created_at', 'updated_at')
+    autocomplete_fields = ['course']
+
+    fieldsets = (
+        (None, {
+            'fields': ('course', 'title', 'description', 'order')
+        }),
+        (_('Configurações'), {
+            'fields': ('is_active',)
+        }),
+        (_('Metadados'), {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',),
+        }),
+    )
+
+    inlines = [LessonInline]
+
+    def get_lessons_count(self, obj):
+        """Retorna o número de aulas do módulo."""
         return obj.lessons.count()
     get_lessons_count.short_description = _('Aulas')
 
@@ -113,14 +159,15 @@ class LessonAdmin(admin.ModelAdmin):
     """
     Configuração da interface de administração para o modelo Lesson.
     """
-    list_display = ('title', 'course', 'order', 'status', 'created_at')
-    list_filter = ('status', 'course', 'created_at')
-    search_fields = ('title', 'description', 'course__title')
+    list_display = ('title', 'module', 'course', 'order', 'status', 'created_at')
+    list_filter = ('status', 'module', 'course', 'created_at')
+    search_fields = ('title', 'description', 'module__title', 'course__title')
     readonly_fields = ('created_at', 'updated_at')
-    
+    autocomplete_fields = ['course', 'module']
+
     fieldsets = (
         (None, {
-            'fields': ('course', 'title', 'description', 'order')
+            'fields': ('course', 'module', 'title', 'description', 'order')
         }),
         (_('Vídeo'), {
             'fields': ('video_url', 'private_video_url', 'youtube_id')
@@ -292,3 +339,25 @@ class EnrollmentAdmin(admin.ModelAdmin):
             'admin/courses/enrollment/create_enrollment.html',
             context
         )
+
+
+@admin.register(ModuleProgress)
+class ModuleProgressAdmin(admin.ModelAdmin):
+    """
+    Configuração da interface de administração para o modelo ModuleProgress.
+    """
+    list_display = ('get_student_email', 'get_module_title', 'progress_percentage', 'is_completed', 'completed_at')
+    list_filter = ('is_completed', 'completed_at')
+    search_fields = ('enrollment__student__email', 'module__title', 'module__course__title')
+    readonly_fields = ('completed_at', 'last_accessed_at', 'progress_percentage')
+    raw_id_fields = ('enrollment', 'module')
+
+    def get_student_email(self, obj):
+        """Retorna o email do aluno."""
+        return obj.enrollment.student.email
+    get_student_email.short_description = _('Aluno')
+
+    def get_module_title(self, obj):
+        """Retorna o título do módulo."""
+        return f"{obj.module.course.title} - {obj.module.title}"
+    get_module_title.short_description = _('Módulo')

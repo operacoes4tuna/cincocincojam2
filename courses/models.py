@@ -94,6 +94,14 @@ class Course(models.Model):
         default=Status.DRAFT
     )
     image = models.ImageField(_('imagem'), upload_to=course_image_upload_path, blank=True, null=True)
+
+    # Configurações de acesso aos módulos
+    sequential_modules = models.BooleanField(
+        _('módulos sequenciais'),
+        default=False,
+        help_text=_('Se ativado, o aluno só pode acessar o próximo módulo após completar o anterior')
+    )
+
     created_at = models.DateTimeField(_('data de criação'), auto_now_add=True)
     updated_at = models.DateTimeField(_('última atualização'), auto_now=True)
     
@@ -152,6 +160,90 @@ class Course(models.Model):
         """Retorna o número de alunos matriculados no curso."""
         return self.enrollments.count()
 
+    def get_modules(self):
+        """Retorna todos os módulos do curso ordenados."""
+        return self.modules.all().order_by('order')
+
+    def get_total_modules(self):
+        """Retorna o número total de módulos do curso."""
+        return self.modules.count()
+
+
+class Module(models.Model):
+    """
+    Modelo para representar um módulo dentro de um curso.
+    Os módulos agrupam aulas relacionadas.
+    """
+    # Relacionamentos
+    course = models.ForeignKey(
+        Course,
+        on_delete=models.CASCADE,
+        related_name='modules',
+        verbose_name=_('curso')
+    )
+
+    # Campos básicos
+    title = models.CharField(_('título'), max_length=200)
+    description = models.TextField(_('descrição'), blank=True)
+    order = models.PositiveIntegerField(_('ordem'), default=0)
+
+    # Controle e metadados
+    is_active = models.BooleanField(_('ativo'), default=True)
+    created_at = models.DateTimeField(_('data de criação'), auto_now_add=True)
+    updated_at = models.DateTimeField(_('última atualização'), auto_now=True)
+
+    class Meta:
+        verbose_name = _('módulo')
+        verbose_name_plural = _('módulos')
+        ordering = ['order', 'created_at']
+        unique_together = [['course', 'order']]
+
+    def __str__(self):
+        return f"{self.course.title} - Módulo {self.order}: {self.title}"
+
+    def get_lessons(self):
+        """Retorna todas as aulas do módulo ordenadas."""
+        return self.lessons.all().order_by('order')
+
+    def get_total_lessons(self):
+        """Retorna o número total de aulas no módulo."""
+        return self.lessons.count()
+
+    def get_published_lessons(self):
+        """Retorna apenas as aulas publicadas do módulo."""
+        return self.lessons.filter(status=Lesson.Status.PUBLISHED).order_by('order')
+
+    def is_accessible_by_student(self, enrollment):
+        """
+        Verifica se o módulo está acessível para um aluno específico.
+        Considera a configuração de módulos sequenciais do curso.
+        """
+        # Se o curso não tem módulos sequenciais, todos são acessíveis
+        if not self.course.sequential_modules:
+            return True
+
+        # Se é o primeiro módulo, sempre é acessível
+        if self.order == 1:
+            return True
+
+        # Verifica se o módulo anterior foi completado
+        previous_module = Module.objects.filter(
+            course=self.course,
+            order=self.order - 1
+        ).first()
+
+        if previous_module:
+            # Verifica se existe progresso completo do módulo anterior
+            previous_progress = ModuleProgress.objects.filter(
+                enrollment=enrollment,
+                module=previous_module
+            ).first()
+
+            if previous_progress:
+                return previous_progress.is_completed
+
+        return False
+
 
 class Lesson(models.Model):
     """
@@ -167,6 +259,14 @@ class Lesson(models.Model):
         on_delete=models.CASCADE,
         related_name='lessons',
         verbose_name=_('curso')
+    )
+    module = models.ForeignKey(
+        Module,
+        on_delete=models.CASCADE,
+        related_name='lessons',
+        verbose_name=_('módulo'),
+        null=True,
+        blank=True
     )
     
     # Campos básicos
@@ -194,10 +294,13 @@ class Lesson(models.Model):
     class Meta:
         verbose_name = _('aula')
         verbose_name_plural = _('aulas')
-        ordering = ['order', 'created_at']
-        unique_together = [['course', 'order']]
-    
+        ordering = ['module__order', 'order', 'created_at']
+        # Remove unique_together por módulo pois pode ser nulo
+        # unique_together = [['module', 'order']]
+
     def __str__(self):
+        if self.module:
+            return f"{self.module.title} - {self.title}"
         return self.title
     
     @property
@@ -421,14 +524,22 @@ class LessonProgress(models.Model):
             self.is_completed = True
             self.completed_at = timezone.now()
             self.save()
-            
+
             # Atualiza o progresso geral do aluno no curso
             completed_lessons = LessonProgress.objects.filter(
                 enrollment=self.enrollment,
                 is_completed=True
             ).count()
-            
+
             self.enrollment.update_progress(completed_lessons)
+
+            # Se a aula pertence a um módulo, atualiza o progresso do módulo
+            if self.lesson.module:
+                module_progress, created = ModuleProgress.objects.get_or_create(
+                    enrollment=self.enrollment,
+                    module=self.lesson.module
+                )
+                module_progress.update_progress()
 
 
 class VideoProgress(models.Model):
@@ -517,3 +628,95 @@ class VideoProgress(models.Model):
                 total_time += segment_duration
                 
         return total_time
+
+
+class ModuleProgress(models.Model):
+    """
+    Modelo para rastrear o progresso de um aluno em um módulo específico.
+    """
+    # Relacionamentos
+    enrollment = models.ForeignKey(
+        Enrollment,
+        on_delete=models.CASCADE,
+        related_name='module_progresses',
+        verbose_name=_('matrícula')
+    )
+    module = models.ForeignKey(
+        Module,
+        on_delete=models.CASCADE,
+        related_name='student_progresses',
+        verbose_name=_('módulo')
+    )
+
+    # Campos de controle
+    is_completed = models.BooleanField(_('concluído'), default=False)
+    completed_at = models.DateTimeField(_('concluído em'), null=True, blank=True)
+    progress_percentage = models.PositiveIntegerField(
+        _('porcentagem de progresso'),
+        default=0,
+        help_text=_('Porcentagem de aulas concluídas no módulo (0-100)')
+    )
+    last_accessed_at = models.DateTimeField(_('último acesso em'), auto_now=True)
+
+    class Meta:
+        verbose_name = _('progresso de módulo')
+        verbose_name_plural = _('progressos de módulos')
+        # Garante que cada módulo só tenha um registro de progresso por matrícula
+        unique_together = ['enrollment', 'module']
+        ordering = ['module__order']
+
+    def __str__(self):
+        return f"{self.enrollment.student.email} - {self.module.title} ({self.progress_percentage}%)"
+
+    def update_progress(self):
+        """
+        Atualiza o progresso do módulo baseado nas aulas concluídas.
+        """
+        total_lessons = self.module.get_total_lessons()
+
+        if total_lessons == 0:
+            self.progress_percentage = 100
+            self.is_completed = True
+            self.completed_at = timezone.now()
+        else:
+            # Conta quantas aulas do módulo foram concluídas
+            completed_lessons = LessonProgress.objects.filter(
+                enrollment=self.enrollment,
+                lesson__module=self.module,
+                is_completed=True
+            ).count()
+
+            self.progress_percentage = int((completed_lessons / total_lessons) * 100)
+
+            # Se todas as aulas foram concluídas, marca o módulo como concluído
+            if self.progress_percentage >= 100:
+                self.is_completed = True
+                self.completed_at = timezone.now()
+            else:
+                self.is_completed = False
+                self.completed_at = None
+
+        self.save()
+
+        # Verifica se deve desbloquear o próximo módulo (se o curso tem módulos sequenciais)
+        if self.is_completed and self.module.course.sequential_modules:
+            self.check_next_module_unlock()
+
+    def check_next_module_unlock(self):
+        """
+        Verifica se o próximo módulo deve ser desbloqueado após a conclusão deste.
+        """
+        next_module = Module.objects.filter(
+            course=self.module.course,
+            order=self.module.order + 1
+        ).first()
+
+        if next_module:
+            # Cria ou obtém o progresso do próximo módulo
+            next_progress, created = ModuleProgress.objects.get_or_create(
+                enrollment=self.enrollment,
+                module=next_module,
+                defaults={'progress_percentage': 0}
+            )
+
+            # O próximo módulo já está acessível através do método is_accessible_by_student

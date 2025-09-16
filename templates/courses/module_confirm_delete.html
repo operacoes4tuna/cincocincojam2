@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Confirmar Exclusão - {{ object.title }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-6 mx-auto">
+            <div class="card">
+                <div class="card-header bg-danger text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        Confirmar Exclusão
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <p>Tem certeza que deseja excluir o módulo:</p>
+                    <div class="alert alert-warning">
+                        <h5 class="mb-2">{{ object.title }}</h5>
+                        <p class="mb-0">Curso: {{ object.course.title }}</p>
+                        <p class="mb-0">Ordem: {{ object.order }}</p>
+                        {% if object.get_total_lessons > 0 %}
+                            <hr>
+                            <p class="mb-0 text-danger">
+                                <strong>Atenção:</strong> Este módulo contém {{ object.get_total_lessons }} aula(s) que também serão excluídas!
+                            </p>
+                        {% endif %}
+                    </div>
+
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-circle"></i>
+                        <strong>Esta ação não pode ser desfeita!</strong>
+                    </div>
+
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'courses:course_detail' object.course.pk %}" class="btn btn-secondary">
+                                <i class="fas fa-times"></i> Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-trash"></i> Sim, Excluir Módulo
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

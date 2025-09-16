@@ -10,8 +10,8 @@ from datetime import timedelta
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 
-from .models import Course, Lesson, Enrollment, ClassGroup, LessonRelease
-from .forms import CourseForm, LessonForm, CoursePublishForm
+from .models import Course, Lesson, Enrollment, ClassGroup, LessonRelease, Module, ModuleProgress
+from .forms import CourseForm, LessonForm, CoursePublishForm, ModuleForm
 
 User = get_user_model()
 
@@ -61,29 +61,58 @@ class ProfessorCourseMixin(UserPassesTestMixin):
     Mixin para verificar se o curso pertence ao professor logado ou se o usuário é administrador.
     """
     def test_func(self):
+        print(f"[DEBUG ProfessorCourseMixin] User: {self.request.user.email if self.request.user.is_authenticated else 'Anonymous'}")
+        print(f"[DEBUG ProfessorCourseMixin] Model: {getattr(self, 'model', None)}")
+        print(f"[DEBUG ProfessorCourseMixin] kwargs: {self.kwargs}")
+
         # Se é administrador, tem acesso a tudo
         if self.request.user.is_authenticated and self.request.user.is_admin:
+            print(f"[DEBUG ProfessorCourseMixin] User is admin - allowing access")
             return True
-            
+
         # Se não é professor autenticado, não tem acesso
         if not self.request.user.is_authenticated or not self.request.user.is_professor:
+            print(f"[DEBUG ProfessorCourseMixin] User is not professor - denying access")
             return False
-            
-        # Verificar contexto - para CourseViews
-        course_id = self.kwargs.get('course_id') or self.kwargs.get('pk')
-        if course_id:
-            # Para CourseViews
-            course = get_object_or_404(Course, pk=course_id)
-            return course.professor == self.request.user
-        
+
+        # Para ModuleViews (update/delete) onde temos pk do módulo
+        if hasattr(self, 'get_object') and self.model == Module:
+            try:
+                module = self.get_object()
+                result = module.course.professor == self.request.user
+                print(f"[DEBUG ProfessorCourseMixin] Module check - Course Professor: {module.course.professor.email}, User: {self.request.user.email}, Result: {result}")
+                return result
+            except Exception as e:
+                print(f"[DEBUG ProfessorCourseMixin] Error getting module: {e}")
+                pass
+
         # Para LessonViews (update/delete) onde temos pk da lição
         if hasattr(self, 'get_object') and self.model == Lesson:
             try:
                 lesson = self.get_object()
-                return lesson.course.professor == self.request.user
-            except:
+                result = lesson.course.professor == self.request.user
+                print(f"[DEBUG ProfessorCourseMixin] Lesson check - Course Professor: {lesson.course.professor.email}, User: {self.request.user.email}, Result: {result}")
+                return result
+            except Exception as e:
+                print(f"[DEBUG ProfessorCourseMixin] Error getting lesson: {e}")
                 pass
-            
+
+        # Verificar contexto - para CourseViews usando course_id ou pk
+        course_id = self.kwargs.get('course_id')
+        if course_id:
+            course = get_object_or_404(Course, pk=course_id)
+            result = course.professor == self.request.user
+            print(f"[DEBUG ProfessorCourseMixin] Course check - Professor: {course.professor.email}, User: {self.request.user.email}, Result: {result}")
+            return result
+
+        # Para CourseViews que usam pk diretamente
+        if 'pk' in self.kwargs and self.model == Course:
+            course = get_object_or_404(Course, pk=self.kwargs['pk'])
+            result = course.professor == self.request.user
+            print(f"[DEBUG ProfessorCourseMixin] Course pk check - Professor: {course.professor.email}, User: {self.request.user.email}, Result: {result}")
+            return result
+
+        print(f"[DEBUG ProfessorCourseMixin] Default return True for CreateView")
         return True  # Para CreateView, que não tem curso ainda
 
 
@@ -236,8 +265,10 @@ class CourseDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        # Adiciona as aulas do curso ao contexto
-        context['lessons'] = Lesson.objects.filter(course=self.object).order_by('order')
+        # Adiciona os módulos e aulas do curso ao contexto
+        context['modules'] = Module.objects.filter(course=self.object).order_by('order').prefetch_related('lessons')
+        # Para compatibilidade, também adiciona todas as aulas
+        context['lessons'] = Lesson.objects.filter(course=self.object).order_by('module__order', 'order')
         return context
 
 
@@ -324,6 +355,95 @@ class CoursePublishView(LoginRequiredMixin, ProfessorCourseMixin, FormView):
 
 
 # Views para aulas
+# Views para gerenciamento de Módulos
+
+class ModuleListView(LoginRequiredMixin, ProfessorCourseMixin, ListView):
+    """
+    Lista todos os módulos de um curso específico.
+    """
+    model = Module
+    template_name = 'courses/module_list.html'
+    context_object_name = 'modules'
+
+    def get_queryset(self):
+        course_id = self.kwargs['course_id']
+        return Module.objects.filter(course_id=course_id).order_by('order').prefetch_related('lessons')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['course'] = get_object_or_404(Course, pk=self.kwargs['course_id'])
+        return context
+
+
+class ModuleCreateView(LoginRequiredMixin, ProfessorCourseMixin, CreateView):
+    """
+    Cria um novo módulo para um curso específico.
+    """
+    model = Module
+    form_class = ModuleForm
+    template_name = 'courses/module_form.html'
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['course'] = get_object_or_404(Course, pk=self.kwargs['course_id'])
+        return kwargs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['course'] = get_object_or_404(Course, pk=self.kwargs['course_id'])
+        return context
+
+    def get_success_url(self):
+        return reverse('courses:course_detail', kwargs={'pk': self.kwargs['course_id']})
+
+    def form_valid(self, form):
+        messages.success(self.request, 'Módulo criado com sucesso!')
+        return super().form_valid(form)
+
+
+class ModuleUpdateView(LoginRequiredMixin, ProfessorCourseMixin, UpdateView):
+    """
+    Atualiza um módulo existente.
+    """
+    model = Module
+    form_class = ModuleForm
+    template_name = 'courses/module_form.html'
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['course'] = self.get_object().course
+        return kwargs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['course'] = self.object.course
+        return context
+
+    def get_success_url(self):
+        return reverse('courses:course_detail', kwargs={'pk': self.object.course.pk})
+
+    def form_valid(self, form):
+        messages.success(self.request, 'Módulo atualizado com sucesso!')
+        return super().form_valid(form)
+
+
+class ModuleDeleteView(LoginRequiredMixin, ProfessorCourseMixin, DeleteView):
+    """
+    Exclui um módulo.
+    """
+    model = Module
+    template_name = 'courses/module_confirm_delete.html'
+
+    def get_success_url(self):
+        return reverse('courses:course_detail', kwargs={'pk': self.object.course.pk})
+
+    def delete(self, request, *args, **kwargs):
+        messages.success(self.request, 'Módulo excluído com sucesso!')
+        return super().delete(request, *args, **kwargs)
+
+
+# Views para gerenciamento de Aulas
+
 class LessonCreateView(LoginRequiredMixin, ProfessorCourseMixin, CreateView):
     """
     Cria uma nova aula para um curso específico.
