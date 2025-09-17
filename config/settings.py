@@ -193,8 +193,9 @@ if USE_S3:
         'CacheControl': 'max-age=86400',
     }
     AWS_S3_FILE_OVERWRITE = config('AWS_S3_FILE_OVERWRITE', default=False, cast=bool)
-    AWS_DEFAULT_ACL = None  # Bucket não permite ACLs
-    AWS_QUERYSTRING_AUTH = False  # Não usar URLs pré-assinadas (objetos são públicos)
+    AWS_DEFAULT_ACL = None  # Bucket privado sem ACLs
+    AWS_QUERYSTRING_AUTH = True  # Usar URLs pré-assinadas
+    AWS_QUERYSTRING_EXPIRE = 3600  # URLs válidas por 1 hora (3600 segundos)
     
     # Media files configuration for S3
     DEFAULT_FILE_STORAGE = 'core.storage_backends.MediaStorage'

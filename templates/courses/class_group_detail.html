@@ -100,7 +100,7 @@
                                 <div class="col-md-6 col-lg-4 mb-4">
                                     <div class="card h-100">
                                         {% if course.image %}
-                                            <img src="{{ course.image.url }}" class="card-img-top" alt="{{ course.title }}">
+                                            <img src="{{ course.get_image_url }}" class="card-img-top" alt="{{ course.title }}">
                                         {% endif %}
                                         <div class="card-body">
                                             <h5 class="card-title">{{ course.title }}</h5>

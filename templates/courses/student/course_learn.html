@@ -512,7 +512,61 @@
                             <p class="text-muted">Nenhuma descrição disponível para esta aula.</p>
                         {% endif %}
                     </div>
-                    
+
+                    <!-- Seção de Anexos da Aula -->
+                    {% if current_lesson.attachments.exists %}
+                    <div class="mb-4">
+                        <h4><i class="fas fa-paperclip me-2"></i>Material Complementar</h4>
+                        <div class="list-group">
+                            {% for attachment in current_lesson.attachments.all %}
+                                {% if attachment.is_active %}
+                                <div class="list-group-item d-flex justify-content-between align-items-start">
+                                    <div class="flex-grow-1">
+                                        <div class="d-flex align-items-center mb-1">
+                                            <!-- Ícone baseado no tipo de anexo -->
+                                            {% if attachment.attachment_type == 'PDF' %}
+                                                <i class="fas fa-file-pdf text-danger me-2 fs-5"></i>
+                                            {% elif attachment.attachment_type == 'AUDIO' %}
+                                                <i class="fas fa-file-audio text-info me-2 fs-5"></i>
+                                            {% elif attachment.attachment_type == 'IMAGE' %}
+                                                <i class="fas fa-file-image text-success me-2 fs-5"></i>
+                                            {% elif attachment.attachment_type == 'DOCX' %}
+                                                <i class="fas fa-file-word text-primary me-2 fs-5"></i>
+                                            {% elif attachment.attachment_type == 'LINK' %}
+                                                <i class="fas fa-link text-secondary me-2 fs-5"></i>
+                                            {% else %}
+                                                <i class="fas fa-file text-muted me-2 fs-5"></i>
+                                            {% endif %}
+                                            <h6 class="mb-0">{{ attachment.title }}</h6>
+                                        </div>
+                                        {% if attachment.description %}
+                                            <p class="text-muted small mb-1">{{ attachment.description }}</p>
+                                        {% endif %}
+                                    </div>
+                                    <div>
+                                        {% if attachment.file %}
+                                            <a href="{{ attachment.get_file_url }}"
+                                               target="_blank"
+                                               class="btn btn-sm btn-outline-primary"
+                                               title="Baixar anexo">
+                                                <i class="fas fa-download me-1"></i> Baixar
+                                            </a>
+                                        {% elif attachment.link %}
+                                            <a href="{{ attachment.link }}"
+                                               target="_blank"
+                                               class="btn btn-sm btn-outline-primary"
+                                               title="Abrir link">
+                                                <i class="fas fa-external-link-alt me-1"></i> Abrir
+                                            </a>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
                     <div class="d-flex justify-content-between align-items-center">
                         <!-- Navegação entre aulas -->
                         <div>

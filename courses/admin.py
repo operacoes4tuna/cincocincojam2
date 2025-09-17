@@ -6,7 +6,7 @@ from django.shortcuts import redirect, render
 from django.template.response import TemplateResponse
 from django.urls import path
 
-from .models import Course, Lesson, Enrollment, ClassGroup, LessonRelease, Module, ModuleProgress
+from .models import Course, Lesson, Enrollment, ClassGroup, LessonRelease, Module, ModuleProgress, LessonAttachment
 
 
 @admin.register(ClassGroup)
@@ -154,12 +154,22 @@ class ModuleAdmin(admin.ModelAdmin):
     get_lessons_count.short_description = _('Aulas')
 
 
+class LessonAttachmentInline(admin.TabularInline):
+    """
+    Inline para gerenciar anexos dentro da interface de administração de uma aula.
+    """
+    model = LessonAttachment
+    extra = 1
+    fields = ('title', 'attachment_type', 'file', 'link', 'order', 'is_active')
+    ordering = ['order']
+
+
 @admin.register(Lesson)
 class LessonAdmin(admin.ModelAdmin):
     """
     Configuração da interface de administração para o modelo Lesson.
     """
-    list_display = ('title', 'module', 'course', 'order', 'status', 'created_at')
+    list_display = ('title', 'module', 'course', 'order', 'status', 'get_attachments_count', 'created_at')
     list_filter = ('status', 'module', 'course', 'created_at')
     search_fields = ('title', 'description', 'module__title', 'course__title')
     readonly_fields = ('created_at', 'updated_at')
@@ -176,6 +186,53 @@ class LessonAdmin(admin.ModelAdmin):
             'fields': ('status', 'created_at', 'updated_at')
         }),
     )
+
+    inlines = [LessonAttachmentInline]
+
+    def get_attachments_count(self, obj):
+        """Retorna o número de anexos da aula."""
+        return obj.attachments.count()
+    get_attachments_count.short_description = _('Anexos')
+
+
+@admin.register(LessonAttachment)
+class LessonAttachmentAdmin(admin.ModelAdmin):
+    """
+    Configuração da interface de administração para o modelo LessonAttachment.
+    """
+    list_display = ('title', 'lesson', 'attachment_type', 'has_file', 'has_link', 'order', 'is_active', 'created_at')
+    list_filter = ('attachment_type', 'is_active', 'created_at')
+    search_fields = ('title', 'description', 'lesson__title')
+    readonly_fields = ('created_at', 'updated_at')
+    autocomplete_fields = ['lesson']
+
+    fieldsets = (
+        (None, {
+            'fields': ('lesson', 'title', 'description', 'attachment_type')
+        }),
+        (_('Conteúdo'), {
+            'fields': ('file', 'link')
+        }),
+        (_('Configurações'), {
+            'fields': ('order', 'is_active')
+        }),
+        (_('Metadados'), {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',),
+        }),
+    )
+
+    def has_file(self, obj):
+        """Indica se o anexo tem arquivo."""
+        return bool(obj.file)
+    has_file.boolean = True
+    has_file.short_description = _('Arquivo')
+
+    def has_link(self, obj):
+        """Indica se o anexo tem link."""
+        return bool(obj.link)
+    has_link.boolean = True
+    has_link.short_description = _('Link')
 
 
 class EnrollmentStatusFilter(SimpleListFilter):

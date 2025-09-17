@@ -9,11 +9,53 @@ from django.utils import timezone
 from datetime import timedelta
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
+from django.conf import settings
+from django.core.files.base import ContentFile
+import boto3
+import os
+from datetime import datetime
 
-from .models import Course, Lesson, Enrollment, ClassGroup, LessonRelease, Module, ModuleProgress
+from .models import Course, Lesson, Enrollment, ClassGroup, LessonRelease, Module, ModuleProgress, LessonAttachment
 from .forms import CourseForm, LessonForm, CoursePublishForm, ModuleForm
 
 User = get_user_model()
+
+
+def upload_attachment_to_s3(uploaded_file):
+    """
+    Faz upload de um arquivo para o S3 e retorna o caminho.
+    """
+    if not settings.USE_S3:
+        return None
+
+    # Gerar nome único para o arquivo
+    ext = uploaded_file.name.split('.')[-1]
+    filename_base = uploaded_file.name.rsplit('.', 1)[0]
+    # Limitar o nome do arquivo e remover caracteres especiais
+    filename_base = ''.join(c for c in filename_base if c.isalnum() or c in '-_')[:50]
+    filename = f"{filename_base}_{datetime.now().strftime('%Y%m%d%H%M%S')}.{ext}"
+    file_path = f"lesson_attachments/{datetime.now().strftime('%Y/%m')}/{filename}"
+
+    # Upload para S3
+    s3_client = boto3.client(
+        's3',
+        aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+        aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+        region_name=settings.AWS_S3_REGION_NAME
+    )
+
+    s3_key = f"media-courses/{file_path}"
+
+    # Fazer upload
+    uploaded_file.seek(0)  # Garantir que estamos no início do arquivo
+    s3_client.upload_fileobj(
+        uploaded_file,
+        settings.AWS_STORAGE_BUCKET_NAME,
+        s3_key,
+        ExtraArgs={'ContentType': uploaded_file.content_type or 'application/octet-stream'}
+    )
+
+    return file_path
 
 
 class ProfessorRequiredMixin(UserPassesTestMixin):
@@ -467,8 +509,61 @@ class LessonCreateView(LoginRequiredMixin, ProfessorCourseMixin, CreateView):
         return reverse('courses:course_detail', kwargs={'pk': self.kwargs['course_id']})
     
     def form_valid(self, form):
+        # Salvar a aula primeiro
+        response = super().form_valid(form)
+
+        # Processar anexos após criar a aula
+        total_attachments = int(self.request.POST.get('total_new_attachments', 0))
+
+        for i in range(1, total_attachments + 1):
+            # Verificar se existe anexo com este índice
+            title = self.request.POST.get(f'attachment_title_{i}')
+            if not title:
+                continue
+
+            # Criar o anexo
+            attachment = LessonAttachment(
+                lesson=self.object,
+                title=title,
+                description=self.request.POST.get(f'attachment_description_{i}', ''),
+                order=i
+            )
+
+            # Determinar tipo de anexo
+            attachment_type = self.request.POST.get(f'attachment_type_{i}', 'auto')
+            if attachment_type != 'auto':
+                attachment.attachment_type = attachment_type
+
+            # Verificar se é arquivo ou link
+            choice = self.request.POST.get(f'attachment_choice_{i}', 'file')
+
+            if choice == 'file' and f'attachment_file_{i}' in self.request.FILES:
+                uploaded_file = self.request.FILES[f'attachment_file_{i}']
+
+                # Se USE_S3 está ativo, fazer upload direto para S3
+                if settings.USE_S3:
+                    file_path = upload_attachment_to_s3(uploaded_file)
+                    if file_path:
+                        # Salvar apenas a referência do arquivo no S3
+                        attachment.file.name = file_path
+                    else:
+                        # Fallback para upload local
+                        attachment.file = uploaded_file
+                else:
+                    # Upload local normal
+                    attachment.file = uploaded_file
+
+            elif choice == 'link':
+                link = self.request.POST.get(f'attachment_link_{i}')
+                if link:
+                    attachment.link = link
+
+            # Salvar o anexo se tiver arquivo ou link
+            if attachment.file or attachment.link:
+                attachment.save()
+
         messages.success(self.request, 'Aula adicionada com sucesso!')
-        return super().form_valid(form)
+        return response
 
 
 class LessonUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
@@ -507,8 +602,66 @@ class LessonUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
         return reverse('courses:course_detail', kwargs={'pk': self.object.course.pk})
     
     def form_valid(self, form):
+        # Salvar a aula primeiro
+        response = super().form_valid(form)
+
+        # Processar remoção de anexos existentes
+        remove_ids = self.request.POST.getlist('remove_attachments')
+        if remove_ids:
+            LessonAttachment.objects.filter(id__in=remove_ids, lesson=self.object).delete()
+
+        # Processar novos anexos
+        total_attachments = int(self.request.POST.get('total_new_attachments', 0))
+
+        for i in range(1, total_attachments + 1):
+            # Verificar se existe anexo com este índice
+            title = self.request.POST.get(f'attachment_title_{i}')
+            if not title:
+                continue
+
+            # Criar o anexo
+            attachment = LessonAttachment(
+                lesson=self.object,
+                title=title,
+                description=self.request.POST.get(f'attachment_description_{i}', ''),
+                order=self.object.attachments.count() + i
+            )
+
+            # Determinar tipo de anexo
+            attachment_type = self.request.POST.get(f'attachment_type_{i}', 'auto')
+            if attachment_type != 'auto':
+                attachment.attachment_type = attachment_type
+
+            # Verificar se é arquivo ou link
+            choice = self.request.POST.get(f'attachment_choice_{i}', 'file')
+
+            if choice == 'file' and f'attachment_file_{i}' in self.request.FILES:
+                uploaded_file = self.request.FILES[f'attachment_file_{i}']
+
+                # Se USE_S3 está ativo, fazer upload direto para S3
+                if settings.USE_S3:
+                    file_path = upload_attachment_to_s3(uploaded_file)
+                    if file_path:
+                        # Salvar apenas a referência do arquivo no S3
+                        attachment.file.name = file_path
+                    else:
+                        # Fallback para upload local
+                        attachment.file = uploaded_file
+                else:
+                    # Upload local normal
+                    attachment.file = uploaded_file
+
+            elif choice == 'link':
+                link = self.request.POST.get(f'attachment_link_{i}')
+                if link:
+                    attachment.link = link
+
+            # Salvar o anexo se tiver arquivo ou link
+            if attachment.file or attachment.link:
+                attachment.save()
+
         messages.success(self.request, 'Aula atualizada com sucesso!')
-        return super().form_valid(form)
+        return response
 
 
 class LessonDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):

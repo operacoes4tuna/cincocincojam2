@@ -28,7 +28,7 @@
                 <div class="row mb-4">
                     <div class="col-md-3">
                         {% if course.image %}
-                            <img src="{{ course.image.url }}" class="img-fluid rounded" alt="{{ course.title }}">
+                            <img src="{{ course.get_image_url }}" class="img-fluid rounded" alt="{{ course.title }}">
                         {% else %}
                             <div class="bg-light rounded text-center py-5">
                                 <i class="fas fa-book fa-3x text-muted"></i>

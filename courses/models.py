@@ -5,6 +5,7 @@ from django.utils import timezone
 from django.utils.text import slugify
 import uuid
 import os
+import boto3
 
 class ClassGroup(models.Model):
     """
@@ -167,6 +168,41 @@ class Course(models.Model):
     def get_total_modules(self):
         """Retorna o número total de módulos do curso."""
         return self.modules.count()
+
+    def get_image_url(self):
+        """Retorna a URL da imagem com suporte a URLs pré-assinadas do S3."""
+        if not self.image:
+            return None
+
+        if settings.USE_S3:
+            try:
+                # Gerar URL pré-assinada do S3
+                s3_client = boto3.client(
+                    's3',
+                    aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+                    aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+                    region_name=settings.AWS_S3_REGION_NAME
+                )
+
+                # A chave no S3 inclui o prefixo 'media-courses/'
+                key = f"media-courses/{self.image.name}"
+
+                url = s3_client.generate_presigned_url(
+                    'get_object',
+                    Params={
+                        'Bucket': settings.AWS_STORAGE_BUCKET_NAME,
+                        'Key': key
+                    },
+                    ExpiresIn=3600  # URL válida por 1 hora
+                )
+                return url
+            except Exception as e:
+                print(f"Erro ao gerar URL pré-assinada: {e}")
+                # Fallback para URL padrão
+                return self.image.url
+        else:
+            # Retornar URL local
+            return self.image.url
 
 
 class Module(models.Model):
@@ -540,6 +576,142 @@ class LessonProgress(models.Model):
                     module=self.lesson.module
                 )
                 module_progress.update_progress()
+
+
+class LessonAttachment(models.Model):
+    """
+    Modelo para representar anexos de uma aula (PDFs, áudios, imagens, links, etc).
+    """
+    class AttachmentType(models.TextChoices):
+        PDF = 'PDF', _('PDF')
+        AUDIO = 'AUDIO', _('Áudio')
+        IMAGE = 'IMAGE', _('Imagem')
+        DOCX = 'DOCX', _('Word')
+        LINK = 'LINK', _('Link')
+        OTHER = 'OTHER', _('Outro')
+
+    # Relacionamento
+    lesson = models.ForeignKey(
+        Lesson,
+        on_delete=models.CASCADE,
+        related_name='attachments',
+        verbose_name=_('aula')
+    )
+
+    # Campos básicos
+    title = models.CharField(_('título'), max_length=200)
+    description = models.TextField(_('descrição'), blank=True)
+    attachment_type = models.CharField(
+        _('tipo de anexo'),
+        max_length=10,
+        choices=AttachmentType.choices,
+        default=AttachmentType.OTHER
+    )
+
+    # Campos de arquivo e link
+    file = models.FileField(
+        _('arquivo'),
+        upload_to='lesson_attachments/%Y/%m/',
+        blank=True,
+        null=True,
+        help_text=_('Upload de arquivo (PDF, áudio, imagem, documento)')
+    )
+    link = models.URLField(
+        _('link'),
+        blank=True,
+        help_text=_('Link externo para o anexo')
+    )
+
+    # Controle e metadados
+    order = models.PositiveIntegerField(_('ordem'), default=0)
+    is_active = models.BooleanField(_('ativo'), default=True)
+    created_at = models.DateTimeField(_('data de criação'), auto_now_add=True)
+    updated_at = models.DateTimeField(_('última atualização'), auto_now=True)
+
+    class Meta:
+        verbose_name = _('anexo de aula')
+        verbose_name_plural = _('anexos de aulas')
+        ordering = ['order', 'created_at']
+
+    def __str__(self):
+        return f"{self.lesson.title} - {self.title}"
+
+    def get_file_extension(self):
+        """Retorna a extensão do arquivo, se houver."""
+        if self.file:
+            return self.file.name.split('.')[-1].lower()
+        return None
+
+    def auto_detect_type(self):
+        """Detecta automaticamente o tipo de anexo baseado na extensão ou link."""
+        if self.file:
+            ext = self.get_file_extension()
+            if ext == 'pdf':
+                return self.AttachmentType.PDF
+            elif ext in ['mp3', 'wav', 'ogg', 'm4a', 'aac']:
+                return self.AttachmentType.AUDIO
+            elif ext in ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg']:
+                return self.AttachmentType.IMAGE
+            elif ext in ['doc', 'docx']:
+                return self.AttachmentType.DOCX
+            else:
+                return self.AttachmentType.OTHER
+        elif self.link:
+            return self.AttachmentType.LINK
+        return self.AttachmentType.OTHER
+
+    def save(self, *args, **kwargs):
+        # Auto-detectar tipo se não foi especificado
+        if not self.attachment_type or self.attachment_type == self.AttachmentType.OTHER:
+            self.attachment_type = self.auto_detect_type()
+        super().save(*args, **kwargs)
+
+    @property
+    def is_downloadable(self):
+        """Verifica se o anexo é baixável (tem arquivo)."""
+        return bool(self.file)
+
+    @property
+    def is_external_link(self):
+        """Verifica se o anexo é um link externo."""
+        return bool(self.link) and not bool(self.file)
+
+    def get_file_url(self):
+        """Retorna a URL do arquivo com suporte a URLs pré-assinadas do S3."""
+        if not self.file:
+            return None
+
+        # Se estiver usando S3, gerar URL pré-assinada
+        if settings.USE_S3:
+            try:
+                import boto3
+                from botocore.exceptions import ClientError
+
+                s3_client = boto3.client(
+                    's3',
+                    aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+                    aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+                    region_name=settings.AWS_S3_REGION_NAME
+                )
+
+                # Construir a chave do objeto
+                key = f"media-courses/{self.file.name}"
+
+                # Gerar URL pré-assinada
+                url = s3_client.generate_presigned_url(
+                    'get_object',
+                    Params={
+                        'Bucket': settings.AWS_STORAGE_BUCKET_NAME,
+                        'Key': key
+                    },
+                    ExpiresIn=3600  # 1 hora
+                )
+                return url
+            except Exception:
+                # Se falhar, retornar URL padrão
+                return self.file.url
+        else:
+            return self.file.url
 
 
 class VideoProgress(models.Model):

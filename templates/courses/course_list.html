@@ -38,8 +38,8 @@
             class="card h-100 shadow-sm {% if course.status == 'DRAFT' %}border-warning{% else %}border-success{% endif %}">
             <div class="position-relative">
                 {% if course.image %}
-                <img src="{{ course.image.url }}" class="card-img-top" alt="{{ course.title }}"
-                    style="height: 160px; object-fit: cover;">
+                <img src="{{ course.get_image_url }}" class="card-img-top" alt="{{ course.title }}"
+                    style="height: 160px; object-fit: cover; object-position: top;">
                 {% else %}
                 <div class="bg-light d-flex align-items-center justify-content-center" style="height: 160px;">
                     <i class="fas fa-book fa-3x text-muted"></i>

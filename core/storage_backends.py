@@ -9,8 +9,9 @@ class MediaStorage(S3Boto3Storage):
     bucket_name = settings.AWS_STORAGE_BUCKET_NAME if hasattr(settings, 'AWS_STORAGE_BUCKET_NAME') else None
     location = 'media-courses'
     file_overwrite = False
-    default_acl = None  # Bucket não permite ACLs
-    querystring_auth = False  # Não usar URLs pré-assinadas
+    default_acl = None  # Sem ACL (bucket privado)
+    querystring_auth = True  # Usar URLs pré-assinadas
+    querystring_expire = 3600  # URLs válidas por 1 hora
     
     def get_available_name(self, name, max_length=None):
         """
@@ -39,9 +40,30 @@ class CourseImageStorage(S3Boto3Storage):
     bucket_name = settings.AWS_STORAGE_BUCKET_NAME if hasattr(settings, 'AWS_STORAGE_BUCKET_NAME') else None
     location = 'media-courses/course_images'
     file_overwrite = False
-    default_acl = None  # Bucket não permite ACLs
-    querystring_auth = False  # Não usar URLs pré-assinadas
-    
+    default_acl = None  # Sem ACL (bucket privado)
+    querystring_auth = True  # Usar URLs pré-assinadas
+    querystring_expire = 3600  # URLs válidas por 1 hora
+
+    def get_available_name(self, name, max_length=None):
+        """
+        Garante que o nome do arquivo seja único.
+        """
+        if self.file_overwrite:
+            return name
+        return super().get_available_name(name, max_length)
+
+
+class LessonAttachmentStorage(S3Boto3Storage):
+    """
+    Storage específico para anexos de aulas.
+    """
+    bucket_name = settings.AWS_STORAGE_BUCKET_NAME if hasattr(settings, 'AWS_STORAGE_BUCKET_NAME') else None
+    location = 'media-courses/lesson_attachments'
+    file_overwrite = False
+    default_acl = None  # Sem ACL (bucket privado)
+    querystring_auth = True  # Usar URLs pré-assinadas
+    querystring_expire = 3600  # URLs válidas por 1 hora
+
     def get_available_name(self, name, max_length=None):
         """
         Garante que o nome do arquivo seja único.

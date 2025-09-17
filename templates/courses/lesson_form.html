@@ -43,7 +43,7 @@
                 <h5 class="mb-0"><i class="fas fa-edit me-2"></i> Informações da Aula</h5>
             </div>
             <div class="card-body">
-                <form method="post" id="lesson-form">
+                <form method="post" id="lesson-form" enctype="multipart/form-data">
                     {% csrf_token %}
 
                     <div class="mb-4">
@@ -76,6 +76,81 @@
                                 {% endif %}
                             </div>
                         </div>
+                    </div>
+
+                    <!-- Seção de Anexos -->
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">
+                            <i class="fas fa-paperclip me-2"></i>Anexos da Aula
+                        </label>
+                        <p class="text-muted small">Adicione materiais complementares como PDFs, áudios, imagens, documentos ou links úteis.</p>
+
+                        <!-- Lista de anexos existentes (se editando aula) -->
+                        {% if form.instance.pk %}
+                            {% if form.instance.attachments.exists %}
+                            <div class="mb-3">
+                                <h6 class="text-muted mb-3"><i class="fas fa-paperclip me-2"></i>Anexos atuais:</h6>
+                                <div class="list-group mb-3" id="existing-attachments">
+                                    {% for attachment in form.instance.attachments.all %}
+                                    <div class="list-group-item attachment-item" data-id="{{ attachment.id }}">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div class="flex-grow-1">
+                                                <h6 class="mb-1">
+                                                    {% if attachment.attachment_type == 'PDF' %}
+                                                        <i class="fas fa-file-pdf text-danger me-2"></i>
+                                                    {% elif attachment.attachment_type == 'AUDIO' %}
+                                                        <i class="fas fa-file-audio text-info me-2"></i>
+                                                    {% elif attachment.attachment_type == 'IMAGE' %}
+                                                        <i class="fas fa-file-image text-success me-2"></i>
+                                                    {% elif attachment.attachment_type == 'DOCX' %}
+                                                        <i class="fas fa-file-word text-primary me-2"></i>
+                                                    {% elif attachment.attachment_type == 'LINK' %}
+                                                        <i class="fas fa-link text-secondary me-2"></i>
+                                                    {% else %}
+                                                        <i class="fas fa-file text-muted me-2"></i>
+                                                    {% endif %}
+                                                    {{ attachment.title }}
+                                                </h6>
+                                                {% if attachment.description %}
+                                                <p class="mb-1 text-muted small">{{ attachment.description }}</p>
+                                                {% endif %}
+                                                {% if attachment.file %}
+                                                <small class="text-muted">Arquivo: {{ attachment.file.name|slice:"20:" }}</small>
+                                                {% elif attachment.link %}
+                                                <small class="text-muted">Link: <a href="{{ attachment.link }}" target="_blank">{{ attachment.link|truncatechars:50 }}</a></small>
+                                                {% endif %}
+                                            </div>
+                                            <div class="btn-group btn-group-sm">
+                                                {% if attachment.file %}
+                                                <a href="{{ attachment.get_file_url }}" target="_blank" class="btn btn-outline-primary" title="Abrir anexo">
+                                                    <i class="fas fa-external-link-alt"></i> Abrir
+                                                </a>
+                                                {% elif attachment.link %}
+                                                <a href="{{ attachment.link }}" target="_blank" class="btn btn-outline-primary" title="Abrir link">
+                                                    <i class="fas fa-external-link-alt"></i> Abrir
+                                                </a>
+                                                {% endif %}
+                                                <button type="button" class="btn btn-outline-danger remove-attachment" data-id="{{ attachment.id }}" title="Remover anexo">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% endif %}
+                        {% endif %}
+
+                        <!-- Container para novos anexos -->
+                        <div id="attachments-container">
+                            <!-- Os anexos serão adicionados dinamicamente aqui -->
+                        </div>
+
+                        <!-- Botão para adicionar anexo -->
+                        <button type="button" class="btn btn-outline-primary btn-sm" id="add-attachment">
+                            <i class="fas fa-plus me-2"></i>Adicionar Anexo
+                        </button>
                     </div>
 
                     <div class="row mb-4">
@@ -231,9 +306,247 @@
         color: #ff4444;
         margin-bottom: 10px;
     }
+
+    /* Estilos para anexos */
+    .attachment-item {
+        transition: all 0.3s ease;
+        border-left: 3px solid transparent;
+    }
+
+    .attachment-item:hover {
+        border-left-color: #0d6efd;
+        background-color: #f8f9fa;
+    }
+
+    .attachment-item.bg-danger-subtle {
+        background-color: #f8d7da !important;
+        border-left-color: #dc3545;
+    }
+
+    .attachment-field {
+        background-color: #f8f9fa;
+        transition: all 0.3s ease;
+    }
+
+    .attachment-field:hover {
+        box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.075);
+    }
+
+    .marked-for-removal {
+        animation: pulse 1s ease-in-out;
+    }
+
+    @keyframes pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+        100% { transform: scale(1); }
+    }
+
+    /* Melhor visualização do botão Abrir */
+    .btn-group-sm .btn {
+        font-size: 0.875rem;
+    }
+
+    /* Preview de tipos de arquivo */
+    .attachment-type-icon {
+        font-size: 1.2rem;
+        width: 24px;
+        text-align: center;
+        display: inline-block;
+    }
 </style>
 <script>
+    // Contador de anexos para IDs únicos
+    let attachmentCounter = 0;
+
     document.addEventListener('DOMContentLoaded', function () {
+        // Gerenciamento de Anexos
+        const addAttachmentBtn = document.getElementById('add-attachment');
+        const attachmentsContainer = document.getElementById('attachments-container');
+        const lessonForm = document.getElementById('lesson-form');
+
+        // Array para armazenar anexos a serem removidos
+        let attachmentsToRemove = [];
+
+        // Template para novo anexo
+        function createAttachmentField() {
+            attachmentCounter++;
+            const attachmentDiv = document.createElement('div');
+            attachmentDiv.className = 'border rounded p-3 mb-3 attachment-field';
+            attachmentDiv.dataset.attachmentId = `new-${attachmentCounter}`;
+
+            attachmentDiv.innerHTML = `
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-2">
+                            <label class="form-label">Título do Anexo <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="attachment_title_${attachmentCounter}" required>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="mb-2">
+                            <label class="form-label">Tipo</label>
+                            <select class="form-control attachment-type-select" name="attachment_type_${attachmentCounter}">
+                                <option value="auto">Auto-detectar</option>
+                                <option value="PDF">PDF</option>
+                                <option value="AUDIO">Áudio</option>
+                                <option value="IMAGE">Imagem</option>
+                                <option value="DOCX">Word</option>
+                                <option value="LINK">Link</option>
+                                <option value="OTHER">Outro</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-2 text-end">
+                        <button type="button" class="btn btn-sm btn-outline-danger remove-new-attachment mt-4">
+                            <i class="fas fa-times"></i> Remover
+                        </button>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="mb-2">
+                            <label class="form-label">Descrição (opcional)</label>
+                            <textarea class="form-control" name="attachment_description_${attachmentCounter}" rows="2"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="mb-2">
+                            <label class="form-label">Anexo</label>
+                            <div class="attachment-input-group">
+                                <div class="mb-2">
+                                    <input type="radio" class="form-check-input attachment-choice" name="attachment_choice_${attachmentCounter}" value="file" id="file_${attachmentCounter}" checked>
+                                    <label class="form-check-label me-3" for="file_${attachmentCounter}">Upload de Arquivo</label>
+                                    <input type="radio" class="form-check-input attachment-choice" name="attachment_choice_${attachmentCounter}" value="link" id="link_${attachmentCounter}">
+                                    <label class="form-check-label" for="link_${attachmentCounter}">Link Externo</label>
+                                </div>
+                                <div class="file-input-group">
+                                    <input type="file" class="form-control" name="attachment_file_${attachmentCounter}" accept=".pdf,.doc,.docx,.mp3,.wav,.ogg,.m4a,.aac,.jpg,.jpeg,.png,.gif,.webp">
+                                    <small class="form-text text-muted">Formatos aceitos: PDF, Word, Áudio (MP3, WAV), Imagens (JPG, PNG)</small>
+                                </div>
+                                <div class="link-input-group" style="display: none;">
+                                    <input type="url" class="form-control" name="attachment_link_${attachmentCounter}" placeholder="https://exemplo.com/recurso">
+                                    <small class="form-text text-muted">Digite a URL completa do recurso externo</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            return attachmentDiv;
+        }
+
+        // Adicionar novo anexo
+        if (addAttachmentBtn) {
+            addAttachmentBtn.addEventListener('click', function() {
+                const newAttachment = createAttachmentField();
+                attachmentsContainer.appendChild(newAttachment);
+
+                // Adicionar eventos aos novos elementos
+                setupAttachmentEvents(newAttachment);
+            });
+        }
+
+        // Configurar eventos para um anexo
+        function setupAttachmentEvents(attachmentDiv) {
+            // Toggle entre arquivo e link
+            const radioButtons = attachmentDiv.querySelectorAll('.attachment-choice');
+            const fileGroup = attachmentDiv.querySelector('.file-input-group');
+            const linkGroup = attachmentDiv.querySelector('.link-input-group');
+
+            radioButtons.forEach(radio => {
+                radio.addEventListener('change', function() {
+                    if (this.value === 'file') {
+                        fileGroup.style.display = 'block';
+                        linkGroup.style.display = 'none';
+                        linkGroup.querySelector('input').value = '';
+                    } else {
+                        fileGroup.style.display = 'none';
+                        linkGroup.style.display = 'block';
+                        fileGroup.querySelector('input').value = '';
+                    }
+                });
+            });
+
+            // Remover novo anexo
+            const removeBtn = attachmentDiv.querySelector('.remove-new-attachment');
+            if (removeBtn) {
+                removeBtn.addEventListener('click', function() {
+                    attachmentDiv.remove();
+                });
+            }
+        }
+
+        // Remover anexo existente
+        document.querySelectorAll('.remove-attachment').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const attachmentId = this.dataset.id;
+                const attachmentItem = this.closest('.attachment-item');
+
+                // Se já está marcado para remoção, desfaz
+                if (this.classList.contains('marked-for-removal')) {
+                    // Remove da lista de remoção
+                    const index = attachmentsToRemove.indexOf(attachmentId);
+                    if (index > -1) {
+                        attachmentsToRemove.splice(index, 1);
+                    }
+
+                    // Restaura visual
+                    attachmentItem.style.opacity = '1';
+                    attachmentItem.style.textDecoration = 'none';
+                    attachmentItem.classList.remove('bg-danger-subtle');
+                    this.classList.remove('marked-for-removal', 'btn-success');
+                    this.classList.add('btn-outline-danger');
+                    this.innerHTML = '<i class="fas fa-trash"></i>';
+                    this.title = 'Remover anexo';
+
+                    // Remove campo hidden
+                    const hiddenInput = lessonForm.querySelector(`input[name="remove_attachments"][value="${attachmentId}"]`);
+                    if (hiddenInput) {
+                        hiddenInput.remove();
+                    }
+                } else {
+                    // Confirma remoção
+                    const attachmentTitle = attachmentItem.querySelector('h6').textContent.trim();
+                    if (confirm(`Tem certeza que deseja remover o anexo "${attachmentTitle}"?\n\nEsta ação será aplicada ao salvar as alterações.`)) {
+                        // Adicionar ID à lista de anexos a remover
+                        attachmentsToRemove.push(attachmentId);
+
+                        // Adicionar visual de remoção
+                        attachmentItem.style.opacity = '0.6';
+                        attachmentItem.style.textDecoration = 'line-through';
+                        attachmentItem.classList.add('bg-danger-subtle');
+                        this.classList.add('marked-for-removal', 'btn-success');
+                        this.classList.remove('btn-outline-danger');
+                        this.innerHTML = '<i class="fas fa-undo"></i>';
+                        this.title = 'Desfazer remoção';
+
+                        // Adicionar campo hidden para marcar remoção
+                        const input = document.createElement('input');
+                        input.type = 'hidden';
+                        input.name = 'remove_attachments';
+                        input.value = attachmentId;
+                        lessonForm.appendChild(input);
+                    }
+                }
+            });
+        });
+
+        // Modificar o submit do formulário para incluir dados de anexos
+        if (lessonForm) {
+            lessonForm.addEventListener('submit', function(e) {
+                // Adicionar contador total de anexos
+                const totalInput = document.createElement('input');
+                totalInput.type = 'hidden';
+                totalInput.name = 'total_new_attachments';
+                totalInput.value = attachmentCounter;
+                this.appendChild(totalInput);
+            });
+        }
+
         // Anti-piracy message setup
         const videoContainer = document.getElementById('video-preview');
         const youtubeContainer = document.getElementById('youtube-container');
