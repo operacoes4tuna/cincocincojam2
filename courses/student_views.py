@@ -524,14 +524,8 @@ class CourseEnrollView(LoginRequiredMixin, View):
             print(f"[DEBUG] Tentando redirecionar novamente para pagamento PIX")
             return redirect('payments:payment_options', course_id=course.id)
         else:
-            print(f"[DEBUG] Redirecionando para página de aprendizado do curso {self.course_id}")
-            return HttpResponseRedirect(self.get_success_url())
-    
-    def get_success_url(self):
-        # Importante: usar o ID do curso que acabou de ser processado
-        url = reverse('courses:student:course_learn', kwargs={'pk': self.course_id})
-        print(f"[DEBUG] URL de redirecionamento: {url}")
-        return url
+            print(f"[DEBUG] Redirecionando para página de aprendizado do curso {course.id}")
+            return redirect('courses:student:course_learn', pk=course.id)
 
 
 class CourseLearnView(LoginRequiredMixin, DetailView):
