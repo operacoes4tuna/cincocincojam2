@@ -256,42 +256,45 @@
                 </div>
 
                 <!-- Aulas sem módulo (se houver) -->
-                {% if lessons %}
+                {% with has_orphan_lessons=False %}
                     {% for lesson in lessons %}
                         {% if not lesson.module %}
-                            {% if forloop.first %}
-                            <div class="alert alert-warning mt-4">
-                                <h6><i class="fas fa-exclamation-triangle"></i> Aulas sem módulo</h6>
-                                <p class="small mb-2">As seguintes aulas não estão associadas a nenhum módulo:</p>
-                                <div class="list-group">
-                            {% endif %}
-                                    <div class="list-group-item">
-                                        <div class="row align-items-center">
-                                            <div class="col-md-7">
-                                                <h6 class="mb-1">{{ lesson.title }}</h6>
-                                                {% if lesson.status == 'PUBLISHED' %}
-                                                <span class="badge bg-success">Publicada</span>
-                                                {% else %}
-                                                <span class="badge bg-secondary">Rascunho</span>
-                                                {% endif %}
-                                            </div>
-                                            <div class="col-md-5 text-end">
-                                                <a href="{% url 'courses:lesson_update' lesson.id %}" class="btn btn-sm btn-warning">
-                                                    <i class="fas fa-edit"></i> Editar
-                                                </a>
-                                                <a href="{% url 'courses:lesson_delete' lesson.id %}" class="btn btn-sm btn-danger">
-                                                    <i class="fas fa-trash"></i>
-                                                </a>
-                                            </div>
-                                        </div>
+                            {% if not has_orphan_lessons %}
+                                <div class="alert alert-warning mt-4">
+                                    <h6><i class="fas fa-exclamation-triangle"></i> Aulas sem módulo</h6>
+                                    <p class="small mb-2">As seguintes aulas não estão associadas a nenhum módulo:</p>
+                                    <div class="list-group">
+                                        {% for orphan_lesson in lessons %}
+                                            {% if not orphan_lesson.module %}
+                                                <div class="list-group-item">
+                                                    <div class="row align-items-center">
+                                                        <div class="col-md-7">
+                                                            <h6 class="mb-1">{{ orphan_lesson.title }}</h6>
+                                                            {% if orphan_lesson.status == 'PUBLISHED' %}
+                                                            <span class="badge bg-success">Publicada</span>
+                                                            {% else %}
+                                                            <span class="badge bg-secondary">Rascunho</span>
+                                                            {% endif %}
+                                                        </div>
+                                                        <div class="col-md-5 text-end">
+                                                            <a href="{% url 'courses:lesson_update' orphan_lesson.id %}" class="btn btn-sm btn-warning">
+                                                                <i class="fas fa-edit"></i> Editar
+                                                            </a>
+                                                            <a href="{% url 'courses:lesson_delete' orphan_lesson.id %}" class="btn btn-sm btn-danger">
+                                                                <i class="fas fa-trash"></i>
+                                                            </a>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            {% endif %}
+                                        {% endfor %}
                                     </div>
-                            {% if forloop.last %}
                                 </div>
-                            </div>
+                                {% with has_orphan_lessons=True %}{% endwith %}
                             {% endif %}
                         {% endif %}
                     {% endfor %}
-                {% endif %}
+                {% endwith %}
 
                 {% else %}
                 <div class="alert alert-info text-center">

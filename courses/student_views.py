@@ -3,7 +3,7 @@ from django.urls import reverse_lazy, reverse
 from django.views.generic import ListView, DetailView, FormView, View
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib import messages
-from django.db.models import Q, Count, Case, When, IntegerField
+from django.db.models import Q, Count, Case, When, IntegerField, Prefetch
 from django.http import HttpResponseRedirect, JsonResponse
 from django.utils import timezone
 
@@ -541,8 +541,13 @@ class CourseLearnView(LoginRequiredMixin, DetailView):
         return Course.objects.filter(status=Course.Status.PUBLISHED)
         
     def dispatch(self, request, *args, **kwargs):
+        # Verificar autenticação primeiro
+        if not request.user.is_authenticated:
+            from django.contrib.auth.views import redirect_to_login
+            return redirect_to_login(request.get_full_path())
+
         course = get_object_or_404(Course, pk=kwargs['pk'], status=Course.Status.PUBLISHED)
-        
+
         # Adicionar logs para depuração
         user_email = request.user.email
         user_type = request.user.user_type
@@ -669,7 +674,9 @@ class CourseLearnView(LoginRequiredMixin, DetailView):
         context['is_course_author'] = is_course_author
 
         # Obtém módulos do curso
-        modules = Module.objects.filter(course=course, is_active=True).order_by('order').prefetch_related('lessons')
+        modules = Module.objects.filter(course=course, is_active=True).order_by('order').prefetch_related(
+            Prefetch('lessons', queryset=Lesson.objects.filter(status=Lesson.Status.PUBLISHED).order_by('order'))
+        )
         context['modules'] = modules
         context['sequential_modules'] = course.sequential_modules
 

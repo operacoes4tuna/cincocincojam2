@@ -62,19 +62,51 @@ class ModuleForm(forms.ModelForm):
         self.course = kwargs.pop('course', None)
         super().__init__(*args, **kwargs)
 
+        # Se estamos criando um novo módulo, sugere a próxima ordem disponível
+        if not self.instance.pk and self.course:
+            last_order = Module.objects.filter(course=self.course).aggregate(Max('order'))['order__max'] or 0
+            self.fields['order'].initial = last_order + 1
+
+    def clean_order(self):
+        """Valida se a ordem escolhida não está duplicada."""
+        order = self.cleaned_data.get('order')
+        if order and self.course:
+            # Verifica se já existe um módulo com esta ordem no mesmo curso
+            queryset = Module.objects.filter(course=self.course, order=order)
+            # Se estamos editando, exclui o próprio módulo da verificação
+            if self.instance.pk:
+                queryset = queryset.exclude(pk=self.instance.pk)
+
+            if queryset.exists():
+                raise forms.ValidationError(
+                    f'Já existe um módulo com a ordem {order} neste curso. '
+                    f'Por favor, escolha outra ordem.'
+                )
+        return order
+
     def save(self, commit=True):
         instance = super().save(commit=False)
-        if self.course and not instance.pk:
-            instance.course = self.course
+        if self.course:
+            # Define o curso se ainda não estiver definido
+            if not instance.course_id:
+                instance.course = self.course
 
-            # Se a ordem não foi especificada, define como o último módulo + 1
-            if not instance.order:
+            # Se a ordem não foi especificada ou é duplicada, define como o último módulo + 1
+            if not instance.order or self._is_order_duplicate(instance):
                 last_order = Module.objects.filter(course=self.course).aggregate(Max('order'))['order__max'] or 0
                 instance.order = last_order + 1
 
         if commit:
             instance.save()
         return instance
+
+    def _is_order_duplicate(self, instance):
+        """Verifica se a ordem escolhida já existe para outro módulo do mesmo curso."""
+        queryset = Module.objects.filter(course=self.course, order=instance.order)
+        # Se estamos editando, exclui o próprio módulo da verificação
+        if instance.pk:
+            queryset = queryset.exclude(pk=instance.pk)
+        return queryset.exists()
 
 
 class LessonForm(forms.ModelForm):

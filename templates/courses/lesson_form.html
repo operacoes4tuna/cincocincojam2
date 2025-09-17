@@ -66,8 +66,8 @@
                         <div class="col-md-12">
                             <div class="mb-3">
                                 {{ form.video_url|as_crispy_field }}
-                                <small class="form-text text-muted">Cole a URL do vídeo do YouTube ou do 55JAM (ex: 
-                                    https://www.youtube.com/watch?v=VIDEO_ID ou https://play.giancorrea.55jam.com.br/embed/XX/HASH)</small>
+                                <small class="form-text text-muted">Cole a URL do vídeo do YouTube ou do 55JAM (ex:
+                                    https://www.youtube.com/watch?v=VIDEO_ID ou https://play.55jam.com.br/embed/XX/HASH)</small>
                                 {% if form.instance.video_url %}
                                 <div class="mt-2">
                                     <small class="text-muted">URL atual: <a href="{{ form.instance.video_url }}"
@@ -199,12 +199,12 @@
 
 {% block extra_js %}
 <style>
-    /* Prevent video download/right-click */
+    /* Allow interaction with preview iframes */
     #youtube-preview {
-        pointer-events: none; /* Disables all interactions */
+        pointer-events: auto; /* Enable interactions for preview */
     }
-    
-    /* Re-enable necessary interactions */
+
+    /* Container for video preview */
     #youtube-container {
         pointer-events: auto; /* Allow container interactions */
     }
@@ -305,7 +305,7 @@
 
         // Verifica se é um vídeo do 55JAM
         function is55JamUrl(url) {
-            return url && url.includes('play.giancorrea.55jam.com.br/embed');
+            return url && (url.includes('play.55jam.com.br/embed') || url.includes('play.giancorrea.55jam.com.br/embed'));
         }
 
         // Configurar a pré-visualização do vídeo se houver URL inicial
@@ -315,6 +315,10 @@
                 const youtubeId = extractYouTubeId(url);
                 const is55Jam = is55JamUrl(url);
 
+                console.log('URL:', url);
+                console.log('Is 55Jam?:', is55Jam);
+                console.log('YouTube ID:', youtubeId);
+
                 if (youtubeId) {
                     youtubePreview.src = `https://www.youtube.com/embed/${youtubeId}`;
                     if (videoPlaceholder) {
@@ -323,6 +327,15 @@
                     youtubePreview.parentElement.style.display = 'block';
                 } else if (is55Jam) {
                     // Para vídeos do 55JAM, usar a URL diretamente
+                    console.log('Setting 55Jam URL:', url);
+                    youtubePreview.src = url;
+                    if (videoPlaceholder) {
+                        videoPlaceholder.style.display = 'none';
+                    }
+                    youtubePreview.parentElement.style.display = 'block';
+                } else if (url) {
+                    // Se tem URL mas não é YouTube nem 55Jam reconhecido, tentar usar diretamente
+                    console.log('Trying direct URL:', url);
                     youtubePreview.src = url;
                     if (videoPlaceholder) {
                         videoPlaceholder.style.display = 'none';

@@ -6,15 +6,35 @@
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/custom.css' %}">
 <style>
-    /* Prevent video download/right-click */
-    iframe[src*="youtube.com"],
-    iframe[src*="play.giancorrea.55jam.com.br"] {
-        pointer-events: none !important; /* Disables all interactions including download */
-    }
-    
     /* Container needs click events for player controls */
     .video-container, .ratio {
         pointer-events: auto !important;
+    }
+
+    /* Allow interaction with 55jam player */
+    iframe[src*="play.55jam.com.br"],
+    iframe[src*="play.giancorrea.55jam.com.br"] {
+        pointer-events: auto !important;
+    }
+
+    /* Ensure ratio container works properly */
+    .ratio {
+        position: relative !important;
+        width: 100% !important;
+        overflow: hidden !important;
+    }
+
+    .ratio iframe {
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+    }
+
+    /* Prevent download for YouTube only */
+    iframe[src*="youtube.com"] {
+        pointer-events: auto !important; /* Allow YouTube controls */
     }
     
     /* Esconder elementos específicos de download do player de vídeo */
@@ -124,47 +144,192 @@
                 <span class="badge bg-light text-dark">{{ enrollment.progress }}% Concluído</span>
             </div>
             <div class="card-body p-0">
-                <div class="list-group list-group-flush">
-                    {% for lesson in lessons %}
-                        {% if not has_lesson_releases or lesson.id in released_lessons or lesson.id in completed_lessons or is_professor or is_admin %}
-                            <a href="{% url 'courses:student:course_learn' course.id %}?lesson_id={{ lesson.id }}" 
-                               class="list-group-item list-group-item-action {% if lesson.id == current_lesson.id %}active{% endif %}">
-                                <div class="d-flex w-100 justify-content-between align-items-center">
-                                    <div>
-                                        <div class="d-flex align-items-center">
-                                            <span class="badge 
-                                            {% if lesson.id in completed_lessons %}
-                                                bg-success
-                                            {% elif lesson.id == current_lesson.id %}
-                                                bg-primary
-                                            {% else %}
-                                                bg-secondary
-                                            {% endif %} rounded-circle me-2">
-                                                {{ lesson.order }}
-                                            </span>
-                                            <h6 class="mb-0">{{ lesson.title }}</h6>
+                <div class="accordion accordion-flush" id="modulesAccordion">
+                    {% if modules %}
+                        <!-- Exibir aulas organizadas por módulos com accordion -->
+                        {% for module in modules %}
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="heading{{ module.id }}">
+                                    <button class="accordion-button {% if forloop.first %}{% else %}collapsed{% endif %}"
+                                            type="button"
+                                            data-bs-toggle="collapse"
+                                            data-bs-target="#collapse{{ module.id }}"
+                                            aria-expanded="{% if forloop.first %}true{% else %}false{% endif %}"
+                                            aria-controls="collapse{{ module.id }}">
+                                        <i class="fas fa-folder me-2"></i>
+                                        <strong>Módulo {{ module.order }}: {{ module.title }}</strong>
+                                        <span class="ms-auto me-2 badge bg-secondary">{{ module.lessons.all|length }} aulas</span>
+                                    </button>
+                                </h2>
+                                <div id="collapse{{ module.id }}"
+                                     class="accordion-collapse collapse {% if forloop.first %}show{% endif %}"
+                                     aria-labelledby="heading{{ module.id }}"
+                                     data-bs-parent="#modulesAccordion">
+                                    <div class="accordion-body p-0">
+                                        <div class="list-group list-group-flush">
+                                            {% for lesson in module.lessons.all %}
+                                                {% if not has_lesson_releases or lesson.id in released_lessons or lesson.id in completed_lessons or is_professor or is_admin %}
+                                                    <a href="{% url 'courses:student:course_learn' course.id %}?lesson_id={{ lesson.id }}"
+                                                       class="list-group-item list-group-item-action ps-4 {% if lesson.id == current_lesson.id %}active{% endif %}">
+                                                        <div class="d-flex w-100 justify-content-between align-items-center">
+                                                            <div>
+                                                                <div class="d-flex align-items-center">
+                                                                    <span class="badge
+                                                                    {% if lesson.id in completed_lessons %}
+                                                                        bg-success
+                                                                    {% elif lesson.id == current_lesson.id %}
+                                                                        bg-primary
+                                                                    {% else %}
+                                                                        bg-secondary
+                                                                    {% endif %} rounded-circle me-2">
+                                                                        {{ lesson.order }}
+                                                                    </span>
+                                                                    <h6 class="mb-0">{{ lesson.title }}</h6>
+                                                                </div>
+                                                            </div>
+                                                            {% if lesson.id in completed_lessons %}
+                                                                <i class="fas fa-check-circle text-success"></i>
+                                                            {% endif %}
+                                                        </div>
+                                                    </a>
+                                                {% else %}
+                                                    <!-- Aulas não liberadas aparecem bloqueadas -->
+                                                    <div class="list-group-item list-group-item-action ps-4 disabled">
+                                                        <div class="d-flex w-100 justify-content-between align-items-center">
+                                                            <div>
+                                                                <div class="d-flex align-items-center">
+                                                                    <span class="badge bg-secondary rounded-circle me-2">{{ lesson.order }}</span>
+                                                                    <h6 class="mb-0 text-muted">{{ lesson.title }}</h6>
+                                                                </div>
+                                                            </div>
+                                                            <i class="fas fa-lock text-muted"></i>
+                                                        </div>
+                                                    </div>
+                                                {% endif %}
+                                            {% endfor %}
                                         </div>
                                     </div>
-                                    {% if lesson.id in completed_lessons %}
-                                        <i class="fas fa-check-circle text-success"></i>
-                                    {% endif %}
-                                </div>
-                            </a>
-                        {% else %}
-                            <!-- Aulas não liberadas aparecem bloqueadas -->
-                            <div class="list-group-item list-group-item-action disabled">
-                                <div class="d-flex w-100 justify-content-between align-items-center">
-                                    <div>
-                                        <div class="d-flex align-items-center">
-                                            <span class="badge bg-secondary rounded-circle me-2">{{ lesson.order }}</span>
-                                            <h6 class="mb-0 text-muted">{{ lesson.title }}</h6>
-                                        </div>
-                                    </div>
-                                    <i class="fas fa-lock text-muted"></i>
                                 </div>
                             </div>
-                        {% endif %}
-                    {% endfor %}
+                        {% endfor %}
+
+                        <!-- Verificar se há aulas sem módulo e criar seção para elas -->
+                        {% with has_avulsas=False %}
+                            {% for lesson in lessons %}
+                                {% if not lesson.module %}
+                                    {% if not has_avulsas %}
+                                        <div class="accordion-item">
+                                            <h2 class="accordion-header" id="headingAvulsas">
+                                                <button class="accordion-button collapsed"
+                                                        type="button"
+                                                        data-bs-toggle="collapse"
+                                                        data-bs-target="#collapseAvulsas"
+                                                        aria-expanded="false"
+                                                        aria-controls="collapseAvulsas">
+                                                    <i class="fas fa-file-alt me-2"></i>
+                                                    <strong>Aulas Avulsas</strong>
+                                                </button>
+                                            </h2>
+                                            <div id="collapseAvulsas"
+                                                 class="accordion-collapse collapse"
+                                                 aria-labelledby="headingAvulsas"
+                                                 data-bs-parent="#modulesAccordion">
+                                                <div class="accordion-body p-0">
+                                                    <div class="list-group list-group-flush">
+                                                        {% for innerlesson in lessons %}
+                                                            {% if not innerlesson.module %}
+                                                                {% if not has_lesson_releases or innerlesson.id in released_lessons or innerlesson.id in completed_lessons or is_professor or is_admin %}
+                                                                    <a href="{% url 'courses:student:course_learn' course.id %}?lesson_id={{ innerlesson.id }}"
+                                                                       class="list-group-item list-group-item-action ps-4 {% if innerlesson.id == current_lesson.id %}active{% endif %}">
+                                                                        <div class="d-flex w-100 justify-content-between align-items-center">
+                                                                            <div>
+                                                                                <div class="d-flex align-items-center">
+                                                                                    <span class="badge
+                                                                                    {% if innerlesson.id in completed_lessons %}
+                                                                                        bg-success
+                                                                                    {% elif innerlesson.id == current_lesson.id %}
+                                                                                        bg-primary
+                                                                                    {% else %}
+                                                                                        bg-secondary
+                                                                                    {% endif %} rounded-circle me-2">
+                                                                                        {{ innerlesson.order }}
+                                                                                    </span>
+                                                                                    <h6 class="mb-0">{{ innerlesson.title }}</h6>
+                                                                                </div>
+                                                                            </div>
+                                                                            {% if innerlesson.id in completed_lessons %}
+                                                                                <i class="fas fa-check-circle text-success"></i>
+                                                                            {% endif %}
+                                                                        </div>
+                                                                    </a>
+                                                                {% else %}
+                                                                    <!-- Aulas não liberadas aparecem bloqueadas -->
+                                                                    <div class="list-group-item list-group-item-action ps-4 disabled">
+                                                                        <div class="d-flex w-100 justify-content-between align-items-center">
+                                                                            <div>
+                                                                                <div class="d-flex align-items-center">
+                                                                                    <span class="badge bg-secondary rounded-circle me-2">{{ innerlesson.order }}</span>
+                                                                                    <h6 class="mb-0 text-muted">{{ innerlesson.title }}</h6>
+                                                                                </div>
+                                                                            </div>
+                                                                            <i class="fas fa-lock text-muted"></i>
+                                                                        </div>
+                                                                    </div>
+                                                                {% endif %}
+                                                            {% endif %}
+                                                        {% endfor %}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {% with has_avulsas=True %}{% endwith %}
+                                    {% endif %}
+                                {% endif %}
+                            {% endfor %}
+                        {% endwith %}
+                    {% else %}
+                        <!-- Exibir aulas sem organização por módulos (fallback) -->
+                        {% for lesson in lessons %}
+                            {% if not has_lesson_releases or lesson.id in released_lessons or lesson.id in completed_lessons or is_professor or is_admin %}
+                                <a href="{% url 'courses:student:course_learn' course.id %}?lesson_id={{ lesson.id }}"
+                                   class="list-group-item list-group-item-action {% if lesson.id == current_lesson.id %}active{% endif %}">
+                                    <div class="d-flex w-100 justify-content-between align-items-center">
+                                        <div>
+                                            <div class="d-flex align-items-center">
+                                                <span class="badge
+                                                {% if lesson.id in completed_lessons %}
+                                                    bg-success
+                                                {% elif lesson.id == current_lesson.id %}
+                                                    bg-primary
+                                                {% else %}
+                                                    bg-secondary
+                                                {% endif %} rounded-circle me-2">
+                                                    {{ lesson.order }}
+                                                </span>
+                                                <h6 class="mb-0">{{ lesson.title }}</h6>
+                                            </div>
+                                        </div>
+                                        {% if lesson.id in completed_lessons %}
+                                            <i class="fas fa-check-circle text-success"></i>
+                                        {% endif %}
+                                    </div>
+                                </a>
+                            {% else %}
+                                <!-- Aulas não liberadas aparecem bloqueadas -->
+                                <div class="list-group-item list-group-item-action disabled">
+                                    <div class="d-flex w-100 justify-content-between align-items-center">
+                                        <div>
+                                            <div class="d-flex align-items-center">
+                                                <span class="badge bg-secondary rounded-circle me-2">{{ lesson.order }}</span>
+                                                <h6 class="mb-0 text-muted">{{ lesson.title }}</h6>
+                                            </div>
+                                        </div>
+                                        <i class="fas fa-lock text-muted"></i>
+                                    </div>
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+                    {% endif %}
                 </div>
             </div>
             <div class="card-footer">
@@ -253,6 +418,16 @@
                                         Seu navegador não suporta a tag de vídeo.
                                     </video>
                                 </div>
+                            {% elif is_lesson_released and "play.55jam.com.br" in current_lesson.video_url %}
+                                <!-- Player para vídeos do 55Jam (usando iframe) -->
+                                <div class="ratio ratio-16x9">
+                                    <iframe id="custom-video-{{ current_lesson.id }}"
+                                            src="{{ current_lesson.video_url }}"
+                                            title="{{ current_lesson.title }}"
+                                            frameborder="0"
+                                            allow="autoplay; fullscreen; clipboard-write; encrypted-media"
+                                            allowfullscreen></iframe>
+                                </div>
                             {% elif is_lesson_released and "play.giancorrea.55jam.com.br" in current_lesson.video_url or "55jam.com.br" in current_lesson.video_url %}
                                 <div class="video-wrapper mb-2">
                                     <video id="custom-video-{{ current_lesson.id }}"
@@ -260,7 +435,7 @@
                                         playsinline
                                         autoplay
                                         class="video-js"
-                                        controlsList="nodownload noremoteplayback" 
+                                        controlsList="nodownload noremoteplayback"
                                         disablePictureInPicture
                                         oncontextmenu="return false;"
                                         style="background-color: #000;">
@@ -447,6 +622,37 @@
 <script src="{% static 'js/video-player.js' %}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // Auto-expandir o módulo que contém a aula atual
+        {% if current_lesson %}
+            var activeLesson = document.querySelector('.list-group-item.active');
+            if (activeLesson) {
+                var accordion = activeLesson.closest('.accordion-collapse');
+                if (accordion && !accordion.classList.contains('show')) {
+                    // Remove 'show' de todos os outros módulos
+                    document.querySelectorAll('.accordion-collapse').forEach(function(item) {
+                        item.classList.remove('show');
+                    });
+                    // Adiciona 'show' ao módulo da aula atual
+                    accordion.classList.add('show');
+
+                    // Atualiza o botão do accordion
+                    var button = document.querySelector('[data-bs-target="#' + accordion.id + '"]');
+                    if (button) {
+                        button.classList.remove('collapsed');
+                        button.setAttribute('aria-expanded', 'true');
+
+                        // Colapsa todos os outros botões
+                        document.querySelectorAll('.accordion-button').forEach(function(btn) {
+                            if (btn !== button) {
+                                btn.classList.add('collapsed');
+                                btn.setAttribute('aria-expanded', 'false');
+                            }
+                        });
+                    }
+                }
+            }
+        {% endif %}
+
         // Adicionar mensagem anti-pirataria
         const videoContainer = document.querySelector('.video-container');
         
@@ -529,8 +735,19 @@
                     debug: true,
                     isHtml5Video: true
                 });
+            {% elif "play.55jam.com.br" in current_lesson.video_url %}
+                // Inicializar para vídeos do 55Jam via iframe
+                const videoTracker = new VideoProgressTracker({
+                    videoElementId: 'custom-video-{{ current_lesson.id }}',
+                    progressBarId: 'video-progress-bar-{{ current_lesson.id }}',
+                    lessonId: {{ current_lesson.id }},
+                    csrfToken: '{{ csrf_token }}',
+                    autoMarkComplete: true,
+                    completionThreshold: 90,
+                    debug: true
+                });
             {% elif "s3.amazonaws.com" in current_lesson.video_url or "play.giancorrea.55jam.com.br" in current_lesson.video_url or "55jam.com.br" in current_lesson.video_url %}
-                // Inicializar para vídeos HTML5 diretos (incluindo 55Jam)
+                // Inicializar para vídeos HTML5 diretos
                 const videoTracker = new VideoProgressTracker({
                     videoElementId: 'custom-video-{{ current_lesson.id }}',
                     progressBarId: 'video-progress-bar-{{ current_lesson.id }}',
