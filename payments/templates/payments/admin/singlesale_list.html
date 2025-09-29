@@ -58,7 +58,7 @@
             <div class="card h-100">
                 <div class="card-body">
                     <h5 class="card-title text-primary">{% translate "Total de Vendas Avulsas" %}</h5>
-                    <div class="display-6">R$ {{ total_amount|floatformat:2|intcomma }}</div>
+                    <div class="display-6">R$ {{ total_amount|floatformat:2 }}</div>
                     <div class="text-muted mt-2">
                         <div>{% translate "Qtd. Vendas" %}: {{ sales|length }}</div>
                     </div>
