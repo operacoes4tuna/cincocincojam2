@@ -60,7 +60,18 @@
                     <div class="row mb-3">
                         <div class="col-md-6">
                             <h6 class="text-muted mb-1">{% translate "Descrição" %}</h6>
-                            <p class="mb-3">{{ sale.description }}</p>
+                            <p class="mb-3">
+                                {{ sale.description }}
+                                {% if sale.is_recurring and sale.parent_sale %}
+                                    <span class="badge bg-info ms-2">
+                                        {{ sale.recurrence_number|add:1 }}/{{ sale.parent_sale.recurrence_count }}
+                                    </span>
+                                {% elif sale.has_recurrence %}
+                                    <span class="badge bg-info ms-2">
+                                        1/{{ sale.recurrence_count }}
+                                    </span>
+                                {% endif %}
+                            </p>
 
                             <h6 class="text-muted mb-1">{% translate "Valor" %}</h6>
                             <p class="mb-3">R$ {{ sale.amount|floatformat:2 }}</p>
@@ -103,6 +114,70 @@
                             <p class="mb-3">{{ sale.payment_method|upper }}</p>
                         </div>
                     </div>
+
+                    <!-- Parcelas recorrentes se existirem -->
+                    {% if sale.recurring_sales.exists %}
+                    <hr>
+                    <h6 class="mb-3">{% translate "Parcelas" %}</h6>
+                    <div class="table-responsive mb-3">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>{% translate "Parcela" %}</th>
+                                    <th>{% translate "Vencimento" %}</th>
+                                    <th>{% translate "Valor" %}</th>
+                                    <th>{% translate "Status" %}</th>
+                                    <th>{% translate "Ações" %}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for recurring_sale in sale.recurring_sales.all %}
+                                <tr>
+                                    <td>
+                                        <span class="badge bg-info">
+                                            {{ recurring_sale.recurrence_number|add:1 }}/{{ sale.recurrence_count }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if recurring_sale.due_date %}
+                                            {{ recurring_sale.due_date|date:"d/m/Y" }}
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                    <td>R$ {{ recurring_sale.amount|floatformat:2 }}</td>
+                                    <td>
+                                        {% if recurring_sale.status == 'PAID' %}
+                                            <span class="badge bg-success">{{ recurring_sale.get_status_display }}</span>
+                                        {% elif recurring_sale.status == 'PENDING' %}
+                                            <span class="badge bg-warning text-dark">{{ recurring_sale.get_status_display }}</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">{{ recurring_sale.get_status_display }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <a href="{% url 'payments:singlesale_detail' pk=recurring_sale.id %}" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% endif %}
+
+                    <!-- Link para venda original se for parcela -->
+                    {% if sale.is_recurring and sale.parent_sale %}
+                    <hr>
+                    <div class="alert alert-info">
+                        <i class="fas fa-link me-2"></i>
+                        Esta é a parcela <strong>{{ sale.recurrence_number|add:1 }}/{{ sale.parent_sale.recurrence_count }}</strong> de
+                        <a href="{% url 'payments:singlesale_detail' pk=sale.parent_sale.id %}" class="alert-link">
+                            Venda #{{ sale.parent_sale.id }}
+                        </a>
+                    </div>
+                    {% endif %}
 
                     <!-- Notas Fiscais vinculadas -->
                     {% if sale.invoices.exists %}

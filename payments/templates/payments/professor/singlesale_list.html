@@ -239,7 +239,16 @@
                                 {% if sale.is_recurring %}
                                 <small class="badge bg-info ms-2">
                                     <i class="fas fa-calendar-alt me-1"></i>
-                                    {{ sale.recurrence_number|add:1 }}ª parcela
+                                    {% if sale.parent_sale %}
+                                        {{ sale.recurrence_number|add:1 }}/{{ sale.parent_sale.recurrence_count }}
+                                    {% else %}
+                                        {{ sale.recurrence_number|add:1 }}ª parcela
+                                    {% endif %}
+                                </small>
+                                {% elif sale.has_recurrence %}
+                                <small class="badge bg-info ms-2">
+                                    <i class="fas fa-calendar-alt me-1"></i>
+                                    1/{{ sale.recurrence_count }}
                                 </small>
                                 {% endif %}
                                 {% if sale.due_date %}
