@@ -414,7 +414,7 @@ def invoice_detail(request, invoice_id):
         if not (is_admin or is_professor):
             logger.warning(f"Usuário {request.user.id} tentou acessar detalhes da nota fiscal {invoice_id} sem permissão")
             messages.error(request, _('Você não tem permissão para acessar esta página.'))
-            return redirect('dashboard')
+            return redirect('payments:singlesale_list')
         
         # Filtrar pela nota fiscal
         if is_admin:
@@ -565,7 +565,7 @@ def view_pdf(request, invoice_id):
             professor = invoice.singlesale.seller
         else:
             messages.error(request, _('Nota fiscal inválida.'))
-            return redirect('dashboard')
+            return redirect('payments:singlesale_list')
         
         # Verificar se o campo external_id está preenchido
         if not invoice.external_id:
@@ -581,7 +581,7 @@ def view_pdf(request, invoice_id):
     except Exception as e:
         logger.error(f"Erro ao obter PDF da nota fiscal {invoice_id}: {str(e)}")
         messages.error(request, _('Erro ao obter o PDF da nota fiscal.'))
-        return redirect('dashboard')
+        return redirect('payments:singlesale_list')
 
 @login_required
 def download_pdf(request, invoice_id):
@@ -617,7 +617,7 @@ def download_pdf(request, invoice_id):
             professor = invoice.singlesale.seller
         else:
             messages.error(request, _('Nota fiscal inválida.'))
-            return redirect('dashboard')
+            return redirect('payments:singlesale_list')
         
         # Obter configuração da empresa baseada no tipo de invoice
         if invoice.transaction:
@@ -641,7 +641,7 @@ def download_pdf(request, invoice_id):
         if response.status_code != 200:
             logger.error(f"Erro ao obter PDF da API: {response.status_code} {response.text}")
             messages.error(request, _('Erro ao obter o PDF da nota fiscal. Código de erro: {}').format(response.status_code))
-            return redirect('dashboard')
+            return redirect('payments:singlesale_list')
         
         # Retornar o conteúdo do PDF com os cabeçalhos adequados
         from django.http import HttpResponse
@@ -652,7 +652,7 @@ def download_pdf(request, invoice_id):
     except Exception as e:
         logger.error(f"Erro ao fazer download do PDF: {str(e)}")
         messages.error(request, _('Erro ao obter o PDF da nota fiscal.'))
-        return redirect('dashboard')
+        return redirect('payments:singlesale_list')
 
 @login_required
 @professor_required
@@ -996,7 +996,7 @@ def send_invoice_email(request, invoice_id):
         
         if not (is_admin or is_professor):
             messages.error(request, _('Acesso negado.'))
-            return redirect('dashboard')
+            return redirect('payments:singlesale_list')
         
         # Buscar a nota fiscal
         if is_admin:
@@ -1077,7 +1077,7 @@ def send_invoice_email(request, invoice_id):
         logger.error(f"Erro ao exibir página de envio de email para nota fiscal {invoice_id}: {str(e)}")
         messages.error(request, _('Erro ao carregar página de envio de email.'))
         # Tentar ir para dashboard em vez de transações
-        return redirect('dashboard')
+        return redirect('payments:singlesale_list')
 
 @login_required
 def send_invoice_email_ajax(request, invoice_id):
@@ -1159,7 +1159,7 @@ def test_pdf_attachment_view(request, invoice_id):
     """
     if not settings.DEBUG:
         messages.error(request, _('Esta funcionalidade só está disponível em ambiente de desenvolvimento.'))
-        return redirect('dashboard')
+        return redirect('payments:singlesale_list')
     
     try:
         # Verificar se o usuário tem permissão
@@ -1168,7 +1168,7 @@ def test_pdf_attachment_view(request, invoice_id):
         
         if not (is_admin or is_professor):
             messages.error(request, _('Acesso negado.'))
-            return redirect('dashboard')
+            return redirect('payments:singlesale_list')
         
         # Buscar a nota fiscal
         if is_admin:
@@ -1219,4 +1219,4 @@ def test_pdf_attachment_view(request, invoice_id):
     except Exception as e:
         logger.error(f"Erro ao testar anexo PDF da nota fiscal {invoice_id}: {str(e)}")
         messages.error(request, f'Erro ao testar anexo: {str(e)}')
-        return redirect('dashboard')
+        return redirect('payments:singlesale_list')
