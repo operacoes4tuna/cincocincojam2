@@ -24,6 +24,17 @@ class StudentRequiredMixin(UserPassesTestMixin):
         return result
 
 
+class StudentOrProfessorRequiredMixin(UserPassesTestMixin):
+    """
+    Mixin para permitir acesso a alunos e professores.
+    """
+    def test_func(self):
+        result = self.request.user.is_authenticated and (self.request.user.is_student or self.request.user.is_professor)
+        # Log para depuração
+        print(f"StudentOrProfessorRequiredMixin test_func: usuário {self.request.user.email}, is_student={self.request.user.is_student}, is_professor={self.request.user.is_professor}, resultado={result}")
+        return result
+
+
 class EnrollmentRequiredMixin(UserPassesTestMixin):
     """
     Mixin para verificar se o aluno está matriculado no curso e se tem acesso à aula
@@ -206,9 +217,9 @@ class StudentDashboardView(LoginRequiredMixin, StudentRequiredMixin, ListView):
         return context
 
 
-class CourseListView(LoginRequiredMixin, StudentRequiredMixin, ListView):
+class CourseListView(LoginRequiredMixin, StudentOrProfessorRequiredMixin, ListView):
     """
-    Exibe o catálogo de cursos disponíveis para o aluno.
+    Exibe o catálogo de cursos disponíveis para alunos e professores.
     """
     model = Course
     template_name = 'courses/student/course_list.html'
